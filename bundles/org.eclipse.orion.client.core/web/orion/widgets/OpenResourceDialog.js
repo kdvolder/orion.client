@@ -1,4 +1,4 @@
-/*******************************************************************************
+v/*******************************************************************************
  * @license
  * Copyright (c) 2010, 2011 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials are made 
@@ -8,6 +8,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Andy Clement (vmware) - bug 344614
  *******************************************************************************/
 /*jslint browser:true*/
 /*global define orion window dojo dijit*/
@@ -236,6 +237,11 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 					widget.hide();
 				}
 			});
+			dojo.connect(link,"onkeyup",widget,function(evt) {
+				if (evt.keyCode === dojo.keys.ENTER) {
+					widget.hide();
+				}
+			});
 		});
 	},
 	
@@ -256,4 +262,3 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 });
 return OpenResourceDialog;
 });
-
