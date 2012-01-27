@@ -3628,7 +3628,18 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			* event is trigged.
 			*/
 			this._loadHandler = function(e) {
-				self._handleLoad(e);
+				/*
+				* Bug in Firefox. Firefox does not send any load events for the elements inside the iframe
+				* when document.write() is called during the load event for the iframe. The fix is to async
+				* the work.
+				*/
+				if (self._sync) {
+					self._handleLoad(e);
+				} else {
+					setTimeout(function() {
+						self._handleLoad(e);
+					}, 0);
+				}
 			};
 			addHandler(frame, "load", this._loadHandler, !!isFirefox);
 			if (!isWebkit) {
@@ -3715,33 +3726,20 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			var frameWindow = this._frameWindow = this._frame.contentWindow;
 			var frameDocument = this._frameDocument = frameWindow.document;
 			var self = this;
-			function write() {
-				frameDocument.open("text/html", "replace");
-				frameDocument.write(self._getFrameHTML());
-				frameDocument.close();
-				self._windowLoadHandler = function(e) {
-					/*
-					* Bug in Safari.  Safari sends the window load event before the
-					* style sheets are loaded. The fix is to defer creation of the
-					* contents until the document readyState changes to complete.
-					*/
-					if (frameDocument.readyState === "complete") {
-						self._createContent();
-					}
-				};
-				addHandler(frameWindow, "load", self._windowLoadHandler);
-			}
-			if (isFirefox && !this._sync) {
+			frameDocument.open("text/html", "replace");
+			frameDocument.write(self._getFrameHTML());
+			frameDocument.close();
+			self._windowLoadHandler = function(e) {
 				/*
-				* Bug in Firefox. Firefox does not send any load events for the elements inside the iframe
-				* when document.write() is called during the load event for the iframe. The fix is to use a timer.
-				* Note that calling document.open() in the timer changes the navigation history. The fix is to call
-				* open() passing the mime type and "replace".
+				* Bug in Safari.  Safari sends the window load event before the
+				* style sheets are loaded. The fix is to defer creation of the
+				* contents until the document readyState changes to complete.
 				*/
-				setTimeout(write, 0);
-			} else {
-				write();
-			}
+				if (frameDocument.readyState === "complete") {
+					self._createContent();
+				}
+			};
+			addHandler(frameWindow, "load", self._windowLoadHandler);
 			if (this._sync) {
 				this._createContent();
 			} else {

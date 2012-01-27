@@ -363,7 +363,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'dijit/Menu', 'dijit/form/Drop
 		showKeyBindings: function(targetNode) {
 			for (var binding in this._activeBindings) {
 				if (this._activeBindings[binding] && this._activeBindings[binding].keyBinding && this._activeBindings[binding].command) {
-					dojo.place("<span>"+mUtil.getUserKeyString(this._activeBindings[binding].keyBinding)+" = "+this._activeBindings[binding].command.name+"<br></span>", targetNode, "last");
+					dojo.place("<span role=\"listitem\">"+mUtil.getUserKeyString(this._activeBindings[binding].keyBinding)+" = "+this._activeBindings[binding].command.name+"<br></span>", targetNode, "last");
 				}
 			}
 		},
@@ -903,7 +903,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'dijit/Menu', 'dijit/form/Drop
 		},
 		_addTool: function(parent, forceText, name, context, activeCommandClass, inactiveCommandClass) {
 			context.handler = context.handler || this;
-			var link = dojo.create("a");
+			var link = dojo.create("a", {tabindex: "0", role: "button", href: "javascript:void(0)"}); // the link must have an href for keyboard use
 			link.id = this.name+"link";
 			var image = null;
 			if (forceText || !this.hasImage()) {
@@ -985,7 +985,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'dijit/Menu', 'dijit/form/Drop
 			context.handler = context.handler || this;
 			var element;
 			if (this.hrefCallback) {
-				element = dojo.create("a");
+				element = dojo.create("a", {tabindex: "0", role: "button", href: "javascript:void(0)"}); // the link must have an href for keyboard use
 				dojo.addClass(element, "commandLink");
 			} else {
 				element = dojo.create("button");

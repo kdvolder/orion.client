@@ -593,14 +593,16 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/util', 'orion/fileCl
 					return;
 				}
 				this.deselectElement();
-				this.explorer.model.setCurrent(fileItemIndex, fileDetailItemIndex, storeStatus);
 				dojo.toggleClass(this.explorer.model.getId(item), "currentSearchMatch", true);
 				if(this.explorer._state !== "result_view"){
 					var rebuildPreview = (fileItemIndex !== this.explorer.model.currentFileIndex);
+					this.explorer.model.setCurrent(fileItemIndex, fileDetailItemIndex, storeStatus);
 					if(rebuildPreview){
 						this.explorer.buildPreview();
 					}
 					this.explorer.twoWayCompareContainer.gotoMatch(item.lineNumber-1, item.matches[item.matchNumber-1], item.newMatches[item.matchNumber-1], this.explorer.model.queryObj.inFileQuery.searchStrLength );
+				} else {
+					this.explorer.model.setCurrent(fileItemIndex, fileDetailItemIndex, storeStatus);
 				}
 			}
 		}
@@ -1376,10 +1378,30 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/util', 'orion/fileCl
 			this.createTree(this.parentNode, this.model);
 			this.gotoCurrent();
 			this.reportStatus("");	
-			this.loadOneFileMetaData(0);
+			this.loadOneFileMetaData(0, function(){that.refreshIndex();});
 		} else {
 			that.replacePreview(that._replaceStr);
 			this.loadOneFileMetaData(0);
+		}
+	};
+	
+	SearchResultExplorer.prototype.refreshIndex = function(){
+		var newIndex = [];
+		var currentFileItem = this.model.indexedFileItems[this.model.currentFileIndex];
+		for(var i = 0; i <  this.model.indexedFileItems.length; i++){
+			if(!this.model.indexedFileItems[i].stale){
+				newIndex.push(this.model.indexedFileItems[i]);
+			} else if(this.model.currentFileIndex === i){
+				this.model.currentFileIndex = -1;
+			}
+		}
+		this.model.indexedFileItems = newIndex;
+		if(this.model.currentFileIndex === -1){
+			this.model.currentFileIndex = 0;
+			this.model.currentDetailIndex = 0;
+			this.gotoCurrent();
+		} else {
+			this.model.currentFileIndex = this.model.getFileItemIndex(currentFileItem);
 		}
 	};
 	
@@ -1559,6 +1581,9 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/util', 'orion/fileCl
 	
 	SearchResultExplorer.prototype.onHighlightSelection = function(next)	{
 		var expanded = this._fileExpanded(this.model.currentFileIndex, this.model.currentDetailIndex);
+		if(!expanded.childDiv){
+			return;
+		}
 		dojo.toggleClass(expanded.childDiv, "currentSearchMatch", true);
 		if(!this.visible(expanded.childDiv)) {
 			expanded.childDiv.scrollIntoView(!next);
@@ -1609,6 +1634,15 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/util', 'orion/fileCl
 			var span = dojo.create("span", { className: "primaryColumn"}, div, "last");
 
 			dojo.place(document.createTextNode(item.model.fullPathName + "/" + item.model.name), span, "only");
+			dojo.connect(span, "onclick", span, function() {
+				window.open(item.model.linkLocation);
+			});
+			dojo.connect(span, "onmouseover", span, function() {
+				span.style.cursor ="pointer";
+			});
+			dojo.connect(span, "onmouseout", span, function() {
+				span.style.cursor ="default";
+			});
 			
 			var operationIcon = dojo.create("span", null, div, "first");
 			dojo.addClass(operationIcon, "imageSprite");

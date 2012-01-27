@@ -25,8 +25,10 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 	 * @name orion.globalCommands.CommandParameterCollector
 	 */	
 	function CommandParameterCollector (toolbar) {
-		// get  node's parent.  If it is managed by dijit, we will need to layout
-		this.layoutWidgetId = toolbar.parentNode.id;
+		// get node's parent.  If it is managed by dijit, we will need to layout
+		if (toolbar) {
+			this.layoutWidgetId = toolbar.parentNode.id;
+		}
 	}
 	CommandParameterCollector.prototype =  {
 	
@@ -41,6 +43,7 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 			}
 			if (this.parameterContainer) {
 				dojo.removeClass(this.parameterContainer, this.activeClass);
+				dojo.removeClass(this.parameterContainer.parentNode, "slideContainerActive");
 			}
 			if (this.dismissArea) {
 				 dojo.empty(this.dismissArea);
@@ -89,12 +92,11 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 			}
 			if (this.parameterArea) {
 				var focusNode = fillFunction(this.parameterArea);
-				
 				if (!dojo.byId("parameterClose") && this.dismissArea) {
 				// add the close button if the fill function did not.
 					var spacer = dojo.create("span", null, this.dismissArea, "last");
 					dojo.addClass(spacer, "dismiss");
-					var close = dojo.create("span", {id: "parameterClose"}, this.dismissArea, "last");
+					var close = dojo.create("span", {id: "parameterClose", role: "button", tabindex: "0"}, this.dismissArea, "last");
 					dojo.addClass(close, "imageSprite");
 					dojo.addClass(close, "core-sprite-delete");
 					dojo.addClass(close, "dismiss");
@@ -102,10 +104,17 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 					dojo.connect(close, "onclick", dojo.hitch(this, function(event) {
 						this.close(commandNode);
 					}));
+					// onClick events do not register for spans when using the keyboard without a screen reader
+					dojo.connect(close, "onkeypress", dojo.hitch(this, function (e) {
+						if(e.keyCode === dojo.keys.ENTER) {
+							this.close(commandNode);
+						}
+					}));
 				}
 
 
 				// all parameters have been generated.  Activate the area.
+				dojo.addClass(this.parameterContainer.parentNode, "slideContainerActive");
 				dojo.addClass(this.parameterContainer, this.activeClass);
 				mUtil.forceLayout(this.parameterContainer);
 				if (focusNode) {
@@ -192,38 +201,53 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 				});
 				var spacer;
 				var parentDismiss = parameterArea;
+				var finish = function (collector) {
+					collector._collectAndCall(commandInvocation, parameterArea);
+					localClose();
+				};
 
 				if (commandInvocation.parameters.options) {
 					commandInvocation.parameters.optionsRequested = false;
 					spacer = dojo.create("span", null, parentDismiss, "last");
 					dojo.addClass(spacer, "dismiss");
 					
-					var options = dojo.create("span", null, parentDismiss, "last");
+					var options = dojo.create("span", {role: "button", tabindex: "0"}, parentDismiss, "last");
 					dojo.addClass(options, "core-sprite-options");
 					dojo.addClass(options, "dismiss");
 					options.title = "More options...";
-					dojo.connect(options, "onclick", dojo.hitch(this, function () {
+					dojo.connect(options, "onclick", dojo.hitch(this, function() {
 						commandInvocation.parameters.optionsRequested = true;
-						this._collectAndCall(commandInvocation, parameterArea);
-						localClose();
+						finish(this);
+					}));
+					// onClick events do not register for spans when using the keyboard without a screen reader
+					dojo.connect(options, "onkeypress", dojo.hitch(this, function (e) {
+						if(e.keyCode === dojo.keys.ENTER) {			
+							commandInvocation.parameters.optionsRequested = true;
+							finish(this);
+						}
 					}));
 				}
 				// OK and cancel buttons
 				spacer = dojo.create("span", null, parentDismiss, "last");
 				dojo.addClass(spacer, "dismiss");
 
-				var ok = dojo.create("span", null, parentDismiss, "last");
+				var ok = dojo.create("span", {role: "button", tabindex: "0"}, parentDismiss, "last");
 				ok.title = "Submit";
 				dojo.addClass(ok, "core-sprite-ok");
 				dojo.addClass(ok, "dismiss");
-				dojo.connect(ok, "onclick", dojo.hitch(this, function () {
-					this._collectAndCall(commandInvocation, parameterArea);
-					localClose();
+				dojo.connect(ok, "onclick", dojo.hitch(this, function() {
+					finish(this);
+				}));
+				// onClick events do not register for spans when using the keyboard without a screen reader
+				dojo.connect(ok, "onkeypress", dojo.hitch(this, function (e) {
+					if(e.keyCode === dojo.keys.ENTER) {
+						finish(this);
+					}
 				}));
 				
 				spacer = dojo.create("span", null, parentDismiss, "last");
 				dojo.addClass(spacer, "dismiss");
-				var close = dojo.create("span", {id: "parameterClose"}, parentDismiss, "last");
+				var close = dojo.create("span", {id: "parameterClose", role: "button", tabindex: "0"}, parentDismiss, "last");
 				dojo.addClass(close, "imageSprite");
 				dojo.addClass(close, "core-sprite-delete");
 				dojo.addClass(close, "dismiss");
@@ -231,7 +255,12 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 				dojo.connect(close, "onclick", dojo.hitch(this, function(event) {
 					localClose();
 				}));
-
+				// onClick events do not register for spans when using the keyboard without a screen reader
+				dojo.connect(close, "onkeypress", dojo.hitch(this, function (e) {
+					if(e.keyCode === dojo.keys.ENTER) {
+						localClose();
+					}
+				}));
 				return first;
 			});
 		 }
@@ -249,10 +278,10 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 	var topHTMLFragment =
 	//Top row:  Logo + discovery links + user
 	'<div id="staticBanner" class="layoutBlock topRowBanner">' +
-		'<a id="home" class="layoutLeft primaryNav" href="' + require.toUrl("index.html") + '"><img src="' + require.toUrl("images/orion-small.gif") + '" alt="Orion Logo"/></a>' +
+		'<a id="home" class="layoutLeft primaryNav" href="' + require.toUrl("index.html") + '"><img src="' + require.toUrl("images/orion-small-lightondark.gif") + '" alt="Orion Logo"/></a>' +
 		'<div id="primaryNav" class="layoutLeft primaryNav"></div>' +
 		'<div id="globalActions" class="layoutLeft primaryNav"></div>' +
-		'<div id="help" class="layoutRight help"><a id="help" href="' + require.toUrl("help/index.jsp") + '"><img src="' + require.toUrl("images/help_banner.gif") + '" alt="Help"/></a></div>'+
+		'<div id="help" class="layoutRight help"><a id="help" href="' + require.toUrl("help/index.jsp") + '"><img src="' + require.toUrl("images/help.gif") + '" alt="Help"/></a></div>'+
 		'<div id="userInfo" class="layoutRight primaryNav"></div>' +
 		'<div class="layoutRight primaryNav">|</div>' +
 	'</div>' +
@@ -268,15 +297,11 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 	// BEGIN BOTTOM BANNER FRAGMENT
 	// styling of the surrounding div (text-align, etc) is in ide.css "footer"
 	var bottomHTMLFragment = 
-		'<div class="layoutBlock layoutRight progress">' +
-				'<img src="'+ require.toUrl("images/none.png") +'" id="progressPane"></img>' +
-				'<span id="notifications"></span>' +
-		'</div>' +
 		'<div class="layoutBlock">' +
 			'<div class="footerBlock">' +
-				'This is a Beta build of Orion.  You can use it, play with it and explore the capabilities but BEWARE your data may be lost.' +
+				'This is a Beta build of Orion. Please try it out but BEWARE your data may be lost.' +
 			'</div>' +
-			'<div class="footerBlock">' +
+			'<div class="footerRightBlock">' +
 				'<a href="http://wiki.eclipse.org/Orion/FAQ" target="_blank">FAQ</a> | ' + 
 				'<a href="https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Orion&version=0.4" target="_blank">Report a Bug</a> | ' +
 				'<a href="http://www.eclipse.org/legal/privacy.php" target="_blank">Privacy Policy</a> | ' + 
@@ -284,15 +309,17 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 				'<a href="http://www.eclipse.org/legal/copyright.php" target="_blank">Copyright Agent</a> | '+
 				'<a href="' + require.toUrl("/operations/list.html") +'" target="_blank">Server Operations</a>' +
 			'</div>' +
-			'<div class="layoutRight" style="text-align: right; margin-right: 8px;">' +
-				'<span id="statusPane"></span>' +
-			'</div>' +
 		'</div>';
 	// END BOTTOM BANNER FRAGEMENT
 
 	var toolbarFragment = 
 		'<div class="layoutLeft pageToolbarLeft pageActions" id="pageActions"></div>' +
+		'<div class="layoutRight pageToolbarRight pageActions pageNavigationActions" id="statusPane"></div>' +
 		'<div class="layoutRight pageToolbarRight pageActions pageNavigationActions" id="pageNavigationActions"></div>' +
+		'<div id="notificationArea" class="layoutBlock slideContainer">' +
+				'<img src="'+ require.toUrl("images/none.png") +'" id="progressPane"></img>' +
+				'<span id="notifications"></span>' +
+		'</div>' +
 		'<div id="parameterArea" class="layoutBlock slideContainer">' +
 			'<span id="pageParameterArea" class="leftSlide">' +
 				'<span id="pageCommandParameters" class="parameters"></span>' +
@@ -464,7 +491,7 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 		if (toolbar) {
 			dojo.place(toolbarFragment, toolbar, "only");
 		} else {
-			toolbar = dojo.create ("div", {id: "pageToolbar", "class": "paneHeading layoutBlock"}, "titleArea", "after");
+			toolbar = dojo.create ("div", {id: "pageToolbar", "class": "toolbar layoutBlock"}, "titleArea", "after");
 			dojo.place(toolbarFragment, toolbar, "only");
 		}
 		
@@ -473,7 +500,8 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 
 		
 		// place an empty div for keyAssist
-		dojo.place('<div id="keyAssist" style="display: none"; class="keyAssistFloat"></div>', document.body, "last");
+		dojo.place('<div id="keyAssist" style="display: none" class="keyAssistFloat" role="list" aria-atomic="true" aria-live="assertive"></div>', document.body, "last");
+
 		
 		// generate primary nav links. 
 		var primaryNav = dojo.byId("primaryNav");
@@ -496,7 +524,6 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 				}
 				if (info.href && info.name) {
 					var link = dojo.create("a", {href: info.href}, primaryNav, "last");
-					dojo.addClass(link, "commandLink");
 					text = document.createTextNode(info.name);
 					dojo.place(text, link, "only");
 				}
@@ -637,7 +664,7 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 							var actionName = editorActions[i];
 							var bindings = editor.getTextView().getKeyBindings(actionName);
 							for (var j=0; j<bindings.length; j++) {
-								dojo.place("<span>"+mUtil.getUserKeyString(bindings[j])+" = " + actionName + "<br></span>", keyAssistNode, "last");
+								dojo.place("<span role=\"listitem\">"+mUtil.getUserKeyString(bindings[j])+" = " + actionName + "<br></span>", keyAssistNode, "last");
 							}
 						}
 					}

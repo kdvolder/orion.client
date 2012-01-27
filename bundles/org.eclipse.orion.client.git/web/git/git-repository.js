@@ -26,19 +26,19 @@ mBootstrap.startup().then(function(core) {
 	document.body.style.visibility = "visible";
 	dojo.parser.parse();
 	
-	new mStatus.StatusReportingService(serviceRegistry, "statusPane", "notifications");
 	new mDialogs.DialogService(serviceRegistry);
 	var selection = new mSelection.Selection(serviceRegistry);
 	new mSshTools.SshService(serviceRegistry);
 	var commandService = new mCommands.CommandService({serviceRegistry: serviceRegistry});
 	var operationsClient = new mOperationsClient.OperationsClient(serviceRegistry);
 	new mProgress.ProgressService(serviceRegistry, operationsClient);
+	new mStatus.StatusReportingService(serviceRegistry, operationsClient, "statusPane", "notifications", "notificationArea");
 	
 	// ...
-	var searcher = new mSearchClient.Searcher({serviceRegistry: serviceRegistry});
 	var linkService = new mLinks.TextLinkService({serviceRegistry: serviceRegistry});
 	var gitClient = new mGitClient.GitService(serviceRegistry);
 	var fileClient = new mFileClient.FileClient(serviceRegistry);
+	var searcher = new mSearchClient.Searcher({serviceRegistry: serviceRegistry, commandService: commandService, fileService: fileClient});
 	
 	var explorer = new mGitRepositoryExplorer.GitRepositoryExplorer(serviceRegistry, linkService, /* selection */ null, "artifacts", "pageActions"/*, "selectionTools"*/);
 	mGlobalCommands.generateBanner("banner", serviceRegistry, commandService, preferences, searcher, explorer);
