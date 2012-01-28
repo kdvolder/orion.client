@@ -170,6 +170,70 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 					var row = table.insertRow(-1);
 					col = row.insertCell(0);
 					col.colspan = 2;
+//					var image = new Image();
+//					dojo.addClass(image, "commandSprite");
+//					dojo.addClass(image, "core-sprite-makeFavorite");
+//					dojo.addClass(image, "commandImage");
+//					col.appendChild(image);
+					var favLink = document.createElement('a');
+					dojo.place(document.createTextNode(fav.name), favLink);
+					
+					var loc;
+					if (fav.isExternalResource) {
+						// should open link in new tab, but for now, follow the behavior of navoutliner.js
+						loc = fav.path;
+					} else {
+						loc	= fav.directory ? require.toUrl("navigate/table.html") + "#" + fav.path : require.toUrl("edit/edit.html") + "#" + fav.path;
+						if (loc === "#") {
+							loc = "";
+						}
+					}
+					favLink.setAttribute('href', loc);
+					col.appendChild(favLink);
+				}
+				dojo.place(table, that.favresults, "only");
+				dojo.place("<hr/>", that.favresults, "last");
+			} else {
+				dojo.empty(that.favresults);
+			}
+			that.decorateResult(that.favresults);
+		};
+	},
+
+	
+	/** @private kick off initial population of favorites */
+	populateFavorites: function() {
+		dojo.place("<div>Populating favorites&#x2026;</div>", this.favresults, "only");
+		
+		
+		// initially, show all favorites
+		this.favService.getFavorites().then(this.showFavorites());
+		// need to add the listener since favorites may not 
+		// have been initialized after first getting the favorites
+		this.favService.addEventListener("favoritesChanged", this.showFavorites());
+	},
+	
+	/** 
+	 * @private 
+	 * render the favorites that we have found, if any.
+	 * this function wraps another function that does the actual work
+	 * we need this so we can have access to the proper scope.
+	 */
+	showFavorites: function() {
+		var that = this;
+		
+		return function(favs) {
+			if (favs.navigator) {
+				favs = favs.navigator;
+			}
+			if (favs.length > 0) {
+				var table = document.createElement('table');
+				for (var i=0; i < favs.length; i++) {
+					var fav = favs[i];
+					var col;
+					var row = table.insertRow(-1);
+					col = row.insertCell(0);
+					col.colspan = 2;
 					var favLink = document.createElement('a');
 					dojo.place(document.createTextNode(fav.name), favLink);
 					var loc;
@@ -223,7 +287,7 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 			// Gives Webkit a chance to show the "Searching" message
 			var that = this;
 			setTimeout(function() {
-				var query = that.searcher.createSearchQuery(null, text);
+				var query = that.searcher.createSearchQuery(null, text, "Name");
 				that.searcher.search(that.results, query, false, false, dojo.hitch(that, that.decorateResult), true /*no highlight*/);
 			}, 0);
 		}

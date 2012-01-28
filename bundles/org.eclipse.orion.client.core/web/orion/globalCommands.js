@@ -314,11 +314,11 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 
 	var toolbarFragment = 
 		'<div class="layoutLeft pageToolbarLeft pageActions" id="pageActions"></div>' +
+		'<img class="layoutRight progressPane" src="'+ require.toUrl("images/none.png") +'" id="progressPane"></img>' +
 		'<div class="layoutRight pageToolbarRight pageActions pageNavigationActions" id="statusPane"></div>' +
 		'<div class="layoutRight pageToolbarRight pageActions pageNavigationActions" id="pageNavigationActions"></div>' +
-		'<div id="notificationArea" class="layoutBlock slideContainer">' +
-				'<img src="'+ require.toUrl("images/none.png") +'" id="progressPane"></img>' +
-				'<span id="notifications"></span>' +
+		'<div id="notificationArea" class="layoutLeft layoutBlock slideContainer">' +
+				'<div class="layoutLeft" id="notifications"></div>' +
 		'</div>' +
 		'<div id="parameterArea" class="layoutBlock slideContainer">' +
 			'<span id="pageParameterArea" class="leftSlide">' +
@@ -535,8 +535,8 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 		if (!searchField) {
 			throw "failed to generate HTML for banner";
 		}
-		dojo.connect(searchField, "onkeypress", function(e){
-			if (e.charOrCode === dojo.keys.ENTER) {
+		dojo.connect(searchField, "onkeydown", function(e){
+			if (e.keyCode === dojo.keys.ENTER) {
 				if (searcher) {
 					if (searchField.value.length > 0) {
 						var query = searcher.createSearchQuery(searchField.value);
@@ -546,6 +546,7 @@ define(['require', 'dojo', 'dijit', 'orion/commands', 'orion/util', 'orion/textv
 					window.alert("Can't search: no search service is available");
 				}
 			}
+			e.stopPropagation();
 		});
 		
 		// Put page title in title area.  
