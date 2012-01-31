@@ -80,48 +80,39 @@ define(	   ['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searc
 				var table = document.createElement('table');
 				for (var i=0; i < resources.length; i++) {
 					var resource = resources[i];
-						var col;
-						if (!foundValidHit) {
-							foundValidHit = true;
-							if (heading) {
-								var headingRow = table.insertRow(0);
-								col = headingRow.insertCell(0);
-								col.innerHTML = heading;
-							}
+					var col;
+					if (!foundValidHit) {
+						foundValidHit = true;
+						if (heading) {
+							var headingRow = table.insertRow(0);
+							col = headingRow.insertCell(0);
+							col.innerHTML = heading;
 						}
-						var row = table.insertRow(-1);
-						col = row.insertCell(0);
-						col.colspan = 2;
-						var resourceLink = document.createElement('a');
-						dojo.place(document.createTextNode(resource.name), resourceLink);
-						if (resource.LineNumber) { // FIXME LineNumber === 0 
-							dojo.place(document.createTextNode(' (Line ' + resource.LineNumber + ')'), resourceLink);
+					}
+					var row = table.insertRow(-1);
+					col = row.insertCell(0);
+					col.colspan = 2;
+					var resourceLink = document.createElement('a');
+					dojo.place(document.createTextNode(resource.name), resourceLink);
+					if (resource.LineNumber) { // FIXME LineNumber === 0 
+						dojo.place(document.createTextNode(' (Line ' + resource.LineNumber + ')'), resourceLink);
+					}
+					var loc = resource.location;
+					if (resource.isExternalResource) {
+						// should open link in new tab, but for now, follow the behavior of navoutliner.js
+						loc = resource.path;
+					} else {
+						loc	= resource.directory ? 
+								require.toUrl("navigate/table.html") + "#" + resource.path : 
+								require.toUrl("edit/edit.html") + "#" + resource.path;
+						if (loc === "#") {
+							loc = "";
 						}
-						var loc = resource.location;
-						if (resource.isExternalResource) {
-							// should open link in new tab, but for now, follow the behavior of navoutliner.js
-							loc = resource.path;
-						} else {
-							loc	= resource.directory ? 
-									require.toUrl("navigate/table.html") + "#" + resource.path : 
-									require.toUrl("edit/edit.html") + "#" + resource.path;
-							if (loc === "#") {
-								loc = "";
-							}
-						}
+					}
 
-						resourceLink.setAttribute('href', loc);
-						col.appendChild(resourceLink);
-						appendPath(col, resource);
-						
-						// this piece is currently not used.
-//						if (!hideSummaries && jsonData.highlighting && jsonData.highlighting[hit.Id] && jsonData.highlighting[hit.Id].Text) {
-//							var highlightText = jsonData.highlighting[hit.Id].Text[0];
-//							var highlight = table.insertRow(-1);
-//							col = highlight.insertCell(0);
-//							col.colspan = 2;
-//							dojo.place(this.formatHighlight(highlightText), col, "only");
-//						}
+					resourceLink.setAttribute('href', loc);
+					col.appendChild(resourceLink);
+					appendPath(col, resource);
 				}
 				dojo.place(table, resultsNode, "last");
 				if (typeof(onResultReady) === "function") {
@@ -134,68 +125,13 @@ define(	   ['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searc
 					var div = dojo.place("<div>No matches found for </div>", resultsNode, "only");
 					var b = dojo.create("b", null, div, "last");
 					dojo.place(document.createTextNode(queryName), b, "only");
+					if (typeof(onResultReady) === "function") {
+						onResultReady(resultsNode);
+					}
 				}
 			} 
 		}
 		return render;
 	}
-//	Renderer.prototype = /**@lends orion.searchClient.Searcher.prototype*/ {
-//		handleError: function(response, resultsNode) {
-//			throw "Is anybody using this?";
-//			console.error(response);
-//			var errorText = document.createTextNode(response);
-//			dojo.place(errorText, resultsNode, "only");
-//			return response;
-//		},
-//		setLocationByMetaData: function(meta){
-//			var locationName = "root";
-//			if(meta &&  meta.Directory && meta.Location && meta.Parents){
-//				this.setLocationByURL(meta.Location);
-//				locationName = meta.Name;
-//			} 
-//			var searchInputDom = dojo.byId("search");
-//			if(searchInputDom && searchInputDom.placeholder){
-//				if(locationName.length > 13){
-//					searchInputDom.placeholder = "Search " + locationName.substring(0, 10) + "...";
-//				} else {
-//					searchInputDom.placeholder = "Search " + locationName;
-//				}
-//			}
-//			if(searchInputDom && searchInputDom.title){
-//				searchInputDom.title = "Type a keyword or wild card to search in " + locationName;
-//			}
-//		},
-//		setLocationByURL: function(locationURL){
-//			this.location = locationURL;
-//		},
-		
-// This doesn't appear to be used at all.
-//		/**
-//		 * Creates a div representing the highlight snippet of a search result.
-//		 * @param {String} str The highlight string we got from the server
-//		 * @return {DomNode}
-//		 * @private
-//		 */
-//		function formatHighlight(str) {
-//			var start = "##match",
-//			    end = "match##",
-//			    array = str.split(/(##match|match##)/),
-//			    div = dojo.create("div"),
-//			    bold;
-//			for (var i=0; i < array.length; i++) {
-//				var token = array[i];
-//				if (token === start) {
-//					bold = dojo.create("b");
-//				} else if (token === end) {
-//					dojo.place(bold, div, "last");
-//					bold = null;
-//				} else {
-//					dojo.place(document.createTextNode(token), (bold || div), "last");
-//				}
-//			}
-//			return div;
-//		}
-//		
-//	};
 	return {makeRenderFunction:makeRenderFunction};
 });
