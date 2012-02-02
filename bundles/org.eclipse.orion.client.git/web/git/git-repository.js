@@ -47,11 +47,11 @@ mBootstrap.startup().then(function(core) {
 	mGitCommands.createFileCommands(serviceRegistry, commandService, explorer, "pageActions", "selectionTools");
 	mGitCommands.createGitClonesCommands(serviceRegistry, commandService, explorer, "pageActions", "selectionTools", fileClient);
 
+	// define the command contributions - where things appear, first the groups
 	commandService.addCommandGroup("eclipse.gitGroup", 100, null, null, "pageActions");
 	commandService.registerCommandContribution("eclipse.cloneGitRepository", 100, "pageActions", "eclipse.gitGroup", false, null, new mCommands.URLBinding("cloneGitRepository", "url"));
 	commandService.registerCommandContribution("eclipse.initGitRepository", 101, "pageActions", "eclipse.gitGroup");
-	
-	// define the command contributions - where things appear, first the groups
+	commandService.registerCommandContribution("eclipse.orion.git.openCommitCommand", 102, "pageActions", "eclipse.gitGroup", true, new mCommands.CommandKeyBinding('h', true, true));
 	
 	// object contributions
 	commandService.registerCommandContribution("eclipse.openCloneContent", 100);
@@ -70,8 +70,23 @@ mBootstrap.startup().then(function(core) {
 	commandService.registerCommandContribution("eclipse.orion.git.resetIndex", 1000);
 	commandService.registerCommandContribution("eclipse.removeRemote", 1000);
 	
-	// render commands
-	mGitCommands.updateNavTools(serviceRegistry, explorer, "pageActions", "selectionTools", {});
+	// add commands specific for the page	
+	var viewAllCommand = new mCommands.Command({
+		name : "View All",
+		id : "eclipse.orion.git.repositories.viewAllCommand",
+		hrefCallback : function(data) {
+			return require.toUrl(data.items.ViewAllLink);
+		},
+		visibleWhen : function(item) {
+			this.name = item.ViewAllLabel;
+			this.tooltip = item.ViewAllTooltip;
+			return item.ViewAllLink !== null;
+		}
+	});
+	commandService.addCommand(viewAllCommand, "dom");
+	
+//	// render commands
+//	mGitCommands.updateNavTools(serviceRegistry, explorer, "pageActions", "selectionTools", {});
 	
 	// process the URL to find our bindings, since we can't be sure these bindings were defined when the URL was first processed.
 	commandService.processURL(window.location.href);

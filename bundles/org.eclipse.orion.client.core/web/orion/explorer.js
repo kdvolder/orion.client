@@ -83,8 +83,9 @@ exports.Explorer = (function() {
 		 * 
 		 * @param parentId id of parent dom element
 		 * @param model providing data to display
+		 * @param options optional parameters of the tree(custom indent, onCollapse callback)
 		 */
-		createTree: function (parentId, model){
+		createTree: function (parentId, model, options){
 			var treeId = parentId + "innerTree";
 			var existing = dojo.byId(treeId);
 			if (existing) {
@@ -101,6 +102,9 @@ exports.Explorer = (function() {
 				parent: parentId,
 				labelColumnIndex: this.renderer.getLabelColumnIndex(),
 				renderer: this.renderer,
+				indent: options ? options.indent: undefined,
+				onCollapse: options ? options.onCollapse: undefined,
+				onExpand: options ? options.onExpand: undefined,
 				tableStyle: "mainPadding"
 			});
 			this.renderer._initializeUIState();
@@ -444,15 +448,17 @@ exports.ExplorerRenderer = (function() {
 		},
 		
 		rowsChanged: function() {
-			dojo.query(".treeTableRow").forEach(function(node, i) {
-				if (i % 2) {
-					dojo.addClass(node, "darkTreeTableRow");
-					dojo.removeClass(node, "lightTreeTableRow");
-				} else {
-					dojo.addClass(node, "lightTreeTableRow");
-					dojo.removeClass(node, "darkTreeTableRow");
-				}
-			});
+			if (this._decorateAlternatingLines) {
+				dojo.query(".treeTableRow").forEach(function(node, i) {
+					if (i % 2) {
+						dojo.addClass(node, "darkTreeTableRow");
+						dojo.removeClass(node, "lightTreeTableRow");
+					} else {
+						dojo.addClass(node, "lightTreeTableRow");
+						dojo.removeClass(node, "darkTreeTableRow");
+					}
+				});
+			}
 			// notify the selection service of the change in state.
 			if(this.explorer.selection) {
 				this.explorer.selection.setSelections(this.getSelected());
@@ -479,8 +485,12 @@ exports.ExplorerRenderer = (function() {
 				this.getCheckedFunc = options.getCheckedFunc;
 				this.onCheckedFunc = options.onCheckedFunc;
 				this._highlightSelection = true;
-				if(options.highlightSelection === false){
+				if (options.highlightSelection === false){
 					this._highlightSelection = false;
+				}
+				this._decorateAlternatingLines = true;
+				if (options.decorateAlternatingLines === false) {
+					this._decorateAlternatingLines = false;
 				}
 			}
 		},

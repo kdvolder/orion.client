@@ -28,15 +28,16 @@
 	height: 16px;
 	vertical-align: text-top;
 	width: 16px;
-	padding-right: 20px;
+	padding-right: 10px;
+	margin-top: 9px;
 }
 
 .git-author-icon {
 	float: left;
 	position: relative;
-	height: 50px;
+	height: 35px;
 	vertical-align: text-top;
-	width: 50px;
+	width: 35px;
 	border: 1px solid lightGrey;
 	padding: 2px;
 	margin-right: 18px;
@@ -56,6 +57,65 @@
 }
 
 .git-table {
-	padding-top: 15px;
-	padding-top: 15px;
+	padding-left: 10px;
+    padding-top: 10px;
+}
+
+.tag-description {
+	font-size: 13px;
+	white-space: normal;
+	padding-right: 10px;
+	min-width: 100px;
+	max-width: 700px;
+}
+
+.lightTreeTableRow {
+	border-bottom: 1px solid #e6e6e6;
+}
+
+.darkTreeTableRow {
+	border-bottom: 1px solid #e6e6e6;
+}
+
+.pluginwrapper {
+    border: 1px solid #e6e6e6;
+    background: #f8f8f8;
+    padding-bottom: 35px;
+    padding-top: 0px;
+    padding-left: 10px;
+    margin-top: 20px;
+}
+
+.stretch {
+	float: left;
+	position: relative;
+	white-space:normal;
+	max-width:700px;
+}
+
+.pluginTitle {
+    color: #666666;
+    float: left;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 0;
+    margin-top: 8px;
+}
+
+.sectionProgress {
+    color: #666666;
+    float: left;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-left: 2px;
+    text-decoration: blink;
+    margin-top: 8px;
+}
+
+pre {
+	margin-left: 10px;
+    padding: 15px;
+    background-color: #fdfdfd;
+    border: 1px solid #ebebeb;
+    font-family: Courier,"Courier New";
 }

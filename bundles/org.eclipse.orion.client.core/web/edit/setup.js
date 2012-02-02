@@ -13,16 +13,16 @@
 /*global define eclipse:true orion:true dojo dijit window*/
 
 define(['require', 'dojo', 'orion/selection', 'orion/status', 'orion/progress', 'orion/dialogs',
-        'orion/commands', 'orion/util', 'orion/favorites', 'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/globalCommands', 'orion/outliner',
+        'orion/commands', 'orion/util', 'orion/favorites', 'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/searchRenderer', 'orion/globalCommands', 'orion/outliner',
         'orion/problems', 'orion/editor/contentAssist', 'orion/editorCommands', 'orion/editor/editorFeatures', 'orion/editor/editor', 'orion/syntaxchecker',
-        'orion/editor/textMateStyler', 'orion/breadcrumbs', 'examples/textview/textStyler', 'examples/textview/textStylerOptions', 'orion/textview/textView', 'orion/textview/textModel', 
+        'orion/breadcrumbs', 'examples/textview/textStylerOptions', 'orion/textview/textView', 'orion/textview/textModel', 
         'orion/textview/projectionTextModel', 'orion/textview/keyBinding','orion/searchAndReplace/textSearcher','orion/searchAndReplace/orionTextSearchAdaptor',
-        'orion/editor/asyncStyler', 'orion/edit/dispatcher', 'orion/contentTypes', 'orion/PageUtil',
+        'orion/edit/dispatcher', 'orion/contentTypes', 'orion/PageUtil', 'orion/highlight',
         'dojo/parser', 'dojo/hash', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane', 'orion/widgets/eWebBorderContainer' ], 
 		function(require, dojo, mSelection, mStatus, mProgress, mDialogs, mCommands, mUtil, mFavorites,
-				mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
-				mSyntaxchecker, mTextMateStyler, mBreadcrumbs, mTextStyler, mTextStylerOptions, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mSearcher,
-				mSearchAdaptor, mAsyncStyler, mDispatcher, mContentTypes, PageUtil) {
+				mFileClient, mOperationsClient, mSearchClient, mSearchRenderer, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
+				mSyntaxchecker, mBreadcrumbs, mTextStylerOptions, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mSearcher,
+				mSearchAdaptor, mDispatcher, mContentTypes, PageUtil, Highlight) {
 	
 var exports = exports || {};
 	
@@ -59,69 +59,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 		editorDomNode = dojo.byId("editor"),
 		searchFloat = dojo.byId("searchFloat");
 
-	// Temporary.  This will evolve into something pluggable.
-	var syntaxHighlightProviders = serviceRegistry.getServiceReferences("orion.edit.highlighter");
-	var syntaxHighlighter = {
-		styler: null, 
-		
-		highlight: function(fileName, editor, fileContentType) {
-			if (this.styler) {
-				if (this.styler.destroy) {
-					this.styler.destroy();
-				}
-				this.styler = null;
-			}
-			
-			var textView = editor.getTextView();
-			var annotationModel = editor.getAnnotationModel();
-			switch(fileContentType && fileContentType.id) {
-				case "text.javascript":
-				case "text.json":
-					this.styler = new mTextStyler.TextStyler(textView, "js", annotationModel);
-					break;
-				case "text.java":
-					this.styler = new mTextStyler.TextStyler(textView, "java", annotationModel);
-					break;
-				case "text.css":
-					this.styler = new mTextStyler.TextStyler(textView, "css", annotationModel);
-					break;
-			}
-			
-			if (this.styler) {
-				editor.setFoldingEnabled(this.styler.foldingEnabled);
-				// Temporary. Add support for the preference page.
-				new mTextStylerOptions.TextStylerOptions(this.styler);
-			}
-			
-			if (!this.styler && syntaxHighlightProviders) {
-				var grammars = [], providerToUse;
-				var extension = fileName.split(".").pop().toLowerCase();
-				for (var i=0; i < syntaxHighlightProviders.length; i++) {
-					var provider = syntaxHighlightProviders[i],
-					    contentTypeIds = provider.getProperty("contentType"),
-					    fileTypes = provider.getProperty("fileTypes"); // backwards compatibility
-					if (provider.getProperty("type") === "grammar") {
-						grammars.push(provider.getProperty("grammar"));
-					}
-					if ((contentTypeIds && contentTypeService.isSomeExtensionOf(fileContentType, contentTypeIds)) ||
-							(fileTypes && fileTypes.indexOf(extension) !== -1)) {
-						providerToUse = provider;
-					}
-				}
-				
-				if (providerToUse) {
-					var providerType = providerToUse.getProperty("type");
-					if (providerType === "highlighter") {
-						this.styler = new mAsyncStyler.AsyncStyler(textView, serviceRegistry, annotationModel);
-						this.styler.setContentType(fileContentType);
-					} else if (providerType === "grammar" || typeof providerType === "undefined") {
-						var grammar = providerToUse.getProperty("grammar");
-						this.styler = new mTextMateStyler.TextMateStyler(textView, grammar, grammars);
-					}
-				}
-			}
-		}
-	};
+	var syntaxHighlighter = new Highlight.SyntaxHighlighter(serviceRegistry);
 	var fileClient = new mFileClient.FileClient(serviceRegistry);
 	var searcher = new mSearchClient.Searcher({serviceRegistry: serviceRegistry, commandService: commandService, fileService: fileClient});
 	
@@ -170,46 +108,48 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 					var progressTimeout = setTimeout(function() {
 						editor.setInput(fullPathName, "Fetching " + fullPathName, null);
 					}, 800); // wait 800ms before displaying
-					var load = dojo.hitch(this, function(metadata, contents) {
-						// Metadata
-						this._fileMetadata = metadata;
-						mGlobalCommands.setPageTarget([metadata, metadata.Parents && metadata.Parents[0]], serviceRegistry, commandService, ["", " on folder"]);
-						this.setTitle(metadata.Location);
-						this._contentType = contentTypeService.getFileContentType(metadata);
-						syntaxHighlighter.highlight(fileURI, editor, this._contentType);
-						editor.highlightAnnotations();
-						setOutlineProviders(this._contentType, location);
-						if (!dispatcher) {
-							dispatcher = new mDispatcher.Dispatcher(serviceRegistry, editor, this._contentType);
-						}
-						
-						// Contents
-						clearTimeout(progressTimeout);
-						editor.setInput(fileURI, null, contents);
-						editor.showSelection(input.start, input.end, input.line, input.offset, input.length);
-					});
-					
-					var metadata = null, contents = null;
-					fileClient.read(fileURI).then(function(result) {
-							contents = result;
-							if (metadata !== null) {
-								load(metadata, contents);
-							}
-						}, dojo.hitch(this, function(error) {
-							clearTimeout(progressTimeout);
-							editor.setInput(fullPathName, "An error occurred: " + errorMessage(error), null);
-							console.error("HTTP status code: ", error.status);
-						}));
-					fileClient.read(fileURI, true).then(function(result) {
-							metadata = result;
-							if (contents !== null) {
-								load(metadata, contents);
-							}
-						}, dojo.hitch(this, function(error) {
-							clearTimeout(progressTimeout);
-							console.error("Error loading file metadata: " + errorMessage(error));
+					var setInput = dojo.hitch(this, function(contents, metadata) {
+						if (metadata) {
+							this._fileMetadata = metadata;
+							mGlobalCommands.setPageTarget([metadata, metadata.Parents && metadata.Parents[0]], serviceRegistry, commandService, ["", " on folder"]);
+							this.setTitle(metadata.Location);
+							this._contentType = contentTypeService.getFileContentType(metadata);
+						} else {
+							// No metadata
+							this._fileMetadata = null;
 							this.setTitle(fileURI);
-						}));
+							this._contentType = contentTypeService.getFilenameContentType(this.getTitle());
+						}
+						syntaxHighlighter.setup(this._contentType, editor.getTextView(), editor.getAnnotationModel(), fileURI)
+							.then(dojo.hitch(this, function() {
+								editor.highlightAnnotations();
+								setOutlineProviders(this._contentType, location);
+								if (!dispatcher) {
+									dispatcher = new mDispatcher.Dispatcher(serviceRegistry, editor, this._contentType);
+								}
+								// Contents
+								editor.setInput(fileURI, null, contents);
+								editor.showSelection(input.start, input.end, input.line, input.offset, input.length);
+							}));
+						clearTimeout(progressTimeout);
+					});
+					var load = dojo.hitch(this, function(results) {
+						var contentsOk = results[0][0], contents = contentsOk ? results[0][1] : null;
+						var metadataOk = results[1][0], metadata = metadataOk ? results[1][1] : null;
+						var error;
+						clearTimeout(progressTimeout);
+						if (!contentsOk) {
+							error = results[0][1];
+							console.error("HTTP status code: ", error.status);
+							contents = "An error occurred: " + errorMessage(error);
+						}
+						if (!metadataOk) {
+							error = results[1][1];
+							console.error("Error loading file metadata: " + errorMessage(error));
+						}
+						setInput(contents, metadata);
+					});
+					new dojo.DeferredList([fileClient.read(fileURI), fileClient.read(fileURI, true)]).then(load, load);
 				}
 				this.lastFilePath = fileURI;
 			} else {
@@ -235,7 +175,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 			var titlePane = dojo.byId("location");
 			if (titlePane) {
 				dojo.empty(titlePane);
-				var root = fileClient.fileServiceName(this._fileMetadata.Location);
+				var root = fileClient.fileServiceName(this._fileMetadata && this._fileMetadata.Location);
 				new mBreadcrumbs.BreadCrumbs({
 					container: "location", 
 					resource: this._fileMetadata,
@@ -394,7 +334,8 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 				dojo.place(document.createTextNode("\"" + searchPattern + "\"..."), b, "only");
 				searchFloat.style.display = "block";
 				var query = searcher.createSearchQuery(searchPattern, null, "Name");
-				searcher.search(searchFloat, query, inputManager.getInput(),false,null,false);
+				var renderer = mSearchRenderer.makeRenderFunction(searchFloat, false, null);
+				searcher.search(query, inputManager.getInput(), renderer);
 			}, 0);
 			return true;
 		});
