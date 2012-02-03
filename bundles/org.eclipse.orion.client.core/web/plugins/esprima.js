@@ -1057,7 +1057,8 @@ parseStatement: true, parseSourceElement: true */
                     } else {
                         property.key = {
                             type: Syntax.Identifier,
-                            name: token.value
+                            name: token.value,
+                            range: token.range
                         };
                     }
                     expect('(');
@@ -1088,7 +1089,8 @@ parseStatement: true, parseSourceElement: true */
                     } else {
                         property.key = {
                             type: Syntax.Identifier,
-                            name: token.value
+                            name: token.value,
+                            range: token.range
                         };
                     }
                     expect('(');
@@ -1102,7 +1104,8 @@ parseStatement: true, parseSourceElement: true */
                         id: null,
                         params: [{
                             type: Syntax.Identifier,
-                            name: token.value
+                            name: token.value,
+                            range: token.range
                         }],
                         body: parseBlock()
                     };
@@ -1111,7 +1114,8 @@ parseStatement: true, parseSourceElement: true */
                 }
                 property.key = {
                     type: Syntax.Identifier,
-                    name: token.value
+                    name: token.value,
+                    range: token.range
                 };
                 expect(':');
                 property.value = parseAssignmentExpression();
@@ -1122,7 +1126,8 @@ parseStatement: true, parseSourceElement: true */
             case Token.NullLiteral:
                 property.key = {
                     type: Syntax.Identifier,
-                    name: token.value
+                    name: token.value,
+                    range: token.range
                 };
                 expect(':');
                 property.value = parseAssignmentExpression();
@@ -1200,7 +1205,8 @@ parseStatement: true, parseSourceElement: true */
         if (token.type === Token.Identifier) {
             return {
                 type: Syntax.Identifier,
-                name: token.value
+                name: token.value,
+                range: token.range
             };
         }
 
@@ -1266,7 +1272,8 @@ parseStatement: true, parseSourceElement: true */
 
         return {
             type: Syntax.Identifier,
-            name: token.value
+            name: token.value,
+            range: token.range
         };
     }
 
@@ -1738,7 +1745,8 @@ parseStatement: true, parseSourceElement: true */
 
         id = {
             type: Syntax.Identifier,
-            name: token.value
+            name: token.value,
+            range: token.range
         };
 
         init = null;
@@ -1753,7 +1761,8 @@ parseStatement: true, parseSourceElement: true */
         return {
             type: Syntax.VariableDeclarator,
             id: id,
-            init: init
+            init: init,
+            range: [id.range[0], (init ? init.range[1] : id.range[1])]
         };
     }
 
@@ -2020,7 +2029,8 @@ parseStatement: true, parseSourceElement: true */
             lex();
             label = {
                 type: Syntax.Identifier,
-                name: token.value
+                name: token.value,
+                range: token.range
             };
         }
 
@@ -2060,7 +2070,8 @@ parseStatement: true, parseSourceElement: true */
             lex();
             label = {
                 type: Syntax.Identifier,
-                name: token.value
+                name: token.value,
+                range: token.range
             };
         }
 
@@ -2374,7 +2385,8 @@ parseStatement: true, parseSourceElement: true */
         }
         id = {
             type: Syntax.Identifier,
-            name: token.value
+            name: token.value,
+            range: token.range
         };
 
         expect('(');
@@ -2387,7 +2399,8 @@ parseStatement: true, parseSourceElement: true */
                 }
                 params.push({
                     type: Syntax.Identifier,
-                    name: token.value
+                    name: token.value,
+                    range: token.range
                 });
                 if (match(')')) {
                     break;
@@ -2420,7 +2433,8 @@ parseStatement: true, parseSourceElement: true */
             }
             id = {
                 type: Syntax.Identifier,
-                name: token.value
+                name: token.value,
+                range: token.range
             };
         }
 
@@ -2434,7 +2448,8 @@ parseStatement: true, parseSourceElement: true */
                 }
                 params.push({
                     type: Syntax.Identifier,
-                    name: token.value
+                    name: token.value,
+                    range: token.range
                 });
                 if (match(')')) {
                     break;
