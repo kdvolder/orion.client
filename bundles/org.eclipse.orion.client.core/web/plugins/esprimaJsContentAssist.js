@@ -48,24 +48,26 @@ window.onload = function() {
 	}
 
 	/**
-	 * Convert an array of parameters into a string form.
+	 * Convert an array of parameters into a string and also compute linked editing positions
+	 * @return { completion, positions }
 	 */
-
-	function toParamString(params) {
+	function calculateFunctionProposal(name, params, offset) {
 		if (!params || params.length === 0) {
-			return "()";
+			return name + "()";
 		}
-		var pstring = '(';
+		var positions = [];
+		var completion = name + '(';
 		var plen = params.length;
 		for (var p = 0; p < plen; p++) {
 			if (p > 0) {
-				pstring += ',';
+				completion += ', ';
 			}
-			var name = params[p].name;
-			pstring += name;
+			var argName = params[p].name;
+			positions.push({offset:offset+completion.length+1, length: argName.length});
+			completion += argName;
 		}
-		pstring += ')';
-		return pstring;
+		completion += ')';
+		return {completion: completion, positions: positions};
 	}
 
 
@@ -165,10 +167,15 @@ window.onload = function() {
 			return false;
 		} else if (type === "FunctionDeclaration") {
 			var params = node.params;
-			var fn = node.id.name + toParamString(params);
-			data.proposals.push({ proposal: fn, description: fn + " (function)"});
+			var res =  calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
+			data.proposals.push({ 
+				proposal: res.completion, 
+				description: res.completion + " (function)", 
+				positions: res.positions, 
+				escapePosition: data.offset + res.completion.length 
+			});
 			
-			// ony add parameters if we are completing inside the function
+			// only add parameters if we are completing inside the function
 			if (params && params.length > 0 && inRange(data.offset, node.range)) {
 				var plen = params.length;
 				for (var p = 0; p < plen; p++) {
@@ -223,7 +230,7 @@ window.onload = function() {
 				var root = parse(buffer);
 				var offset = selection.start-1;
 				if (shouldVisit(root, offset)) {
-					visit(root, { proposals: proposals, offset: offset}, proposalCollector);
+					visit(root, { proposals: proposals, offset: offset, prefix: prefix}, proposalCollector);
 					proposals.sort();
 					proposals = squash(proposals);
 				}
