@@ -26,10 +26,12 @@ define(	   ['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searc
 	 * @public
      * @param {DOMNode} resultsNode Node under which results will be added.
 	 * @param {String} [heading] the heading text (HTML), or null if none required
-	 * @param {Function(DOMNode)} [onResultReady] If any results were found, this is called on the resultsNode.
+	 * @param {Function(DOMNode)} onResultReady (optional) If any results were found, this is called on the resultsNode.
+	 * @param {Function(DOMNode)} decorator (optional) A function to be called that knows how to decorate each row in the result table
+	 *   This function is passed a <td> element.
 	 * @returns a render function.
 	 */
-	function makeRenderFunction(resultsNode, heading, onResultReady) {
+	function makeRenderFunction(resultsNode, heading, onResultReady, decorator) {
 		
 		/**
 		 * Displays links to resources under the given DOM node.
@@ -75,7 +77,7 @@ define(	   ['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searc
 
 			var foundValidHit = false;
 			dojo.empty(resultsNode);
-			if (resources.length > 0) {
+			if (resources && resources.length > 0) {
 				var table = document.createElement('table');
 				for (var i=0; i < resources.length; i++) {
 					var resource = resources[i];
@@ -112,6 +114,9 @@ define(	   ['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searc
 					resourceLink.setAttribute('href', loc);
 					col.appendChild(resourceLink);
 					appendPath(col, resource);
+					if (decorator) {
+						decorator(col);
+					}
 				}
 				dojo.place(table, resultsNode, "last");
 				if (typeof(onResultReady) === "function") {
