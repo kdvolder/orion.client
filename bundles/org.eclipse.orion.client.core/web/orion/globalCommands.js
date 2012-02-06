@@ -12,9 +12,10 @@
 /*global window document define login logout localStorage orion */
 /*browser:true*/
 
-define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands', 'orion/parameterCollectors', 'orion/extensionCommands', 'orion/util', 'orion/textview/keyBinding',
-        'dijit/Menu', 'dijit/MenuItem', 'dijit/form/DropDownButton', 'orion/widgets/OpenResourceDialog', 'orion/widgets/LoginDialog'], 
-        function(require, dojo, dijit, commonHTML, mCommands, mParameterCollectors, mExtensionCommands, mUtil, mKeyBinding){
+define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands', 'orion/parameterCollectors', 
+	'orion/extensionCommands', 'orion/util', 'orion/textview/keyBinding', 'orion/searchRenderer', 'orion/favorites',
+	'dijit/Menu', 'dijit/MenuItem', 'dijit/form/DropDownButton', 'orion/widgets/OpenResourceDialog', 'orion/widgets/LoginDialog'], 
+        function(require, dojo, dijit, commonHTML, mCommands, mParameterCollectors, mExtensionCommands, mUtil, mKeyBinding, mSearchRenderer, mFavorites){
 
 	/**
 	 * This class contains static utility methods. It is not intended to be instantiated.
@@ -144,15 +145,15 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 	 * @name orion.globalCommands#generateDomCommandsInBanner
 	 * @function
 	 */
-	function generateDomCommandsInBanner(commandService, handler, item, navHandler, navItem, useImage, clientManagesPageNav) {
+	function generateDomCommandsInBanner(commandService, handler, item, navHandler, navItem, ignoreForNow, clientManagesPageNav) {
 		// close any open slideouts because we are retargeting
-		commandService.closeParameterCollector("tool");
+		commandService.closeParameterCollector("button");
 		var toolbar = dojo.byId("pageActions");
 		if (toolbar) {	
 			dojo.empty(toolbar);
 			// The render call may be synch (when called by page glue code that created the service)
 			// or asynch (when called after getting a service reference).
-			var retn = commandService.renderCommands(toolbar, "dom", item || handler, handler, "tool", !useImage);
+			var retn = commandService.renderCommands(toolbar, "dom", item || handler, handler, "button");
 			if (retn && retn.then) {
 				retn.then(function() {commandService.processURL(window.location.href);});
 			} else {
@@ -164,7 +165,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			toolbar = dojo.byId("pageNavigationActions");
 			if (toolbar) {	
 				dojo.empty(toolbar);
-				commandService.renderCommands(toolbar, "dom", navItem || item || handler, navHandler || handler, "tool", !useImage);  // use true when we want to force toolbar items to text
+				commandService.renderCommands(toolbar, "dom", navItem || item || handler, navHandler || handler, "button");  // use true when we want to force toolbar items to text
 			}
 		}
 	}
@@ -238,7 +239,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 									if (itemLabels[itemIndex]) {
 										navInfo.name += itemLabels[itemIndex];
 									}
-									var commandOptions = mExtensionCommands._createCommandOptions(navInfo, commandsReferences[j], serviceRegistry);
+									var commandOptions = mExtensionCommands._createCommandOptions(navInfo, commandsReferences[j], serviceRegistry, true);
 									command = new mCommands.Command(commandOptions);
 								}
 							}
@@ -325,6 +326,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 		}
 		
 		// Set up a custom parameter collector that slides out of the toolbar.
+		commandService.setParameterCollector("button", new mParameterCollectors.CommandParameterCollector(toolbar));
 		commandService.setParameterCollector("tool", new mParameterCollectors.CommandParameterCollector(toolbar));
 
 		
@@ -420,7 +422,12 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 
 	
 		var openResourceDialog = function(searcher, serviceRegistry, /* optional */ editor) {
-			var dialog = new orion.widgets.OpenResourceDialog({searcher: searcher, serviceRegistry:serviceRegistry});
+			var favoriteService = serviceRegistry.getService("orion.core.favorite");
+			//TODO Shouldn't really be making service selection decisions at this level. See bug 337740
+			if (!favoriteService) {
+				favoriteService = new mFavorites.FavoritesService({serviceRegistry: serviceRegistry});
+			}
+			var dialog = new orion.widgets.OpenResourceDialog({searcher: searcher, searchRenderer:mSearchRenderer, favoriteService:favoriteService});
 			if (editor) {
 				dojo.connect(dialog, "onHide", function() {
 					editor.getTextView().focus(); // Focus editor after dialog close, Dojo's doesn't work
@@ -559,7 +566,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 					for (var i=0; i<openWithCommands.length; i++) {
 						var commandInfo = openWithCommands[i].properties;
 						var service = openWithCommands[i].service;
-						var commandOptions = mExtensionCommands._createCommandOptions(commandInfo, service, serviceRegistry);
+						var commandOptions = mExtensionCommands._createCommandOptions(commandInfo, service, serviceRegistry, true);
 						var command = new mCommands.Command(commandOptions);
 						command.isEditor = commandInfo.isEditor;
 						var openWithGroupCreated = false;

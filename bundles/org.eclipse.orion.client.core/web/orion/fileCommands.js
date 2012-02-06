@@ -78,11 +78,11 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 		var service = registry.getService("orion.page.command");
 		// close any open slideouts because if we are retargeting the command
 		if (item.Location !== lastItemLoaded.Location) {
-			service.closeParameterCollector("tool");
+			service.closeParameterCollector("button");
 			lastItemLoaded.Location = item.Location;
 		}
 
-		service.renderCommands(toolbar, "dom", item, explorer, "tool", true).then(function() {
+		service.renderCommands(toolbar, "dom", item, explorer, "button").then(function() {
 			if (lastItemLoaded.Location) {
 				service.processURL(window.location.href);
 			}
@@ -90,7 +90,7 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 		if (selectionToolbarId) {
 			var selectionTools = dojo.create("span", {id: selectionToolbarId}, toolbar, "last");
 			dojo.addClass(selectionTools, "selectionTools");
-			service.renderCommands(selectionTools, "dom", null, explorer, "tool", true); // true would force icons to text
+			service.renderCommands(selectionTools, "dom", null, explorer, "button"); // true would force icons to text
 		}
 		
 		// Stuff we do only the first time
@@ -101,7 +101,7 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 				var selectionTools = dojo.byId(selectionToolbarId);
 				if (selectionTools) {
 					dojo.empty(selectionTools);
-					registry.getService("orion.page.command").renderCommands(selectionTools, "dom", selections, explorer, "tool", true);
+					registry.getService("orion.page.command").renderCommands(selectionTools, "dom", selections, explorer, "button");
 				}
 			});
 		}
@@ -707,6 +707,11 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 		//        optional attribute: forceSingleItem - if true, then the service is only invoked when a single item is selected
 		//			and the item parameter to the run method is guaranteed to be a single item vs. an array.  When this is not true, 
 		//			the item parameter to the run method may be an array of items.
+		//        optional attribute: validationProperties - an object containing key/value pairs for validating the
+		//          the resource metadata to determine whether the command is valid for the given resource.
+		//          Wildcards are supported.  For example the validation property
+		//				{"Git":"*", "Directory":"true"}
+		//              specifies that the property "Git" must be present, and that the property "Directory" must be true.
 		// run - the implementation of the command (function).
 		//        arguments passed to run: (itemOrItems)
 		//          itemOrItems (object or array) - an array of items to which the item applies, or a single item if the info.forceSingleItem is true
@@ -738,8 +743,7 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 			for (i=0; i < fileCommands.length; i++) {
 				var commandInfo = fileCommands[i].properties;
 				var service = fileCommands[i].service;
-				
-				var commandOptions = mExtensionCommands._createCommandOptions(commandInfo, service);
+ 				var commandOptions = mExtensionCommands._createCommandOptions(commandInfo, service, serviceRegistry, true);
 				var command = new mCommands.Command(commandOptions);
 				if (commandInfo.isEditor) {
 					command.isEditor = commandInfo.isEditor;

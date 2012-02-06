@@ -12,8 +12,8 @@
 /*global define console window*/
 /*jslint regexp:false browser:true forin:true*/
 
-define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orion/util', 'orion/fileClient', 'orion/commands', 'orion/searchUtils', 'orion/globalSearch/search-features', 'orion/compare/compare-features', 'orion/compare/compare-container', 'dijit/TooltipDialog'], 
-		function(require, dojo, dijit, mExplorer, mTreeIterator, mUtil, mFileClient, mCommands, mSearchUtils, mSearchFeatures, mCompareFeatures, mCompareContainer) {
+define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 'orion/util', 'orion/fileClient', 'orion/commands', 'orion/searchUtils', 'orion/globalSearch/search-features', 'orion/compare/compare-features', 'orion/compare/compare-container', 'dijit/TooltipDialog'], 
+		function(require, dojo, dijit, mExplorer, mTreeModelIterator, mUtil, mFileClient, mCommands, mSearchUtils, mSearchFeatures, mCompareFeatures, mCompareContainer) {
 
 	function SearchResultModel(	serviceRegistry, fileClient, resultLocation, queryStr, options) {
 		this.registry= serviceRegistry;
@@ -27,9 +27,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		this.indexedFileItems = [];
 		this.modelLocHash = [];
 		this._lineDelimiter = "\n"; 
-		this.onHighlightSelection = options.onHighlightSelection;
 		this.onMatchNumberChanged = options.onMatchNumberChanged;
-		this.expanded = options.expanded;
 		this.queryObj = mSearchUtils.parseQueryStr(queryStr);
 	}
 	SearchResultModel.prototype = new mExplorer.ExplorerModel(); 
@@ -85,9 +83,13 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		var currentModel = this.iterator.cursor();
 		if(currentModel){
 			var fileItem = this.fileModel(currentModel);
-			var matchIndex = ( currentModel.type === "file" ? -2: this.model2Index(currentModel) );
 			window.sessionStorage[this.queryObj.queryStr + "_search_result_currentFileLocation"] = fileItem.location;
-			window.sessionStorage[this.queryObj.queryStr + "_search_result_currentDetailIndex"] = JSON.stringify(matchIndex);
+			if(currentModel.type === "file"){
+				window.sessionStorage[this.queryObj.queryStr + "_search_result_currentDetailIndex"] = "none";
+			} else {
+				window.sessionStorage[this.queryObj.queryStr + "_search_result_currentDetailIndex"] = JSON.stringify(this.model2Index(currentModel));
+			}
+			
 		}
 	};
 	
@@ -106,16 +108,14 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		var currentFileLocation = window.sessionStorage[this.queryObj.queryStr + "_search_result_currentFileLocation"];
 		var fileModel = this.location2Model(currentFileLocation);
 		this.iterator.setCursor(fileModel);
-		this.currentDetailIndex = -2;
-		var currentDetailIndex = window.sessionStorage[this.queryObj.queryStr + "_search_result_currentDetailIndex"];
-		if (typeof currentDetailIndex === "string") {
-			if (currentDetailIndex.length > 0) {
-				this.currentDetailIndex= JSON.parse(currentDetailIndex);
-				if(this.currentDetailIndex === null || this.currentDetailIndex === undefined){
-					this.currentDetailIndex = -2;
-				}
+		var currentDetailIndex = "none";
+		var detailIndexCached = window.sessionStorage[this.queryObj.queryStr + "_search_result_currentDetailIndex"];
+		if (typeof detailIndexCached === "string") {
+			if (detailIndexCached.length > 0) {
+				currentDetailIndex = detailIndexCached;
 			} 
 		}
+		return currentDetailIndex;
 	};
 	
 	SearchResultModel.prototype.getRoot = function(onItem){
@@ -125,7 +125,6 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 	SearchResultModel.prototype.buildResultModel = function(){
 		this.restoreGlobalStatus();
 		this.buildFlatModel();
-		this.restoreLocationStatus();
 	};
 	
 	SearchResultModel.prototype.buildFlatModel = function(){
@@ -141,11 +140,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 			this._listRoot.children.push(childNode);
 			this.indexedFileItems.push(childNode);
 		}
-		this.iterator = new mTreeIterator.TreeIterator(this.indexedFileItems, 
-				   {isExpanded: dojo.hitch(this, function(model) {
-					            	return this.expanded(model);
-				   				}
-				   )});
+		this.iterator.setTree(this.indexedFileItems); 
 	};
 	
 	SearchResultModel.prototype.checkStale = function(model, onComplete){
@@ -828,22 +823,22 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 			var col, span, link;
 			col = document.createElement('td');
 			span = dojo.create("span", {id: this.getFileSpanId(item)}, col, "only");
+			var that = this;
+			if(that.explorer._state === "result_view"){
+				dojo.connect(tableRow, "onclick", tableRow, function() {
+					that.selectElement(null, item);
+				});
+				dojo.connect(tableRow, "onmouseover", tableRow, function() {
+					tableRow.style.cursor ="pointer";
+				});
+				dojo.connect(tableRow, "onmouseout", tableRow, function() {
+					tableRow.style.cursor ="default";
+				});
+			}
 			if(item.type ===  "file"){
 				var renderName = item.totalMatches ? item.name + " (" + item.totalMatches + " matches)" : item.name;
 				this.renderFileElement(item, span, renderName);
 			} else {
-				var that = this;
-				if(that.explorer._state === "result_view"){
-					dojo.connect(tableRow, "onclick", tableRow, function() {
-						that.selectElement(null, item);
-					});
-					dojo.connect(tableRow, "onmouseover", tableRow, function() {
-						tableRow.style.cursor ="pointer";
-					});
-					dojo.connect(tableRow, "onmouseout", tableRow, function() {
-						tableRow.style.cursor ="default";
-					});
-				}
 				this.renderDetailElement(item, tableRow, span);
 				var iconSpan = dojo.create("span", {id: this.getDetailIconId(item)}, span, "last");
 				var icon = dojo.create("span", null, iconSpan, "last");
@@ -882,9 +877,21 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		this.queryStr = queryStr;
 		var that = this;
 		this.model = new SearchResultModel(registry, this.fileClient, resultLocation, queryStr, 
-						 {expanded: function(model){return that.myTree.isExpanded(that.model.getId(model));},
-						  onMatchNumberChanged: function(fileItem){that.renderer.replaceFileElement(fileItem);}});
-		this.model.iterator = 
+						 { onMatchNumberChanged: function(fileItem){that.renderer.replaceFileElement(fileItem);}});
+		this.iterator = new mTreeModelIterator.TreeModelIterator([], 
+		   		   {isExpanded: dojo.hitch(this, function(model) {
+		   						 	return this.isExpanded(model);
+		   						 }),
+		   						 
+		   			isExpandable: dojo.hitch(this, function(model) {
+					 				return model.type !== "detail";
+								 }),				   						 
+		   			
+					forceExpandFunc: dojo.hitch(this, function(modelToExpand, childPosition, callback) {
+			 						return this.forceExpandFunc(modelToExpand, childPosition, callback);
+						 		 })
+		   		   });
+		this.model.iterator = this.iterator;
 		this._replaceStr = this.model.queryObj.replace;
 		//there are 3 states:
 		//result_view: viewing the seach result
@@ -997,7 +1004,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 			}
 		});
 		var nextResultCommand = new mCommands.Command({
-			name : "Next result",
+			tooltip : "Next result",
 			imageClass : "core-sprite-move_down",
 			id: "orion.search.nextResult",
 			groupId: "orion.searchGroup",
@@ -1008,7 +1015,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 				that.gotoNext(true, true);
 		}});
 		var prevResultCommand = new mCommands.Command({
-			name : "Previous result",
+			tooltip : "Previous result",
 			imageClass : "core-sprite-move_up",
 			id: "orion.search.prevResult",
 			groupId: "orion.searchGroup",
@@ -1019,7 +1026,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 				that.gotoNext(false, true);
 		}});
 		var expandAllCommand = new mCommands.Command({
-			name : "Expand all results",
+			tooltip : "Expand all results",
 			imageClass : "core-sprite-expandAll",
 			id: "orion.search.expandAll",
 			groupId: "orion.searchGroup",
@@ -1030,7 +1037,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 				that.expandAll();
 		}});
 		var collapseAllCommand = new mCommands.Command({
-			name : "Collapse all results",
+			tooltip : "Collapse all results",
 			imageClass : "core-sprite-collapseAll",
 			id: "orion.search.collapseAll",
 			groupId: "orion.searchGroup",
@@ -1111,6 +1118,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 			replaceStringDiv.onkeydown = function(e){
 				if (e.keyCode === dojo.keys.ENTER) {
 					var replaceInputDiv = dojo.byId("globalSearchReplaceWith");
+					that._commandService.closeParameterCollector("tool");
 					return that.doPreview(replaceInputDiv.value);
 				}
 				if( e.keyCode === 27/*ESC*/ ){
@@ -1121,7 +1129,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 			parentDiv.appendChild(replaceStringDiv);
 
 			// create the command span for Replace
-			span = document.createElement('span');
+			var span = document.createElement('span');
 			dojo.addClass(span, "parameters");
 			span.id = "globalSearchReplaceCommands";
 			parentDiv.appendChild(span);
@@ -1150,7 +1158,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 
 		// Register command contributions
 		this._commandService.registerCommandContribution("orion.globalSearch.innerReplaceAll", 1, "globalSearchReplaceCommands");
-		this._commandService.renderCommands("globalSearchReplaceCommands", "dom", this, this, "tool");
+		this._commandService.renderCommands("globalSearchReplaceCommands", "dom", this, this, "button");
 	};
 	
 	SearchResultExplorer.prototype._fileExpanded = function(fileIndex, detailIndex){
@@ -1233,8 +1241,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		this.renderer = new SearchResultRenderer({checkbox: true, highlightSelection:false,
 													  getCheckedFunc: function(item){return that.getItemChecked(item);},
 													  onCheckedFunc: function(rowId, checked, manually){that.onRowChecked(rowId, checked, manually);}}, that);
-		this.createTree(this._uiFactory.getMatchDivID(), this.model, {indent: 20, onCollapse: function(model){that.onCollapse(model);},
-														onExpand: function(model){that.onExpand(model);}});
+		this.createTree(this._uiFactory.getMatchDivID(), this.model, {indent: 20, onCollapse: function(model){that.onCollapse(model);}});
 		this.renderer.selectElement(this.model.iterator.prevCursor(), this.model.getSelected(), true);
 		this.reportStatus("");	
 	};
@@ -1379,10 +1386,10 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 	SearchResultExplorer.prototype.initCommands = function(){	
 		var that = this;
 		dojo.empty("pageActions");
-		this._commandService.renderCommands("pageActions", "dom", that, that, "tool");
+		this._commandService.renderCommands("pageActions", "dom", that, that, "button");
 
 		dojo.empty("pageNavigationActions");
-		this._commandService.renderCommands("pageNavigationActions", "dom", that, that, "tool");
+		this._commandService.renderCommands("pageNavigationActions", "dom", that, that, "button");
 		if(this._state !== "result_view"){
 			mUtil.forceLayout("pageNavigationActions");
 			return;
@@ -1416,6 +1423,10 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		this.registry.getService("orion.page.message").setProgressMessage(message);	
 	};
 	
+	SearchResultExplorer.prototype.isExpanded = function(model){
+		return this.myTree.isExpanded(this.model.getId(model));
+	};
+	
 	SearchResultExplorer.prototype.popupContext = function(model){
 		var that =this;
 	    var modelLinkId = this.renderer.getDetailIconId(model);
@@ -1442,8 +1453,11 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 	
 	SearchResultExplorer.prototype.onRihgtArrow = function(e) {
 		var curModel = this.model.getSelected();
+		if(!curModel){
+			return;
+		}
 		if(curModel.type === "file"){
-			if(!this.model.expanded(curModel)){
+			if(!this.isExpanded(curModel)){
 				this.myTree.expand(curModel);
 				e.preventDefault();
 				return false;
@@ -1459,8 +1473,11 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 
 	SearchResultExplorer.prototype.onLeftArrow = function(e) {
 		var curModel = this.model.getSelected();
+		if(!curModel){
+			return;
+		}
 		if(curModel.type === "file"){
-			if(this.model.expanded(curModel)){
+			if(this.isExpanded(curModel)){
 				this.myTree.collapse(curModel);
 				e.preventDefault();
 				return false;
@@ -1470,7 +1487,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 			e.preventDefault();
 			return false;
 		} else {
-			if(this.model.expanded(curModel.parent)){
+			if(this.isExpanded(curModel.parent)){
 				this.myTree.collapse(curModel.parent);
 				e.preventDefault();
 				return false;
@@ -1480,6 +1497,9 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 	
 	SearchResultExplorer.prototype.onCollapse = function(model) {
 		var curModel = this.model.getSelected();
+		if(!curModel){
+			return;
+		}
 		if(curModel.type === "detail"){
 			var curFileModel = this.model.fileModel(model);
 			if(curFileModel === model){
@@ -1488,23 +1508,49 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		}
 	};
 	
-	SearchResultExplorer.prototype.onExpand = function(model) {
-		var curModel = this.model.getSelected();
-		if(curModel === model){
-			if(this.model.currentDetailIndex > -2){
-				if(this.model.currentDetailIndex < 0) {
-					this.model.currentDetailIndex = curModel.children.length -1;
-				} else if (this.model.currentDetailIndex >= curModel.children.length){
-					this.model.currentDetailIndex = 0;
-				}
-				this.renderer.selectElement(null, curModel.children[this.model.currentDetailIndex]);
-				this.model.currentDetailIndex = -2;
+	SearchResultExplorer.prototype.onExpand = function(modelToExpand, childPosition, callback) {
+		//var curModel = this.model.getSelected();
+		if(modelToExpand && modelToExpand.children && modelToExpand.children.length > 0 && typeof(childPosition) === "string"){
+			var childIndex = 0;
+			var forward = true;
+			if(childPosition === "first" ){
+				childIndex = 0;
+			} else if (childPosition === "last"){
+				childIndex =  modelToExpand.children.length -1;
+				forward = false;
+			} else {
+				childIndex = JSON.parse(childPosition);
+				forward = false;
 			}
+			if(typeof(childIndex) === "string" || childIndex <0 || childIndex >= modelToExpand.children.length){
+				childIndex = 0;
+			}	
+			this.renderer.selectElement(null, modelToExpand.children[childIndex]);
+			this.onHighlightSelection(forward);
 		}
 	};
 			
+	SearchResultExplorer.prototype.forceExpandFunc = function(modelToExpand, childPosition, callback){
+		this.myTree.expand(modelToExpand, dojo.hitch(this, function() {
+			this.onExpand(modelToExpand , childPosition, callback);
+		}));
+		return null;
+	};
+	
+	SearchResultExplorer.prototype.checkRow = function(currentModel) {
+		if(this.renderer._useCheckboxSelection){
+			var tableRow = this.getRowdDiv(currentModel);
+			var checkBox  = dojo.byId(this.renderer.getCheckBoxId(tableRow.id));
+			var checked = !checkBox.checked;
+			this.renderer.onCheck(tableRow, checkBox, checked, true);
+		}
+	};
+	
 	SearchResultExplorer.prototype.onEnter = function(e) {
 		var  currentModel= this.model.getSelected();
+		if(!currentModel){
+			return;
+		}
 		if(this._state === "result_view"){
 			if(e.ctrlKey){
 				window.open(currentModel.linkLocation);
@@ -1512,12 +1558,8 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 				window.location.href = currentModel.linkLocation;
 			}
 		} else {
-			var tableRow = this.getRowdDiv(currentModel);
-			var checkBox  = dojo.byId(this.renderer.getCheckBoxId(tableRow.id));
-			var checked = !checkBox.checked;
-			this.renderer.onCheck(tableRow, checkBox, checked, true);
+			this.checkRow();
 		}
-
 	};
 	
 	SearchResultExplorer.prototype.startKeyBoardListening = function() {
@@ -1539,13 +1581,13 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		var h2 = dojo.connect(resultParentDiv, "onkeydown", dojo.hitch(this, function (e) {
 			if(e.keyCode === dojo.keys.DOWN_ARROW){
 				if(!e.ctrlKey){
-					this.gotoNext(true, true);
+					this.gotoNext(true, false);
 					e.preventDefault();
 					return false;
 				}
 			} else if(e.keyCode === dojo.keys.UP_ARROW){
 				if(!e.ctrlKey){
-					this.gotoNext(false, true);
+					this.gotoNext(false, false);
 					e.preventDefault();
 					return false;
 				}
@@ -1583,17 +1625,17 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		var that = this;
 		this.startKeyBoardListening();
 		this.model.buildResultModel();
+		var detailIndex = this.model.restoreLocationStatus();
 		if(this._state === "result_view"){
 			this.initCommands();
-			this.createTree(this.parentNode, this.model, {indent: 20, onCollapse: function(model){that.onCollapse(model);},
-				onExpand: function(model){that.onExpand(model);}});
+			this.createTree(this.parentNode, this.model, {indent: 20, onCollapse: function(model){that.onCollapse(model);}});
 		
-			this.gotoCurrent();
+			this.gotoCurrent(detailIndex);
 			this.reportStatus("");	
 			this.loadOneFileMetaData(0, function(){that.refreshIndex();});
 		} else {
 			that.replacePreview(that._replaceStr);
-			//this.gotoCurrent();
+			this.gotoCurrent();
 			this.loadOneFileMetaData(0, function(){that.refreshIndex();});
 		}
 	};
@@ -1610,7 +1652,10 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		}
 		this.model.indexedFileItems = newIndex;
 		this.model.iterator.setTree(this.model.indexedFileItems);
-		if(!currentFileItem){
+		if(this.model.indexedFileItems.length === 0){
+			this.renderer.deselectElement(this.model.getSelected());
+			this.iterator.setCursor(null);
+		} else if(!currentFileItem){
 			this.model.iterator.reset();
 			this.gotoCurrent();
 		} 
@@ -1628,27 +1673,16 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 	};
 	
 	SearchResultExplorer.prototype.expandAll = function() {
-		var root = this.model._listRoot;
-		if(root.isRoot){
-			for (var i = 0; i < root.children.length ; i++){
-				if(this.model.matchesReplaced(root.children[i]) > 0){
-					this.expandRecursively(root.children[i]);
-				}
+		for (var i = 0; i < this.model.indexedFileItems.length ; i++){
+			if(this.model.matchesReplaced(this.model.indexedFileItems[i]) > 0){
+				this.expandRecursively(this.model.indexedFileItems[i]);
 			}
-		} else {
-			this.expandRecursively(root);
 		}
-		//this.gotoCurrent();
 	};
 	
 	SearchResultExplorer.prototype.collapseAll = function() {
-		var root = this.model._listRoot;
-		if(root.isRoot){
-			for (var i = 0; i < root.children.length ; i++){
-				this.myTree.collapse(root.children[i]);
-			}
-		} else {
-			this.myTree.collapse(root);
+		for (var i = 0; i <  this.model.indexedFileItems.length ; i++){
+			this.myTree.collapse( this.model.indexedFileItems[i]);
 		}
 	};
 	
@@ -1692,7 +1726,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 			return false;
 		}
 		// FIXME shouldn't know this id, should be passed in
-		var parentNode = dojo.byId(this.getParentDivId());
+		var parentNode = dojo.byId(this.getParentDivId(true));
 		var parentRect = parentNode.getClientRects()[0],
 		rects = element.getClientRects(),
 		on_top = function(r) {
@@ -1710,25 +1744,26 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		return false;
 	};
 		
-	SearchResultExplorer.prototype.gotoCurrent = function()	{
-		if(this.model.currentDetailIndex > -2){
-			this.myTree.expand(this.model.getSelected());
+	SearchResultExplorer.prototype.gotoCurrent = function(detailIndex)	{
+		var modelToExpand = this.model.getSelected();
+		if(detailIndex && detailIndex !== "none"){
+			this.myTree.expand(modelToExpand, dojo.hitch(this, function() {
+				this.onExpand(modelToExpand, detailIndex);
+			}));
+			//this.myTree.expand(this.model.getSelected());
 		} else {
-			this.onHighlightSelection(true);
+			this.onHighlightSelection(false);
 		}
 	};
 	
-	SearchResultExplorer.prototype.onHighlightLater = function()	{
-		this.gotoNext(true, false);
-	};
-	
-	SearchResultExplorer.prototype.gotoNext = function(next, calculateNext)	{
+	SearchResultExplorer.prototype.gotoNext = function(next, forceExpand)	{
 		if(this.model.indexedFileItems.length === 0){
 			return;
 		}
-		this.model.iterator.iterate(next);
-		this.renderer.selectElement(this.model.iterator.prevCursor(), this.model.iterator.cursor(), true);
-		this.onHighlightSelection(next);
+		if(this.model.iterator.iterate(next, forceExpand)){
+			this.renderer.selectElement(this.model.iterator.prevCursor(), this.model.iterator.cursor(), true);
+			this.onHighlightSelection(next);
+		}
 	};
 	
 	SearchResultExplorer.prototype.getRowdDiv = function(model){
@@ -1740,7 +1775,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		var currentRowDiv = this.getRowdDiv();
 		dojo.toggleClass(currentRowDiv, "currentSearchMatch", true);
 		if(!this.visible(currentRowDiv)) {
-			expanded.childDiv.scrollIntoView(!next);
+			currentRowDiv.scrollIntoView(!next);
 		}
 	};
 
@@ -1751,7 +1786,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeIterator', 'orio
 		this.parentId = parentId;
 		this.reportList = reportList;
 		this.renderer = new SearchReportRenderer({checkbox: false}, this);
-	};
+	}
 	SearchReportExplorer.prototype = new mExplorer.Explorer();
 	
 	SearchReportExplorer.prototype.report = function() {

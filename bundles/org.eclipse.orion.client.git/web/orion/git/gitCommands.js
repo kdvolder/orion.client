@@ -12,7 +12,9 @@
 /*global window widgets eclipse:true serviceRegistry dojo */
 /*browser:true*/
 define(['require', 'dojo', 'orion/commands', 'orion/util',
-        'orion/git/widgets/CloneGitRepositoryDialog', 'orion/git/widgets/InitGitRepositoryDialog', 'orion/git/widgets/AddRemoteDialog', 'orion/git/widgets/GitCredentialsDialog', 'orion/widgets/NewItemDialog', 'orion/git/widgets/RemotePrompterDialog', 'orion/git/widgets/ApplyPatchDialog'], 
+        'orion/git/widgets/CloneGitRepositoryDialog', 'orion/git/widgets/InitGitRepositoryDialog', 
+        'orion/git/widgets/AddRemoteDialog', 'orion/git/widgets/GitCredentialsDialog', 'orion/widgets/NewItemDialog', 
+        'orion/git/widgets/RemotePrompterDialog', 'orion/git/widgets/ApplyPatchDialog', 'orion/git/widgets/OpenCommitDialog'], 
         function(require, dojo, mCommands, mUtil) {
 
 /**
@@ -32,17 +34,17 @@ var exports = {};
 			throw "could not find toolbar " + toolbarId;
 		}
 		var commandService = registry.getService("orion.page.command");
-		commandService.renderCommands(toolbar, "dom", item, explorer, "tool", true);  // true forces text links
+		commandService.renderCommands(toolbar, "dom", item, explorer, "button"); 
 		if (pageNavId) {
 			toolbar = dojo.byId(pageNavId);
 			if (toolbar) {
 				dojo.empty(toolbar);
-				commandService.renderCommands(toolbar, "dom", item, explorer, "tool", true);  
+				commandService.renderCommands(toolbar, "dom", item, explorer, "button", true);  
 			}
 		}
 		if (selectionToolbarId) {
 			var selectionTools = dojo.create("span", {id: selectionToolbarId}, toolbar, "last");
-			commandService.renderCommands(selectionTools, "dom", null, explorer, "tool", true);
+			commandService.renderCommands(selectionTools, "dom", null, explorer, "button", true);
 		}
 
 		// Stuff we do only the first time
@@ -52,7 +54,7 @@ var exports = {};
 				var selectionTools = dojo.byId(selectionToolbarId);
 				if (selectionTools) {
 					dojo.empty(selectionTools);
-					commandService.renderCommands(selectionTools, "dom", selections, explorer, "tool", true);
+					commandService.renderCommands(selectionTools, "dom", selections, explorer, "button", true);
 				}
 			});
 		}
@@ -140,8 +142,22 @@ var exports = {};
 		});
 		return def;
 	};
+	
+	function translateResponseToStatus(response){
+		var json;
+		try{
+			json = JSON.parse(response.responseText);
+		}catch (e) {
+			json = {Result: response.responseText};
+		}
+		json.HttpCode = response.status;
+		return json;
+	};
 
 	exports.handleProgressServiceResponse = function(jsonData, options, serviceRegistry, callback, callee, title){
+		if(jsonData && jsonData.status){
+			jsonData = translateResponseToStatus(jsonData);
+		}
 		if(!jsonData || !jsonData.HttpCode){
 			if(callback){
 				callback(jsonData);
@@ -152,6 +168,9 @@ var exports = {};
 		case 200:
 		case 201:
 		case 202:
+			if(callback){
+				callback(jsonData.Result);
+			}
 			return;
 		case 401:
 			if(jsonData.JsonData){
@@ -1474,6 +1493,7 @@ var exports = {};
 			}
 		});
 		commandService.addCommand(fetchCommand, "object");
+		commandService.addCommand(fetchCommand, "dom");
 		commandService.registerCommandContribution("eclipse.orion.git.fetch", cmdBaseNumber+1);	
 
 		var mergeCommand = new mCommands.Command({
@@ -1542,6 +1562,7 @@ var exports = {};
 			}
 		});
 		commandService.addCommand(mergeCommand, "object");
+		commandService.addCommand(mergeCommand, "dom");
 		commandService.registerCommandContribution("eclipse.orion.git.merge", cmdBaseNumber+2);	
 
 		var pushCommand = new mCommands.Command({
@@ -1614,6 +1635,7 @@ var exports = {};
 			}
 		});
 		commandService.addCommand(pushCommand, "object");
+		commandService.addCommand(pushCommand, "dom");
 		commandService.registerCommandContribution("eclipse.orion.git.push", cmdBaseNumber+3);
 	};
 
@@ -1804,6 +1826,37 @@ var exports = {};
 			},
 			visibleWhen : function(item) {
 				console.info(item);
+				return item.Type === "Clone" || item.CloneLocation;
+			}
+		});
+		commandService.addCommand(openCommitCommand, "dom");
+		
+		var openCommitCommand = new mCommands.Command({
+			name : "Open Commit",
+			tooltip: "Open the commit with the given name",
+			id : "eclipse.orion.git.openCommitCommand",
+			imageClass: "git-sprite-apply_patch",
+			spriteClass: "gitCommandSprite",
+			callback: function(data) {
+				var repository;
+				if (data.items.Type === "Clone") {
+					repository = data.items;
+					new orion.git.widgets.OpenCommitDialog(
+						{repository: repository, serviceRegistry: serviceRegistry}
+					).show();
+				} else {
+					var gitService = serviceRegistry.getService("orion.git.provider");
+					gitService.getGitClone(data.items.CloneLocation).then(
+						function(jsonData){
+							repository = jsonData.Children[0];
+							new orion.git.widgets.OpenCommitDialog(
+								{repository: repository, serviceRegistry: serviceRegistry}
+							).show();
+						}
+					);
+				}
+			},
+			visibleWhen : function(item) {
 				return item.Type === "Clone" || item.CloneLocation;
 			}
 		});

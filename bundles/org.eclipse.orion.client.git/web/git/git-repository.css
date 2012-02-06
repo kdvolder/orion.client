@@ -11,6 +11,8 @@
 
 @import "../org.dojotoolkit/dojox/layout/resources/ToggleSplitter.css";
 
+@import "../settings/settings.css";
+
 @import "../css/ide.css";
 
 @import "../css/UploaderFileList.css";
@@ -22,8 +24,6 @@
 @import "../css/commands.css";
 
 @import "css/git.css";
-
-@import "../settings/settings.css";
 
 .git-decor-icon {
 	float: left;
@@ -41,6 +41,17 @@
 	height: 30px;
 	vertical-align: text-top;
 	width: 30px;
+	border: 1px solid lightGrey;
+	padding: 2px;
+	margin-right: 18px;
+}
+
+.git-author-icon-small {
+	float: left;
+	position: relative;
+	height: 35px;
+	vertical-align: text-top;
+	width: 35px;
 	border: 1px solid lightGrey;
 	padding: 2px;
 	margin-right: 18px;
