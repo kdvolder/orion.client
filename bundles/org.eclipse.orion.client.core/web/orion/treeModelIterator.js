@@ -41,7 +41,7 @@ exports.TreeModelIterator = (function() {
 			this.forceExpandFunc = options.forceExpandFunc;//optional  callback providing the expansion on the caller side.
 		},
 			
-		_topLevel: function(modelItem) {
+		topLevel: function(modelItem) {
 			return modelItem.parent ? (modelItem.parent === this.root) : true;
 		},
 		
@@ -113,7 +113,7 @@ exports.TreeModelIterator = (function() {
 		},
 		
 		_findSibling: function(current, forward){
-			var isTopLevel = this._topLevel(current);
+			var isTopLevel = this.topLevel(current);
 			var siblings = isTopLevel ? this.firstLevelChildren: current.parent.children;
 			for(var i = 0; i < siblings.length; i++){
 				if(siblings[i] === current){
@@ -183,7 +183,7 @@ exports.TreeModelIterator = (function() {
 		 */
 		collapse: function(collapsedModel) {
 			if(this._inParentChain(this._cursor, collapsedModel)){
-				this._cursor = collapsedModel;
+				this.setCursor(collapsedModel);
 				return this._cursor;
 			}
 			return null;

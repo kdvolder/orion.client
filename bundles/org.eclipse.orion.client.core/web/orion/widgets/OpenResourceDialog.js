@@ -34,6 +34,7 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 	time: null,
 	options: null,
 	searcher: null,
+	searchRenderer: null,
 	favService: null,
 	
 	/** @private */
@@ -43,11 +44,13 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 		this.time = 0;
 		this.options = arguments[0];
 		this.searcher = this.options && this.options.searcher;
-		this.searchRenderer = this.options && this.options.searchRenderer;
 		if (!this.searcher) {
 			throw new Error("Missing required argument: searcher");
 		}
-		var serviceRegistry = this.options.serviceRegistry;
+		this.searchRenderer = this.options && this.options.searchRenderer;
+		if (!this.searchRenderer || typeof(this.searchRenderer.makeRenderFunction) !== "function") {
+			throw new Error("Missing required argument: searchRenderer");
+		}
 		this.favService = this.options.favoriteService;
 		if (!this.favService) {
 			throw new Error("Missing required argument: favService");
@@ -142,7 +145,6 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 	populateFavorites: function() {
 		dojo.place("<div>Populating favorites&#x2026;</div>", this.favresults, "only");
 		
-		
 		// initially, show all favorites
 		this.favService.getFavorites().then(this.showFavorites());
 		// need to add the listener since favorites may not 
@@ -162,7 +164,8 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 			if (favs.navigator) {
 				favs = favs.navigator;
 			}
-			var renderFunction = that.searchRenderer.makeRenderFunction(that.favresults, false, dojo.hitch(that, that.decorateResult));
+			var renderFunction = that.searchRenderer.makeRenderFunction(that.favresults, false, 
+					dojo.hitch(that, that.decorateResult), that.showFavoritesImage);
 			renderFunction(favs);
 			if (favs && favs.length > 0) {
 				dojo.place("<hr/>", that.favresults, "last");
@@ -170,6 +173,18 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 		};
 	},
 
+	/** @private */
+	showFavoritesImage : function(col) {
+		var image = new Image();
+		dojo.addClass(image, "commandSprite");
+		dojo.addClass(image, "core-sprite-makeFavorite");
+		dojo.addClass(image, "commandImage");
+		// without an image, chrome will draw a border  (?)
+		image.src = require.toUrl("images/none.png");
+		image.title = "Favorite";
+		col.appendChild(image);
+		dojo.style(image, "verticalAlign", "middle");
+	},
 	
 	/** @private */
 	checkSearch: function() {
@@ -200,7 +215,7 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 			var that = this;
 			setTimeout(function() {
 				var query = that.searcher.createSearchQuery(null, text, "Name");
-				var renderFunction = that.searchRenderer.makeRenderFunction(that.results, false, dojo.hitch(that, that.decorateResult), true);
+				var renderFunction = that.searchRenderer.makeRenderFunction(that.results, false, dojo.hitch(that, that.decorateResult));
 				that.searcher.search(query, false, renderFunction);
 			}, 0);
 		}

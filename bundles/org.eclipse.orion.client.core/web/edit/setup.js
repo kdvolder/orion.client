@@ -13,14 +13,14 @@
 /*global define eclipse:true orion:true dojo dijit window*/
 
 define(['require', 'dojo', 'orion/selection', 'orion/status', 'orion/progress', 'orion/dialogs',
-        'orion/commands', 'orion/util', 'orion/favorites', 'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/searchRenderer', 'orion/globalCommands', 'orion/outliner',
+        'orion/commands', 'orion/util', 'orion/favorites', 'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/globalCommands', 'orion/outliner',
         'orion/problems', 'orion/editor/contentAssist', 'orion/editorCommands', 'orion/editor/editorFeatures', 'orion/editor/editor', 'orion/syntaxchecker',
         'orion/breadcrumbs', 'orion/textview/textView', 'orion/textview/textModel', 
         'orion/textview/projectionTextModel', 'orion/textview/keyBinding','orion/searchAndReplace/textSearcher','orion/searchAndReplace/orionTextSearchAdaptor',
         'orion/edit/dispatcher', 'orion/contentTypes', 'orion/PageUtil', 'orion/highlight',
         'dojo/parser', 'dojo/hash', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane', 'orion/widgets/eWebBorderContainer' ], 
 		function(require, dojo, mSelection, mStatus, mProgress, mDialogs, mCommands, mUtil, mFavorites,
-				mFileClient, mOperationsClient, mSearchClient, mSearchRenderer, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
+				mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
 				mSyntaxchecker, mBreadcrumbs, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mSearcher,
 				mSearchAdaptor, mDispatcher, mContentTypes, PageUtil, Highlight) {
 	
@@ -179,6 +179,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 			var titlePane = dojo.byId("location");
 			if (titlePane) {
 				dojo.empty(titlePane);
+				searcher.setLocationByMetaData(this._fileMetadata, {index: "first"});
 				var root = fileClient.fileServiceName(this._fileMetadata && this._fileMetadata.Location);
 				new mBreadcrumbs.BreadCrumbs({
 					container: "location", 
@@ -338,7 +339,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 				dojo.place(document.createTextNode("\"" + searchPattern + "\"..."), b, "only");
 				searchFloat.style.display = "block";
 				var query = searcher.createSearchQuery(searchPattern, null, "Name");
-				var renderer = mSearchRenderer.makeRenderFunction(searchFloat, false, null);
+				var renderer = searcher.defaultRenderer.makeRenderFunction(searchFloat, false);
 				searcher.search(query, inputManager.getInput(), renderer);
 			}, 0);
 			return true;

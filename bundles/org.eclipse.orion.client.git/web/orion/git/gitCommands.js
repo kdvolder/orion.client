@@ -35,13 +35,15 @@ var exports = {};
 		}
 		var commandService = registry.getService("orion.page.command");
 		commandService.renderCommands(toolbar, "dom", item, explorer, "button"); 
+		
 		if (pageNavId) {
-			toolbar = dojo.byId(pageNavId);
-			if (toolbar) {
-				dojo.empty(toolbar);
-				commandService.renderCommands(toolbar, "dom", item, explorer, "button", true);  
+			var pageNav = dojo.byId(pageNavId);
+			if (pageNav) {
+				dojo.empty(pageNav);
+				commandService.renderCommands(pageNav, "dom", item, explorer, "button", true);  
 			}
 		}
+		
 		if (selectionToolbarId) {
 			var selectionTools = dojo.create("span", {id: selectionToolbarId}, toolbar, "last");
 			commandService.renderCommands(selectionTools, "dom", null, explorer, "button", true);
@@ -368,22 +370,29 @@ var exports = {};
 			callback: function(data) {
 				var item = data.items;
 				
-				exports.getNewItemName(item, explorer, false, data.domNode.id, "Branch name", function(name) {
-					if (!name && name == "") {
-						return;
-					}
-					
-					var branchLocation;
-					if (item.Type === "Clone") {
-						branchLocation = item.BranchLocation;
-					} else {
-						branchLocation = item.Location;
-					}
-					
+				var createBranchFunction = function(branchLocation, name) {
 					serviceRegistry.getService("orion.git.provider").addBranch(branchLocation, name).then(function() {
 						dojo.hitch(explorer, explorer.changedItem)(item);
 					}, displayErrorOnStatus);
-				});
+				};
+				
+				var branchLocation;
+				if (item.Type === "Clone") {
+					branchLocation = item.BranchLocation;
+				} else {
+					branchLocation = item.Location;
+				}
+				
+				if (data.parameters.valueFor("name") && !data.parameters.optionsRequested) {
+					createBranchFunction(branchLocation, data.parameters.valueFor("name"));
+				} else {
+					exports.getNewItemName(item, explorer, false, data.domNode.id, "Branch name", function(name) {
+						if (!name && name == "") {
+							return;
+						}		
+						createBranchFunction(branchLocation, name);
+					});
+				}
 			},
 			visibleWhen: function(item) {
 				return (item.GroupNode && item.Name === "Branches") || (item.Type === "Clone" && explorer.parentId === "artifacts");
@@ -444,29 +453,43 @@ var exports = {};
 		});
 		commandService.addCommand(removeRemoteBranchCommand, "object");
 
+		var addRemoteParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter('name', 'text', 'Name:'), 
+		                                                               new mCommands.CommandParameter('url', 'url', 'Url:')], false);
+		
 		var addRemoteCommand = new mCommands.Command({
 			name: "New Remote",
 			tooltip: "Add a new remote to the repository",
 			imageClass: "core-sprite-add",
 			id: "eclipse.addRemote",
+			parameters: addRemoteParameters,
 			callback : function(data) {
 				var item = data.items;
-				var dialog = new orion.git.widgets.AddRemoteDialog({
-					func : function(remote, remoteURI){
-						var remoteLocation;
-						if (item.Type === "Clone") {
-							remoteLocation = item.RemoteLocation;
-						} else {
-							remoteLocation = item.Location;
+				
+				var createRemoteFunction = function(remoteLocation, name, url) {
+					serviceRegistry.getService("orion.git.provider").addRemote(remoteLocation, name, url).then(function() {
+						dojo.hitch(explorer, explorer.changedItem)(item);
+					}, displayErrorOnStatus);
+				};
+				
+				var remoteLocation;
+				if (item.Type === "Clone") {
+					remoteLocation = item.RemoteLocation;
+				} else {
+					remoteLocation = item.Location;
+				}
+				
+				if (data.parameters.valueFor("name") && data.parameters.valueFor("url") && !data.parameters.optionsRequested) {
+					createRemoteFunction(remoteLocation, data.parameters.valueFor("name"), data.parameters.valueFor("url"));
+				} else {
+					var dialog = new orion.git.widgets.AddRemoteDialog({
+						func : function(remote, remoteURI){
+							createRemoteFunction(remoteLocation, remote, remoteURI);
 						}
-						
-						serviceRegistry.getService("orion.git.provider").addRemote(remoteLocation, remote, remoteURI).then(function() {
-							dojo.hitch(explorer, explorer.changedItem)(item);
-						}, displayErrorOnStatus);
-					}
-				});
-				dialog.startup();
-				dialog.show();
+					});
+					dialog.startup();
+					dialog.show();
+					
+				}	
 			},
 			visibleWhen: function(item) {
 				return (item.GroupNode && item.Name === "Remotes") ||  (item.Type === "Clone" && explorer.parentId === "artifacts");
@@ -1267,31 +1290,25 @@ var exports = {};
 			parameters: tagNameParameters,
 			callback: function(data) {
 				var item = data.items;
-				var clientDeferred = new dojo.Deferred();
-				exports.getNewItemName(item, explorer, false, data.domNode.id, "Tag name", function(tagName){
-					if(!tagName || tagName === ""){
-						return;
-					}
-					serviceRegistry.getService("orion.git.provider").doAddTag(item.Location, tagName).then(
-						function(jsonData, secondArg) {
-							if (explorer.changedItem) {
-								dojo.hitch(explorer, explorer.changedItem)();
-							} else {
-								var trId = jsonData.Location.replace(/[^\.\:\-\_0-9A-Za-z]/g, "");
-								var tr = dojo.byId(trId);
-								dojo.place(document.createTextNode(tagName), dojo.create("p", {style: "margin: 5px"}, tr.children[6] /* tags column */, "last"), "only");
-							}
-						},
-						function (error){
-							var display = [];
-							display.Severity = "Error";
-							display.HTML = false;
-							var resp = JSON.parse(error.responseText);
-							display.Message = resp.DetailedMessage ? resp.DetailedMessage : resp.Message;
-							serviceRegistry.getService("orion.page.message").setProgressResult(display);
-						});
-					return clientDeferred;
-				}, 4);
+				
+				var createTagFunction = function(commitLocation, tagName) {						
+					serviceRegistry.getService("orion.git.provider").doAddTag(commitLocation, tagName).then(function() {
+						dojo.hitch(explorer, explorer.changedItem)(item);
+					}, displayErrorOnStatus);
+				};
+				
+				var commitLocation = item.Location;
+				
+				if (data.parameters.valueFor("name") && !data.parameters.optionsRequested) {
+					createTagFunction(commitLocation, data.parameters.valueFor("name"));
+				} else {
+					exports.getNewItemName(item, explorer, false, data.domNode.id, "Tag name", function(name) {
+						if (!name && name == "") {
+							return;
+						}		
+						createTagFunction(commitLocation, name);
+					});
+				}
 			},
 			visibleWhen : function(item) {
 				return item.Type === "Commit";

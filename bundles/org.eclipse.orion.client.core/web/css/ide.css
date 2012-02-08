@@ -137,6 +137,11 @@ a:hover {
 
 .pageActions {
 	font: 9pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
+	min-height: 30px;
+}
+
+/* marker for finding section and main toolbars */
+.toolComposite {
 }
 
 .sectionActions {
@@ -145,6 +150,7 @@ a:hover {
 
 .pageNavigationActions {
 	text-align: right;
+	min-height: 30px;
 }
 
 .parameters {
@@ -152,10 +158,14 @@ a:hover {
 	vertical-align: middle;
 }
 
-.dismiss {
-    border: 1px solid transparent;
+.parametersDismiss {
+	color: #404040;
+	vertical-align: middle;
 }
 
+.dismiss {
+	border: 1px solid transparent;
+}
 .dismiss:hover {
 	background-color: #ffeecc;
     border: 1px solid #ffcc66;
@@ -414,20 +424,51 @@ a:hover {
 }
 
 .progressInfo {
-	background-color:#f1f6fe;
+	background-color: #e4f6fb;
+	border: 1px solid #b8dae6;
 }
 
 .progressWarning {
-	background-color: #fcf8dc;
+	background-color: #fbf3e4;
+	border: 1px solid #e6d7b8;
 }
 
 .progressError {
-	background-color: #fff3fb;
+	background-color: #fbf4ec;
+	border: 1px solid #e6b8c7;
 }
 
 .progressNormal {
-	background-color: transparent;
+	background-color: #f7fff7;
+	border: 1px solid #1a863a;
 }
+
+.progressErrorImage {
+	background-position: 0 0; 
+	width: 16px; 
+	height: 16px; 
+	background: url(../images/error.gif) no-repeat top left; 
+	display: inline-block; 
+	vertical-align: middle;
+} 
+
+.progressErrorWarning {
+	background-position: 0 0; 
+	width: 16px; 
+	height: 16px; 
+	background: url(../images/warning.gif) no-repeat top left; 
+	display: inline-block; 
+	vertical-align: middle;
+} 
+
+.progressInfoImage {
+	background-position: 0 0; 
+	width: 16px; 
+	height: 16px; 
+	background: url(../images/info.gif) no-repeat top left; 
+	display: inline-block; 
+	vertical-align: middle;
+} 
 
 .progressPane {
 	vertical-align: bottom;
@@ -461,14 +502,14 @@ a:hover {
 
 .toolbar {
 	vertical-align: middle;
-	min-height: 30px;
+	min-height: 32px;
 	width: 100%;
 	color: #808080;
 }
 
 .auxToolbar {
     background: #f8f8f8;
- 	min-height: 30px;
+ 	min-height: 32px;
 	width: 100%;
 	color: #808080;
 }
@@ -547,17 +588,23 @@ a:hover {
 	width: 97%;
 	clear: both;
 	float: left;
-	border: 1px solid #ebebeb; 
-	border-radius: 3px;
-	margin: 4px;
+	border-radius: 2px;
+	margin-left: 4px;
+	margin-right: 4px;
+	margin: 2px;
 	display: none;
+}
+
+.slideParameters {
+	border: 1px solid #808080;
+	background-color: #d7d7d7;
 }
 
 .slideContainerActive {
 	display: block;
 }
 
-.leftSlide {
+.slide {
 	text-align: left;
 	vertical-align: middle;
 	float: left;
@@ -574,27 +621,13 @@ a:hover {
 	border: 1px solid #9a9a9a;
 }
 
-.leftSlideActive {
-	padding: 8px;
-	opacity: 1;
-	height: auto;
+/* marker used by parameter collectors to identify commands */
+.commandMarker {
 }
 
-.rightSlide {
-	vertical-align: middle;
-	float: right;
-	height: 0;
-	width: auto;
-	opacity: 0;
- 	transition: opacity .5s ease-out;
-	-o-transition: opacity .5s ease-out;
-	-moz-transition: opacity .5s ease-out;
-	-webkit-transition: opacity .5s ease-out;
-}
-
-.rightSlideActive {
-	opacity: 1;
+.slideActive {
 	padding: 8px;
+	opacity: 1;
 	height: auto;
 }
 
@@ -767,8 +800,8 @@ a:hover {
 	background-color: #EAF2FE;
 }
 
-.currentSearchMatch {
-	background-color: #CEFFFF !important;
+.treeIterationCursor {
+	background-color: #EAF2FE !important;
 }
 
 .searchCmdGroupMargin {

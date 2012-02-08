@@ -78,7 +78,7 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 		var service = registry.getService("orion.page.command");
 		// close any open slideouts because if we are retargeting the command
 		if (item.Location !== lastItemLoaded.Location) {
-			service.closeParameterCollector("button");
+			service.closeParameterCollector();
 			lastItemLoaded.Location = item.Location;
 		}
 
@@ -666,6 +666,11 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 				id: "eclipse.pasteSelections",
 				callback: function() {
 					if (bufferedSelection.length > 0) {
+						// Do not allow pasting into the Root of the Workspace
+						if (mUtil.isAtRoot(this.treeRoot.Location)) {
+							errorHandler("Cannot paste into the Workspace root");
+							return;
+						}
 						for (var i=0; i<bufferedSelection.length; i++) {
 							var location = bufferedSelection[i].Location;
 							var name = null;
@@ -732,12 +737,13 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 			fileCommands.push({properties: info, service: impl});
 		}
 		
-		if (!contentTypesMapCache) {
-			serviceRegistry.getService("orion.file.contenttypes").getContentTypesMap().then(function(map) {
+		function getContentTypesMap() {
+			return contentTypesMapCache || serviceRegistry.getService("orion.file.contenttypes").getContentTypesMap().then(function(map) {
 				contentTypesMapCache = map;
+				return contentTypesMapCache;
 			});
 		}
-		dojo.when(contentTypesMapCache, dojo.hitch(this, function() {
+		dojo.when(getContentTypesMap(), dojo.hitch(this, function() {
 			fileCommands = fileCommands.concat(mExtensionCommands._createOpenWithCommands(serviceRegistry, contentTypesMapCache));
 		
 			for (i=0; i < fileCommands.length; i++) {

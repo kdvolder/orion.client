@@ -122,6 +122,10 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 		onItem(this._listRoot);
 	};
 	
+	SearchResultModel.prototype.getTopIterationNodes = function(){
+		return this.indexedFileItems;
+	};
+	
 	SearchResultModel.prototype.buildResultModel = function(){
 		this.restoreGlobalStatus();
 		this.buildFlatModel();
@@ -567,7 +571,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 	SearchResultRenderer.prototype.deselectElement = function(model){
 		var currentRow = this.explorer.getRowdDiv(model);
 		if(currentRow) {
-			dojo.toggleClass(currentRow, "currentSearchMatch", false);
+			dojo.toggleClass(currentRow, "treeIterationCursor", false);
 			this.replaceDetailIcon(model ? model: this.explorer.model.getSelected(), "none");
 		}
 	};
@@ -588,7 +592,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 		}
 		this.deselectElement(previousModel);
 		this.explorer.model.setSelected(currentModel, fromIteration);
-		dojo.toggleClass(this.explorer.model.getId(currentModel), "currentSearchMatch", true);
+		dojo.toggleClass(this.explorer.model.getId(currentModel), "treeIterationCursor", true);
 		var that = this;
 		if(this.explorer._state !== "result_view"){
 			if(!this.explorer.model.sameFile()){
@@ -1107,7 +1111,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 
 	SearchResultExplorer.prototype.preview = function() {
 		var that = this;
-		this._commandService.openParameterCollector("tool", null, "pageActions", function(parentDiv) {
+		this._commandService.openParameterCollector("pageActions", function(parentDiv) {
 			// create replace text
 			var replaceStringDiv = document.createElement('input');
 			replaceStringDiv.type = "text";
@@ -1118,11 +1122,11 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 			replaceStringDiv.onkeydown = function(e){
 				if (e.keyCode === dojo.keys.ENTER) {
 					var replaceInputDiv = dojo.byId("globalSearchReplaceWith");
-					that._commandService.closeParameterCollector("tool");
+					that._commandService.closeParameterCollector();
 					return that.doPreview(replaceInputDiv.value);
 				}
 				if( e.keyCode === 27/*ESC*/ ){
-					that._commandService.closeParameterCollector("tool");
+					that._commandService.closeParameterCollector();
 					return false;
 				}
 			};
@@ -1150,6 +1154,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 			groupId : "orion.searchGroup",
 			callback : function() {
 				var replaceInputDiv = dojo.byId("globalSearchReplaceWith");
+				that._commandService.closeParameterCollector();
 				return that.doPreview(replaceInputDiv.value);
 			}
 		});
@@ -1217,7 +1222,6 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 			that.reportStatus("");	
 		});
 	};
-
 	
 	SearchResultExplorer.prototype.replacePreview = function(replaceStr) {
 		this._state = "replace_preview";
@@ -1230,11 +1234,6 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 			parentDivID: this.getParentDivId()
 		});
 		this._uiFactory.buildUI();
-		// FIXME shouldn't know this id, should be passed in
-		var parentPane = dijit.byId("orion.searchResults");
-		if(parentPane.isLeftPaneOpen()){
-			parentPane.toggle();
-		}
 		
 		this.reportStatus("Preparing preview...");	
 		var that = this;
@@ -1773,7 +1772,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/treeModelIterator', 
 	
 	SearchResultExplorer.prototype.onHighlightSelection = function(next){
 		var currentRowDiv = this.getRowdDiv();
-		dojo.toggleClass(currentRowDiv, "currentSearchMatch", true);
+		dojo.toggleClass(currentRowDiv, "treeIterationCursor", true);
 		if(!this.visible(currentRowDiv)) {
 			currentRowDiv.scrollIntoView(!next);
 		}
