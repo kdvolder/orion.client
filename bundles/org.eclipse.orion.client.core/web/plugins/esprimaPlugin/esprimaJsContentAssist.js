@@ -11,8 +11,8 @@
  *     Andrew Eisenberg (vmware) - implemented visitor pattern
  *******************************************************************************/
 
-/*global define require eclipse esprima window console*/
-window.onload = function() {
+/*global define require eclipse esprima window console inTest*/
+var esprimaContentAssistant = function() {
 
 	/**
 	 * A prototype of that contains the common built-in types
@@ -270,7 +270,8 @@ window.onload = function() {
 	}
 	
 	/**
-	 * return true if we are at a location where proposing something makes sense.  False otherwise.
+	 * @return "top" if we are at a start of a new expression fragment (eg- at an empty line, 
+	 * or a new parameter).  "member" if we are after a dot in a member expression.  false otherwise
 	 */
 	function shouldVisit(root, offset) {
 		/**
@@ -311,7 +312,7 @@ window.onload = function() {
 			var parent = parents.pop();
 			if (parent.type === "MemberExpression" && inRange(offset, parent.property.range)) {
 				// on the right hand side of a property, eg: foo.b^
-				return true;
+				return "member";
 			} else if (parent.type === "VariableDeclarator" && (!parent.init || isBefore(offset, parent.init.range))) {
 				// the name of a variable declaration
 				return false;
@@ -322,7 +323,7 @@ window.onload = function() {
 			}
 			
 		}
-		return true;
+		return "top";
 	}	
 
 	function addInferredProposals(inferredType, data) {
@@ -354,6 +355,36 @@ window.onload = function() {
 		}
 	}
 	
+		/**
+	 * Determines if the offset is inside this member expression, but after the '.' and before the 
+	 * start of the property.
+	 * eg, the following returns true:
+	 *   foo   .^bar	 
+	 *   foo   .  ^ bar
+	 * The following returns false:
+	 *   foo   ^.  bar
+	 *   foo   .  b^ar
+	 */
+	function afterDot(offset, memberExpr, contents) {
+		// only do the work if we are in between the 
+		if (!inRange(offset, memberExpr.range) ||
+			inRange(offset, memberExpr.object.range) ||
+			inRange(offset, memberExpr.property.range)) {
+			return false;
+		}
+		
+		var dotLoc = memberExpr.object.range[1];
+		while (contents.charAt(dotLoc) !== "." && dotLoc < memberExpr.property.range[0]) {
+			dotLoc++;
+		}
+		
+		if (contents.charAt(dotLoc) !== ".") {
+			return false;
+		}
+		
+		return dotLoc < offset;
+	}
+	
 	/**
 	 * Visits the AST and collects all of the AST proposals
 	 * @param node the AST node to visit
@@ -366,7 +397,7 @@ window.onload = function() {
 		if (type === "BlockStatement" && !inRange(data.offset, node.range)) {
 			// out of range
 			return false;
-		} else if (type === "FunctionDeclaration") {
+		} else if (type === "FunctionDeclaration" && data.completionKind === "top") {
 			var params = node.params;
 			res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
 			data.proposals.push({ 
@@ -383,10 +414,11 @@ window.onload = function() {
 					data.proposals.push({ proposal: params[p].name, description: params[p].name + " (parameter of " + node.id.name + ")"});
 				}
 			}
-		} else if (type === "VariableDeclarator" && isAfter(data.offset, node.range)) {
+		} else if (type === "VariableDeclarator" && isAfter(data.offset, node.range) && data.completionKind === "top") {
 			// although legal to reference before being declared, don't include in list
 			data.proposals.push({ proposal: node.id.name, description: node.id.name + " (variable)"});
-		} else if (type === "MemberExpression" && inRange(data.offset, node.property.range)) {
+		} else if (type === "MemberExpression" && data.completionKind === "member" &&
+				(inRange(data.offset, node.property.range) || afterDot(data.offset, node, data.contents))) {
 			var inferredType = data.allNames[node.object.name];
 			if (inferredType && data.types[inferredType]) {
 				addInferredProposals(inferredType, data);
@@ -460,7 +492,8 @@ window.onload = function() {
 
 	function parse(contents) {
 		var parsedProgram = esprima.parse(contents, {
-			range: true
+			range: true,
+			tolerant: true
 		});
 		return parsedProgram;
 	}
@@ -489,11 +522,20 @@ window.onload = function() {
 			try {
 				var proposals = [];
 				var root = parse(buffer);
-				var offset = selection.start-1;
-				if (shouldVisit(root, offset)) {
+				var offset = selection.start;
+				var completionKind = shouldVisit(root, offset);
+				if (completionKind) {
 					// need to use a copy of types since we make changes to it.
 					var myTypes = new Types();
-					visit(root, { proposals: proposals, offset: offset, prefix: prefix, allNames: {Math: "Math"}, types:myTypes }, proposalCollector, doInfer);
+					visit(root, { 
+						proposals: proposals, 
+						offset: offset, 
+						prefix: prefix, 
+						allNames: {Math: "Math"}, 
+						types:myTypes,
+						contents:buffer,
+						completionKind:completionKind
+					}, proposalCollector, doInfer);
 					proposals.sort();
 					proposals = squash(proposals);
 				}
@@ -510,12 +552,22 @@ window.onload = function() {
 	};
 
 
-	// --- registration logic for new content assist provider
-	var provider = new eclipse.PluginProvider();
-	provider.registerServiceProvider("orion.edit.contentAssist", proposalProvider, {
-		contentType: ["text.javascript"],
-		name: "Esprima based JavaScript content assist",
-		id: "orion.edit.contentassist.esprima"
-	});
-	provider.connect();
+	try {
+		// --- registration logic for new content assist provider
+		var provider = new eclipse.PluginProvider();
+		provider.registerServiceProvider("orion.edit.contentAssist", proposalProvider, {
+			contentType: ["text.javascript"],
+			name: "Esprima based JavaScript content assist",
+			id: "orion.edit.contentassist.esprima"
+		});
+		provider.connect();
+	} catch (e) {
+		if (inTest) {
+			// testing outside of Orion...can ignore
+		} else {
+			throw (e);
+		}
+	}
+	return proposalProvider;
 };
+window.onload = esprimaContentAssistant; 
