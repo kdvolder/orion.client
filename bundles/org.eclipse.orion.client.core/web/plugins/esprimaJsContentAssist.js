@@ -15,7 +15,153 @@
 window.onload = function() {
 
 	/**
-	 * Generic AST visitor.
+	 * A prototype of that contains the common built-in types
+	 */
+	var Types = function() {
+		/**
+		 * Properties common to all objects - ECMA 262, section 15.2.4.
+		 */
+		this.Object = [
+			{name: "toString", args:[], type:"String"}, 
+			{name: "toLocaleString", args:[], type:"String"}, 
+			{name: "valueOf", args:[], type:"Object"}, 
+			{name: "hasOwnProperty", args: ["property"], type:"boolean"},
+			{name: "isPrototypeOf", args: ["Object"], type:"boolean"},
+			{name: "propertyIsEnumerable", args: ["property"], type:"boolean"}
+		];
+
+		/**
+		 * Properties common to all Strings - ECMA 262, section 15.5.4
+		 */
+		this.String = [
+			{name: "charAt", args: ["index"], type:"String"},
+			{name: "charCodeAt", args: ["index"], type:"Number"},
+			{name: "concat", args: ["array"], type:"String"},
+			{name: "indexOf", args: ["searchString", "[position]"], type:"Number"},
+			{name: "lastIndexOf", args: ["searchString", "[position]"], type:"Number"},
+			{name: "length", type:"Number"},
+			{name: "localeCompare", args: ["Object"], type:"Number"},
+			{name: "match", args: ["regexp"], type:"boolean"},
+			{name: "replace", args: ["searchValue", "replaceValue"], type:"String"},
+			{name: "search", args: ["regexp"], type:"String"},
+			{name: "slice", args: ["start", "end"], type:"String"},
+			{name: "split", args: ["separator", "[limit]"], type:"Array"},
+			{name: "substring", args: ["start", "[end]"], type:"String"},
+			{name: "toLowerCase", args:[], type:"String"},
+			{name: "toLocaleLowerCase", args:[], type:"String"},
+			{name: "toUpperCase", args:[], type:"String"},
+			{name: "toLocaleUpperCase", args:[], type:"String"},
+			{name: "trim", args:[], type:"String"},
+			{name: "prototype", type:"Object"}
+		];
+		
+		/**
+		 * Properties common to all arrays.  may be incomplete
+		 */
+		this.Array = [
+			{name: "length", type:"Number" },
+			{name: "sort", args: [], type:"Array" },
+			{name: "toString", args: [], type:"String" },
+			{name: "concat", args: ["left", "right"], type:"Array" },
+			{name: "slice", args: ["start", "end"], type:"Array" },
+			{name: "prototype", type:"Object"}
+		];
+		
+		/**
+		 * Properties common to all dates.  may be incomplete
+		 */
+		this.Date = [
+			{name: "getDay", args: [], type:"Number" },
+			{name: "getFullYear", args: [], type:"Number" },
+			{name: "getHours", args: [], type:"Number" },
+			{name: "getMinutes", args: [], type:"Number" },
+			{name: "setTime", args: ["millis"] },
+			{name: "setDay", args: ["dayOfWeek"] },
+			{name: "setFullYear", args: ["year"] },
+			{name: "setHours", args: ["hour"] },
+			{name: "setMinutes", args: ["minutes"] },
+			{name: "prototype", type:"Object"}
+		];
+		
+		this.Boolean = [
+			{name: "prototype", type:"Object"}
+		];
+		
+		this.Function = [
+			{name: "prototype", type:"Object"},
+			{name: "apply", args: ["func", "[args]"], type:"Object"},
+			{name: "arguments", type:"Arguments"},
+			{name: "bind", args: []},
+			{name: "call", args: ["func", "arg"], type:"Object"},
+			{name: "caller", type:"Function"},
+			{name: "length", type:"Number"},
+			{name: "name", type:"String"}
+		];
+		
+		this.Number = [
+			{name: "prototype", type:"Object"},
+			{name: "toExponential", args:["digits"], type:"Number"}, 
+			{name: "toFixed", args:["digits"], type:"Number"}, 
+			{name: "toPrecision", args:["digits"], type:"Number"}
+			// do we want to include NaN, MAX_VALUE, etc?
+		];
+
+		
+		this.Arguments = [
+			{name: "prototype", type:"Object"},
+			{name: "callee", type:"Function"},
+			{name: "length", type:"Number"}
+		];
+		
+		this.RegExp = [
+			{name: "prototype", type:"Object"},
+			{name: "g", type:"Object"},
+			{name: "i", type:"Object"},
+			{name: "gi", type:"Object"},
+			{name: "m", type:"Object"},
+			{name: "exec", args:["str"], type:"Array"}, 
+			{name: "test", args:["str"], type:"Array"}
+		];
+		
+		this.Math = [
+			{name: "prototype", type:"Object"},
+
+			// properties
+			{name: "E", type:"Number"},
+			{name: "LN2", type:"Number"},
+			{name: "LN10", type:"Number"},
+			{name: "LOG2E", type:"Number"},
+			{name: "LOG10E", type:"Number"},
+			{name: "PI", type:"Number"},
+			{name: "SQRT1_2", type:"Number"},
+			{name: "SQRT2", type:"Number"},
+			
+			// Methods
+			{name: "abs", args: ["val"], type:"Number"},
+			{name: "acos", args: ["val"], type:"Number"},
+			{name: "asin", args: ["val"], type:"Number"},
+			{name: "atan", args: ["val"], type:"Number"},
+			{name: "atan2", args: ["val1", "val2"], type:"Number"},
+			{name: "ceil", args: ["val"], type:"Number"},
+			{name: "cos", args: ["val"], type:"Number"},
+			{name: "exp", args: ["val"], type:"Number"},
+			{name: "floor", args: ["val"], type:"Number"},
+			{name: "log", args: ["val"], type:"Number"},
+			{name: "max", args: ["val1", "val2"], type:"Number"},
+			{name: "min", args: ["val1", "val2"], type:"Number"},
+			{name: "pow", args: ["x", "y"], type:"Number"},
+			{name: "random", args: [], type:"Number"},
+			{name: "round", args: ["val"], type:"Number"},
+			{name: "sin", args: ["val"], type:"Number"},
+			{name: "sqrt", args: ["val"], type:"Number"},
+			{name: "tan", args: ["val"], type:"Number"}		
+		];
+	};
+
+	/**
+	 * Generic AST visitor.  Visits all children in source order, if they have a range property.  Children with
+	 * no range property are visited first.
+	 * 
 	 * @param node The AST node to visit
 	 * @param data any extra data (is this strictly necessary, or should it be folded into the operation?).
 	 * @param operation function(node, data) an operation on the AST node and the data.  Return falsy if
@@ -24,21 +170,51 @@ window.onload = function() {
 	 * will only be invoked if operation returns true for the current node
 	 */
 	function visit(node, data, operation, postoperation) {
+		var i, key, child, children;
 		if (operation(node, data, true)) {
-			for (var key in node) {
+			// gather children to visit
+			children = [];
+			for (key in node) {
 				if (key !== "range") {
-					var child = node[key];
+					child = node[key];
 					if (child instanceof Array) {
-						for (var i = 0; i < child.length; i++) {
+						for (i = 0; i < child.length; i++) {
 							if (child[i] && child[i].hasOwnProperty("type")) {
-								visit(child[i], data, operation, postoperation);
+								children.push(child[i]);
+							} else {
+								// might be key-value pair of an object expression
+								// don't visit the key since it doesn't have an sloc
+								// and it is handle later by inferencing
+								if (child[i].hasOwnProperty("value")) {
+									children.push(child[i].value);
+								}
 							}
 						}
 					} else {
 						if (child && child.hasOwnProperty("type")) {
-							visit(child, data, operation, postoperation);
+							children.push(child);
 						}
 					}
+				}
+			}
+			
+			if (children.length > 0) {
+				// sort children by source location
+				children.sort(function(left, right) {
+					if (left.range && right.range) {
+						return left.range[0] - right.range[0];	
+					} else if (left.range) {
+						return 1;
+					} else if (right.range) {
+						return -1;
+					} else {
+						return 0;
+					}
+				});
+				
+				// visit children in order
+				for (i = 0; i < children.length; i++) {
+					visit(children[i], data, operation, postoperation);
 				}
 			}
 			if (postoperation) {
@@ -53,7 +229,7 @@ window.onload = function() {
 	 */
 	function calculateFunctionProposal(name, params, offset) {
 		if (!params || params.length === 0) {
-			return name + "()";
+			return {completion: name + "()", positions:[]};
 		}
 		var positions = [];
 		var completion = name + '(';
@@ -62,14 +238,13 @@ window.onload = function() {
 			if (p > 0) {
 				completion += ', ';
 			}
-			var argName = params[p].name;
+			var argName = params[p].name ? params[p].name : params[p];
 			positions.push({offset:offset+completion.length+1, length: argName.length});
 			completion += argName;
 		}
 		completion += ')';
 		return {completion: completion, positions: positions};
 	}
-
 
 	function inRange(offset, range) {
 		return range[0] <= offset && range[1] >= offset;
@@ -101,7 +276,7 @@ window.onload = function() {
 		/**
 		 * A visitor that finds the parent stack at the given location
 		 */ 
-		var findParentStack = function(node, parents, isInitialVisit) {
+		var findParent = function(node, parents, isInitialVisit) {
 			if (!isInitialVisit) {
 				parents.pop();
 				return false;
@@ -124,7 +299,7 @@ window.onload = function() {
 		};
 		var parents = [];
 		try {
-			visit(root, parents, findParentStack, findParentStack);
+			visit(root, parents, findParent, findParent);
 		} catch (done) {
 			if (done !== "done") {
 				// a real error
@@ -136,38 +311,64 @@ window.onload = function() {
 			var parent = parents.pop();
 			if (parent.type === "MemberExpression" && inRange(offset, parent.property.range)) {
 				// on the right hand side of a property, eg: foo.b^
-				return false;
+				return true;
 			} else if (parent.type === "VariableDeclarator" && (!parent.init || isBefore(offset, parent.init.range))) {
 				// the name of a variable declaration
 				return false;
 			} else if ((parent.type === "FunctionDeclaration" || parent.type === "FunctionExpression") && 
 					isBefore(offset, parent.body.range)) {
+				// a function declaration
 				return false;
 			}
 			
 		}
 		return true;
 	}	
-	
-	
-	// things to keep track of:
-	// proposals is an object.  each property corresponds to a variable name.  each value is a proposal.
-	// proposal (identifier (maybe same as proposal), kind(function or variable), proposal*, description*, proposals (the object that describes the proposals available to this object))
-	// types object with key as the type name and value is proposals
-	
 
+	function addInferredProposals(inferredType, data) {
+		var res, i, proto;
+		var properties = data.types[inferredType];
+		for (i = 0; i < properties.length; i++) {
+			if (properties[i].args) {
+				if (properties[i].name === "prototype") {
+					proto = properties[i].type;
+				}
+				res = calculateFunctionProposal(properties[i].name, properties[i].args, data.offset - data.prefix.length);
+				data.proposals.push({ 
+					proposal: res.completion, 
+					description: res.completion + " (function, inferred)", 
+					positions: res.positions, 
+					escapePosition: data.offset + res.completion.length 
+				});
+			} else {
+				data.proposals.push({ 
+					proposal: properties[i].name,
+					description: properties[i].name + " (property, inferred)"
+				});
+			}
+		}
+		
+		// walk up the prototype hierarchy
+		if (proto) {
+			addInferredProposals(proto, data);
+		}
+	}
+	
 	/**
 	 * Visits the AST and collects all of the AST proposals
+	 * @param node the AST node to visit
+	 * @param data {offset, prefix, proposals [{propsal, description, positions, escapePosition}], allNames {name:type}} the data for the visitor.
 	 */
 	function proposalCollector(node, data) {
 		var type = node.type;
+		var res;
 		// do a range check
 		if (type === "BlockStatement" && !inRange(data.offset, node.range)) {
 			// out of range
 			return false;
 		} else if (type === "FunctionDeclaration") {
 			var params = node.params;
-			var res =  calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
+			res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
 			data.proposals.push({ 
 				proposal: res.completion, 
 				description: res.completion + " (function)", 
@@ -185,9 +386,74 @@ window.onload = function() {
 		} else if (type === "VariableDeclarator" && isAfter(data.offset, node.range)) {
 			// although legal to reference before being declared, don't include in list
 			data.proposals.push({ proposal: node.id.name, description: node.id.name + " (variable)"});
+		} else if (type === "MemberExpression" && inRange(data.offset, node.property.range)) {
+			var inferredType = data.allNames[node.object.name];
+			if (inferredType && data.types[inferredType]) {
+				addInferredProposals(inferredType, data);
+			}
 		} else if (type === "VariableDeclaration" && isBefore(data.offset, node.range)) {
 			// must do this check since "VariableDeclarator"s do not seem to have their range set correctly
 			return false;
+		}
+		return true;
+	}
+	
+	var objCount = 0;
+	
+	/**
+	 * called as the post operation for the proposalCollector visitor.
+	 */
+	function doInfer(node, data) {
+		var type = node.type;
+		// now do the inference. might have to be in the post op
+		if (type === 'Identifier' && data.allNames[node.name]) {
+			// case where we have already seen the variable
+			node.inferredType = data.allNames[node.name];
+		} else if (type === "VariableDeclarator") {
+			if (node.init) {
+				data.allNames[node.id.name] = node.init.inferredType;
+			} else {
+				data.allNames[node.id.name] = "Object";
+			}
+		} else if (type === "NewExpression") {
+			node.inferredType = node.callee.name;
+		} else if (type === "AssignmentExpression" && node.left.type === 'Identifier') {
+			// only handle simple assignements, eg- x = y; and not x.y = z;
+			data.allNames[node.left.name] = node.right.inferredType;
+		} else if (type === "Literal") {
+			var oftype = (typeof node.value);
+			node.inferredType = oftype[0].toUpperCase() + oftype.substring(1, oftype.length);
+		} else if (type === "ArrayExpression") {
+			node.inferredType = "Array";
+		} else if (type === "ObjectExpression") {
+			// for object literals, create a new object type so that we can stuff new properties into it.
+			var newTypeName = "Object~"+ objCount++;
+			var newTypeProperties = [{name:"prototype", type: "Object"}];
+			for (var i = 0; i < node.properties.length; i++) {
+				var property = node.properties[i];
+				// only remember if the property is an identifier
+				if (property.key && property.key.name) {
+					newTypeProperties.push(
+						{ name: property.key.name, 
+						  type: property.value.inferredType });  
+				}
+			}
+			data.types[newTypeName] = newTypeProperties;
+			node.inferredType = newTypeName;
+		} else if (type === "MemberExpression") {
+			node.inferredType = node.object.inferredType[node.property.id];
+		} else if (type === "BinaryExpression") {
+			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || node.operator === "*") {
+				// assume number for now
+				// rules are really much more complicated
+				node.inferredType = "Number";
+			}
+		} else if (type === "UpdsteExpression") {
+			node.inferredType = "Number";
+		}
+		
+		if (!node.inferredType) {
+			node.inferredType = "Object";
 		}
 		return true;
 	}
@@ -196,11 +462,6 @@ window.onload = function() {
 		var parsedProgram = esprima.parse(contents, {
 			range: true
 		});
-		// to get range nodes (start/end position elements) and comments (at the end of the ast), use this:
-		// (although not sure comments bit is behaving at the moment)
-		//	    var parsedProgram = esprima.parse(contents,{range:true,comments:true});
-		//	    var linebreaks = computeLinebreaks(contents);
-		//	    return {ast:parsedProgram,linebreaks:linebreaks};
 		return parsedProgram;
 	}
 
@@ -230,7 +491,9 @@ window.onload = function() {
 				var root = parse(buffer);
 				var offset = selection.start-1;
 				if (shouldVisit(root, offset)) {
-					visit(root, { proposals: proposals, offset: offset, prefix: prefix}, proposalCollector);
+					// need to use a copy of types since we make changes to it.
+					var myTypes = new Types();
+					visit(root, { proposals: proposals, offset: offset, prefix: prefix, allNames: {Math: "Math"}, types:myTypes }, proposalCollector, doInfer);
 					proposals.sort();
 					proposals = squash(proposals);
 				}
