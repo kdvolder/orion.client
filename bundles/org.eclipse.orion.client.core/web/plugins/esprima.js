@@ -1052,7 +1052,8 @@ parseStatement: true, parseSourceElement: true */
                             token.type === Token.NumericLiteral) {
                         property.key = {
                             type: Syntax.Literal,
-                            value: token.value
+                            value: token.value,
+                            range: token.range
                         };
                     } else {
                         property.key = {
@@ -1084,7 +1085,8 @@ parseStatement: true, parseSourceElement: true */
                             token.type === Token.NumericLiteral) {
                         property.key = {
                             type: Syntax.Literal,
-                            value: token.value
+                            value: token.value,
+                            range: token.range
                         };
                     } else {
                         property.key = {
@@ -1137,7 +1139,8 @@ parseStatement: true, parseSourceElement: true */
             case Token.NumericLiteral:
                 property.key = {
                     type: Syntax.Literal,
-                    value: token.value
+                    value: token.value,
+                    range: token.range
                 };
                 expect(':');
                 property.value = parseAssignmentExpression();
