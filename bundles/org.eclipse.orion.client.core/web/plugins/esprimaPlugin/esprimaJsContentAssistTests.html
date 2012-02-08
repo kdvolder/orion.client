@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" 
+                    "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<script src="http://code.jquery.com/jquery-latest.js"></script>
+	<link rel="stylesheet" href="http://code.jquery.com/qunit/git/qunit.css" type="text/css" media="screen" />
+	<script src="http://code.jquery.com/qunit/git/qunit.js"></script>
+	<script src="esprima_new.js"></script>
+	<script>var inTest = true;</script>
+	<script src="esprimaJsContentAssist.js"></script>
+	<script>
+/*global $ test ok equal expect module esprimaContentAssistant*/
+
+function computeContentAssistAtEnd(contents, prefix) {
+	if (!prefix) {
+		prefix = "";
+	}
+	return esprimaContentAssistant().computeProposals(prefix, contents, {start: contents.length});
+}
+
+function testProposal(proposal, text, description) {
+	equal(proposal.proposal, text, "Invalid proposal text");
+	if (description) {
+		equal(proposal.description, description, "Invalid proposal description");
+	}
+}
+
+$(document).ready(function() {
+
+	// add parsing tests here
+	module("Parsing module");
+
+	// all content assist tests here
+	module("Content Assist");
+	
+	test("content assist setup", function() {
+		expect(2);
+		ok(esprimaContentAssistant, "Found Esprima content assistant");
+		ok(esprimaContentAssistant().computeProposals, "Found proposal computer");
+	});
+	
+	test("empty content assist", function() {
+		expect(1);
+		var results = computeContentAssistAtEnd("");
+		equal(results.length, 0);
+	});
+	test("simple var content assist", function() {
+		var results = computeContentAssistAtEnd("var zzz;\n");
+		equal(results.length, 1, "Wrong number of proposals found");
+		testProposal(results[0], "zzz", "zzz (variable)");
+	});
+});
+	</script>  
+</head>
+	<body>
+		<h1 id="qunit-header">QUnit tests for Esprima Content assistant</h1>
+		<h2 id="qunit-banner"></h2>
+		<div id="qunit-testrunner-toolbar"></div>
+		<h2 id="qunit-userAgent"></h2>
+		<ol id="qunit-tests"></ol>
+		<div id="qunit-fixture">test markup, will be hidden</div>
+	</body>
+</html>
