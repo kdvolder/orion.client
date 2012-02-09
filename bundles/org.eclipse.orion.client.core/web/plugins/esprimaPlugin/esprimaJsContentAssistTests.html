@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" 
+                    "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<script src="http://code.jquery.com/jquery-latest.js"></script>
+	<link rel="stylesheet" href="http://code.jquery.com/qunit/git/qunit.css" type="text/css" media="screen" />
+	<script src="http://code.jquery.com/qunit/git/qunit.js"></script>
+	<script src="esprima_new.js"></script>
+	<script>
+	// set inTest so that registration with orion infra does not throw an exception
+	var inTest = true;
+	</script>
+	<script src="esprimaJsContentAssist.js"></script>
+	<script>
+/*global $ test ok equal expect module esprimaContentAssistant console*/
+
+function computeContentAssistAtEnd(contents, prefix) {
+	if (!prefix) {
+		prefix = "";
+	}
+	var offset = contents.indexOf("/**/");
+	if (offset < 0) {
+		offset = contents.length;
+	}
+	
+	return esprimaContentAssistant().computeProposals(prefix, contents, {start: offset});
+}
+
+function testProposal(proposal, text, description) {
+	equal(proposal.proposal, text, "Invalid proposal text");
+	if (description) {
+		equal(proposal.description, description, "Invalid proposal description");
+	}
+}
+
+function testProposals(actualProposals, expectedProposals) {
+	equal(actualProposals.length, expectedProposals.length, 
+		"Wrong number of proposals.  Expected:\n" + expectedProposals +"\nActual:\n"+actualProposals);
+		
+	for (var i = 0; i < actualProposals.length; i++) {
+		testProposal(actualProposals[i], expectedProposals[i][0], expectedProposals[i][1]);
+	}
+}
+
+function _test(name) {
+	console.log("Test " + name + " is disabled");
+}
+
+$(document).ready(function() {
+
+	// add parsing tests here
+	module("Parsing module");
+
+	// all content assist tests here
+	module("Content Assist");
+	
+	test("content assist setup", function() {
+		expect(2);
+		ok(esprimaContentAssistant, "Found Esprima content assistant");
+		ok(esprimaContentAssistant().computeProposals, "Found proposal computer");
+	});
+	
+	test("empty content assist", function() {
+		expect(1);
+		var results = computeContentAssistAtEnd("");
+		equal(results.length, 0);
+	});
+	test("single var content assist", function() {
+		var results = computeContentAssistAtEnd("var zzz;\n");
+		equal(results.length, 1, "Wrong number of proposals found");
+		testProposal(results[0], "zzz", "zzz (variable)");
+	});
+	test("multi var content assist 1", function() {
+		var results = computeContentAssistAtEnd("var zzz;\nvar xxx, yyy;\n");
+		testProposals(results, [
+			["xxx", "xxx (variable)"],
+			["yyy", "yyy (variable)"],
+			["zzz", "zzz (variable)"]
+		]);
+	});
+	test("multi var content assist 2", function() {
+		var results = computeContentAssistAtEnd("var zzz;\nvar zxxx, xxx, yyy;\nz","z");
+		testProposals(results, [
+			["zxxx", "zxxx (variable)"],
+			["zzz", "zzz (variable)"]
+		]);
+	});
+	test("single function content assist", function() {
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\n");
+		testProposals(results, [
+			["fun(a, b, c)", "fun(a, b, c) (function)"]
+		]);
+	});
+	test("multi function content assist 1", function() {
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {}\n");
+		testProposals(results, [
+			["fun(a, b, c)", "fun(a, b, c) (function)"],
+			["other(a, b, c)", "other(a, b, c) (function)"]
+		]);
+	});
+	test("multi function content assist 2", function() {
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {}\nf", "f");
+		testProposals(results, [
+			["fun(a, b, c)", "fun(a, b, c) (function)"]
+		]);
+	});
+	test("in function 1", function() {
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {/**/}", "");
+		testProposals(results, [
+			["a", "a (parameter of other)"],
+			["b", "b (parameter of other)"],
+			["c", "c (parameter of other)"],
+			["fun(a, b, c)", "fun(a, b, c) (function)"],
+			["other(a, b, c)", "other(a, b, c) (function)"]
+		]);
+	});
+	test("in function 2", function() {
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {\n/**/nuthin}", "");
+		testProposals(results, [
+			["a", "a (parameter of other)"],
+			["b", "b (parameter of other)"],
+			["c", "c (parameter of other)"],
+			["fun(a, b, c)", "fun(a, b, c) (function)"],
+			["other(a, b, c)", "other(a, b, c) (function)"]
+		]);
+	});
+	test("in function 3", function() {
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {f/**/}", "f");
+		testProposals(results, [
+			["fun(a, b, c)", "fun(a, b, c) (function)"]
+		]);
+	});
+	test("in function 4", function() {
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(aa, ab, c) {a/**/}", "a");
+		testProposals(results, [
+			["aa", "aa (parameter of other)"],
+			["ab", "ab (parameter of other)"]
+		]);
+	});
+	test("in function 5", function() {
+		// should not see 'aaa' since that is declared later
+		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(aa, ab, c) {var abb;\na/**/\nvar aaa}", "a");
+		testProposals(results, [
+			["aa", "aa (parameter of other)"],
+			["ab", "ab (parameter of other)"],
+			["abb", "abb (variable)"]
+		]);
+	});
+});
+	</script>  
+</head>
+	<body>
+		<h1 id="qunit-header">QUnit tests for Esprima Content assistant</h1>
+		<h2 id="qunit-banner"></h2>
+		<div id="qunit-testrunner-toolbar"></div>
+		<h2 id="qunit-userAgent"></h2>
+		<ol id="qunit-tests"></ol>
+		<div id="qunit-fixture">test markup, will be hidden</div>
+	</body>
+</html>
