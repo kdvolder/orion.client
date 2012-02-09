@@ -392,31 +392,39 @@ var esprimaContentAssistant = function() {
 	 */
 	function proposalCollector(node, data) {
 		var type = node.type;
-		var res;
+		var res, name;
 		// do a range check
 		if (type === "BlockStatement" && !inRange(data.offset, node.range)) {
 			// out of range
 			return false;
 		} else if (type === "FunctionDeclaration" && data.completionKind === "top") {
+			name = node.id.name;
 			var params = node.params;
-			res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
-			data.proposals.push({ 
-				proposal: res.completion, 
-				description: res.completion + " (function)", 
-				positions: res.positions, 
-				escapePosition: data.offset + res.completion.length 
-			});
-			
+			if (name.indexOf(data.prefix) === 0) {
+				res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
+				data.proposals.push({ 
+					proposal: res.completion, 
+					description: res.completion + " (function)", 
+					positions: res.positions, 
+					escapePosition: data.offset + res.completion.length 
+				});
+			}
 			// only add parameters if we are completing inside the function
 			if (params && params.length > 0 && inRange(data.offset, node.range)) {
 				var plen = params.length;
 				for (var p = 0; p < plen; p++) {
-					data.proposals.push({ proposal: params[p].name, description: params[p].name + " (parameter of " + node.id.name + ")"});
+					name = params[p].name;
+					if (name.indexOf(data.prefix) === 0) {
+						data.proposals.push({ proposal: name, description: name + " (parameter of " + node.id.name + ")"});
+					}
 				}
 			}
 		} else if (type === "VariableDeclarator" && isAfter(data.offset, node.range) && data.completionKind === "top") {
 			// although legal to reference before being declared, don't include in list
-			data.proposals.push({ proposal: node.id.name, description: node.id.name + " (variable)"});
+			name = node.id.name;
+			if (name.indexOf(data.prefix) === 0) {
+				data.proposals.push({ proposal: node.id.name, description: node.id.name + " (variable)"});
+			}
 		} else if (type === "MemberExpression" && data.completionKind === "member" &&
 				(inRange(data.offset, node.property.range) || afterDot(data.offset, node, data.contents))) {
 			var inferredType = data.allNames[node.object.name];
@@ -536,7 +544,15 @@ var esprimaContentAssistant = function() {
 						contents:buffer,
 						completionKind:completionKind
 					}, proposalCollector, doInfer);
-					proposals.sort();
+					proposals.sort(function(l,r) {
+						if (l.description < r.description) {
+							return -1;
+						} else if (r.description < l.description) {
+							return 1;
+						} else {
+							return 0;
+						}
+					});
 					proposals = squash(proposals);
 				}
 				return proposals;
