@@ -21,141 +21,192 @@ var esprimaContentAssistant = function() {
 		/**
 		 * Properties common to all objects - ECMA 262, section 15.2.4.
 		 */
-		this.Object = [
-			{name: "toString", args:[], type:"String"}, 
-			{name: "toLocaleString", args:[], type:"String"}, 
-			{name: "valueOf", args:[], type:"Object"}, 
-			{name: "hasOwnProperty", args: ["property"], type:"boolean"},
-			{name: "isPrototypeOf", args: ["Object"], type:"boolean"},
-			{name: "propertyIsEnumerable", args: ["property"], type:"boolean"}
-		];
-
+		this.Object = {
+			toString: "String",
+			oLocaleString : "String",
+			valueOf: "Object",
+			// Urrrgh...can't set this property here because it overrides the real hasOwnProperty
+//			hasOwnProperty: "boolean",
+			isPrototypeOf: "boolean",
+			propertyIsEnumerable: "boolean",
+			
+			"$$args" : {
+				toString: [],
+				toLocaleString: [],
+//				hasOwnProperty: ["property"],
+				isPrototypeOf: ["object"],
+				propertyIsEnumerable: ["property"]
+			}
+		};
+		
 		/**
 		 * Properties common to all Strings - ECMA 262, section 15.5.4
 		 */
-		this.String = [
-			{name: "charAt", args: ["index"], type:"String"},
-			{name: "charCodeAt", args: ["index"], type:"Number"},
-			{name: "concat", args: ["array"], type:"String"},
-			{name: "indexOf", args: ["searchString", "[position]"], type:"Number"},
-			{name: "lastIndexOf", args: ["searchString", "[position]"], type:"Number"},
-			{name: "length", type:"Number"},
-			{name: "localeCompare", args: ["Object"], type:"Number"},
-			{name: "match", args: ["regexp"], type:"boolean"},
-			{name: "replace", args: ["searchValue", "replaceValue"], type:"String"},
-			{name: "search", args: ["regexp"], type:"String"},
-			{name: "slice", args: ["start", "end"], type:"String"},
-			{name: "split", args: ["separator", "[limit]"], type:"Array"},
-			{name: "substring", args: ["start", "[end]"], type:"String"},
-			{name: "toLowerCase", args:[], type:"String"},
-			{name: "toLocaleLowerCase", args:[], type:"String"},
-			{name: "toUpperCase", args:[], type:"String"},
-			{name: "toLocaleUpperCase", args:[], type:"String"},
-			{name: "trim", args:[], type:"String"},
-			{name: "prototype", type:"Object"}
-		];
+		this.String = {
+			charAt : "String",
+			charCodeAt : "Number",
+			concat : "String",
+			indexOf : "Number",
+			lastIndexOf : "Number",
+			length : "Number",
+			localeCompare : "Number",
+			match : "Boolean",
+			replace : "String",
+			search : "String",
+			slice : "String",
+			split : "Array",  // Array of string
+			substring : "String",
+			toLocaleUpperCase : "String",
+			toLowerCase : "String",
+			toUpperCase : "String",
+			trim : "String",
+			"$$args" : {
+				charAt : ["index"],
+				charCodeAt : ["index"],
+				concat : ["array"],
+				indexOf : ["searchString"],
+				lastIndexOf : ["searchString"],
+				localeCompare : ["object"],
+				match : ["regexp"],
+				replace : ["searchValue", "replaceValue"],
+				search : ["regexp"],
+				slice : ["start", "end"],
+				split : ["separator", "[limit]"],
+				substring : ["start", "[end]"],
+				toLowerCase : [],
+				toUpperCase : [],
+				toLocaleUpperCase : [],
+				trim : []
+			},
+			"$$prototype" : "Object"
+		};
 		
 		/**
 		 * Properties common to all arrays.  may be incomplete
 		 */
-		this.Array = [
-			{name: "length", type:"Number" },
-			{name: "sort", args: [], type:"Array" },
-			{name: "toString", args: [], type:"String" },
-			{name: "concat", args: ["left", "right"], type:"Array" },
-			{name: "slice", args: ["start", "end"], type:"Array" },
-			{name: "prototype", type:"Object"}
-		];
+		this.Array = {
+			length : "Number",
+			sort : "Array",
+			concat : "Array",
+			slice : "Array",
+			$$prototype : "Object",
+			$$args : {
+				sort : ["[sorter]"],
+				concat : ["left", "right"],
+				slice : ["start", "end"]
+			}
+		};
 		
 		/**
 		 * Properties common to all dates.  may be incomplete
 		 */
-		this.Date = [
-			{name: "getDay", args: [], type:"Number" },
-			{name: "getFullYear", args: [], type:"Number" },
-			{name: "getHours", args: [], type:"Number" },
-			{name: "getMinutes", args: [], type:"Number" },
-			{name: "setTime", args: ["millis"] },
-			{name: "setDay", args: ["dayOfWeek"] },
-			{name: "setFullYear", args: ["year"] },
-			{name: "setHours", args: ["hour"] },
-			{name: "setMinutes", args: ["minutes"] },
-			{name: "prototype", type:"Object"}
-		];
+		this.Date = {
+			getDay : "Number",
+			getFullYear : "Number",
+			getHours : "Number",
+			getMinutes : "Number",
+			setDay : null,
+			setFullYear : null,
+			setHours : null,
+			setMinutes : null,
+			setTime : null,
+			$$prototype : "Object",
+			$$args : {
+				getDay : [],
+				getFullYear : [],
+				getHours : [],
+				getMinutes : [],
+				setDay : ["dayOfWeek"],
+				setFullYear : ["year"],
+				setHours : ["hour"],
+				setMinutes : ["minute"],
+				setTime : ["millis"]
+			}
+		};
 		
-		this.Boolean = [
-			{name: "prototype", type:"Object"}
-		];
+		this.Boolean = {
+			$$prototype : "Object",
+			$$args : {}
+		};
 		
-		this.Function = [
-			{name: "prototype", type:"Object"},
-			{name: "apply", args: ["func", "[args]"], type:"Object"},
-			{name: "arguments", type:"Arguments"},
-			{name: "bind", args: []},
-			{name: "call", args: ["func", "arg"], type:"Object"},
-			{name: "caller", type:"Function"},
-			{name: "length", type:"Number"},
-			{name: "name", type:"String"}
-		];
+		this.Number = {
+			toExponential : "Number",
+			toFixed : "Number",
+			toPrecision : "Number",
+			// do we want to include NaN, MAX_VALUE, etc?	
 		
-		this.Number = [
-			{name: "prototype", type:"Object"},
-			{name: "toExponential", args:["digits"], type:"Number"}, 
-			{name: "toFixed", args:["digits"], type:"Number"}, 
-			{name: "toPrecision", args:["digits"], type:"Number"}
-			// do we want to include NaN, MAX_VALUE, etc?
-		];
-
+			$$prototype : "Object",
+			$$args : {
+				toExponential : ["digits"],
+				toFixed : ["digits"],
+				toPrecision : ["digits"]
+			}
+		};
 		
-		this.Arguments = [
-			{name: "prototype", type:"Object"},
-			{name: "callee", type:"Function"},
-			{name: "length", type:"Number"}
-		];
-		
-		this.RegExp = [
-			{name: "prototype", type:"Object"},
-			{name: "g", type:"Object"},
-			{name: "i", type:"Object"},
-			{name: "gi", type:"Object"},
-			{name: "m", type:"Object"},
-			{name: "exec", args:["str"], type:"Array"}, 
-			{name: "test", args:["str"], type:"Array"}
-		];
-		
-		this.Math = [
-			{name: "prototype", type:"Object"},
-
-			// properties
-			{name: "E", type:"Number"},
-			{name: "LN2", type:"Number"},
-			{name: "LN10", type:"Number"},
-			{name: "LOG2E", type:"Number"},
-			{name: "LOG10E", type:"Number"},
-			{name: "PI", type:"Number"},
-			{name: "SQRT1_2", type:"Number"},
-			{name: "SQRT2", type:"Number"},
-			
-			// Methods
-			{name: "abs", args: ["val"], type:"Number"},
-			{name: "acos", args: ["val"], type:"Number"},
-			{name: "asin", args: ["val"], type:"Number"},
-			{name: "atan", args: ["val"], type:"Number"},
-			{name: "atan2", args: ["val1", "val2"], type:"Number"},
-			{name: "ceil", args: ["val"], type:"Number"},
-			{name: "cos", args: ["val"], type:"Number"},
-			{name: "exp", args: ["val"], type:"Number"},
-			{name: "floor", args: ["val"], type:"Number"},
-			{name: "log", args: ["val"], type:"Number"},
-			{name: "max", args: ["val1", "val2"], type:"Number"},
-			{name: "min", args: ["val1", "val2"], type:"Number"},
-			{name: "pow", args: ["x", "y"], type:"Number"},
-			{name: "random", args: [], type:"Number"},
-			{name: "round", args: ["val"], type:"Number"},
-			{name: "sin", args: ["val"], type:"Number"},
-			{name: "sqrt", args: ["val"], type:"Number"},
-			{name: "tan", args: ["val"], type:"Number"}		
-		];
+		// must refactor this part for the new format
+//		this.Function = [
+//			{name: "prototype", type:"Object"},
+//			{name: "apply", args: ["func", "[args]"], type:"Object"},
+//			{name: "arguments", type:"Arguments"},
+//			{name: "bind", args: []},
+//			{name: "call", args: ["func", "arg"], type:"Object"},
+//			{name: "caller", type:"Function"},
+//			{name: "length", type:"Number"},
+//			{name: "name", type:"String"}
+//		];
+//		
+//		
+//		
+//		
+//		this.Arguments = [
+//			{name: "prototype", type:"Object"},
+//			{name: "callee", type:"Function"},
+//			{name: "length", type:"Number"}
+//		];
+//		
+//		this.RegExp = [
+//			{name: "prototype", type:"Object"},
+//			{name: "g", type:"Object"},
+//			{name: "i", type:"Object"},
+//			{name: "gi", type:"Object"},
+//			{name: "m", type:"Object"},
+//			{name: "exec", args:["str"], type:"Array"}, 
+//			{name: "test", args:["str"], type:"Array"}
+//		];
+//		
+//		this.Math = [
+//			{name: "prototype", type:"Object"},
+//		
+//			// properties
+//			{name: "E", type:"Number"},
+//			{name: "LN2", type:"Number"},
+//			{name: "LN10", type:"Number"},
+//			{name: "LOG2E", type:"Number"},
+//			{name: "LOG10E", type:"Number"},
+//			{name: "PI", type:"Number"},
+//			{name: "SQRT1_2", type:"Number"},
+//			{name: "SQRT2", type:"Number"},
+//			
+//			// Methods
+//			{name: "abs", args: ["val"], type:"Number"},
+//			{name: "acos", args: ["val"], type:"Number"},
+//			{name: "asin", args: ["val"], type:"Number"},
+//			{name: "atan", args: ["val"], type:"Number"},
+//			{name: "atan2", args: ["val1", "val2"], type:"Number"},
+//			{name: "ceil", args: ["val"], type:"Number"},
+//			{name: "cos", args: ["val"], type:"Number"},
+//			{name: "exp", args: ["val"], type:"Number"},
+//			{name: "floor", args: ["val"], type:"Number"},
+//			{name: "log", args: ["val"], type:"Number"},
+//			{name: "max", args: ["val1", "val2"], type:"Number"},
+//			{name: "min", args: ["val1", "val2"], type:"Number"},
+//			{name: "pow", args: ["x", "y"], type:"Number"},
+//			{name: "random", args: [], type:"Number"},
+//			{name: "round", args: ["val"], type:"Number"},
+//			{name: "sin", args: ["val"], type:"Number"},
+//			{name: "sqrt", args: ["val"], type:"Number"},
+//			{name: "tan", args: ["val"], type:"Number"}		
+//		];
 	};
 
 	/**
@@ -326,36 +377,7 @@ var esprimaContentAssistant = function() {
 		return "top";
 	}	
 
-	function addInferredProposals(inferredType, data) {
-		var res, i, proto;
-		var properties = data.types[inferredType];
-		for (i = 0; i < properties.length; i++) {
-			if (properties[i].args) {
-				if (properties[i].name === "prototype") {
-					proto = properties[i].type;
-				}
-				res = calculateFunctionProposal(properties[i].name, properties[i].args, data.offset - data.prefix.length);
-				data.proposals.push({ 
-					proposal: res.completion, 
-					description: res.completion + " (function, inferred)", 
-					positions: res.positions, 
-					escapePosition: data.offset + res.completion.length 
-				});
-			} else {
-				data.proposals.push({ 
-					proposal: properties[i].name,
-					description: properties[i].name + " (property, inferred)"
-				});
-			}
-		}
-		
-		// walk up the prototype hierarchy
-		if (proto) {
-			addInferredProposals(proto, data);
-		}
-	}
-	
-		/**
+	/**
 	 * Determines if the offset is inside this member expression, but after the '.' and before the 
 	 * start of the property.
 	 * eg, the following returns true:
@@ -385,21 +407,117 @@ var esprimaContentAssistant = function() {
 		return dotLoc < offset;
 	}
 	
+	
+
 	/**
-	 * Visits the AST and collects all of the AST proposals
+	 * This function takes the current AST node and does the first inferencing step for it.
 	 * @param node the AST node to visit
-	 * @param data {offset, prefix, proposals [{propsal, description, positions, escapePosition}], allNames {name:type}} the data for the visitor.
+	 * @param data the data for the visitor.  See computeProposals below for full description of contents
 	 */
 	function proposalCollector(node, data) {
-		var type = node.type;
-		var res, name;
-		// do a range check
+		var type = node.type, currentType = data.currentType, types = data.types, 
+				oftype, name, i, property, newTypeName;
+		
 		if (type === "BlockStatement" && !inRange(data.offset, node.range)) {
 			// out of range
 			return false;
-		} else if (type === "FunctionDeclaration" && data.completionKind === "top") {
+		} else if (type === "VariableDeclaration" && isBefore(data.offset, node.range)) {
+			// must do this check since "VariableDeclarator"s do not seem to have their range set correctly
+			return false;
+		}
+		
+		if (type === "Program" || type === "BlockStatement") {
+			node.inferredType = data.newScope();
+		} else if (type === 'Identifier') {
+			name = node.name;
+			if (types[currentType][name]) {
+				// name already exists
+				node.inferredType = types[currentType][name];
+			} else {
+				// assume object
+				node.inferredType = "Object";
+				types[currentType][name] = "Object";
+			}
+		} else if (type === "ExpressionStatement" || type === "ReturnStatement") {
+			data.resetCurrentType();
+		
+		} else if (type === "NewExpression") {
+			node.inferredType = node.callee.name;
+		} else if (type === "Literal") {
+			oftype = (typeof node.value);
+			node.inferredType = oftype[0].toUpperCase() + oftype.substring(1, oftype.length);
+		} else if (type === "ArrayExpression") {
+			node.inferredType = "Array";
+		} else if (type === "ObjectExpression") {
+			// for object literals, create a new object type so that we can stuff new properties into it.
+			// we might be able to do better by walking into the object and inferring each RHS of a 
+			// key-value pair
+			newTypeName = data.newScope();
+			for (i = 0; i < node.properties.length; i++) {
+				property = node.properties[i];
+				// only remember if the property is an identifier
+				if (property.key && property.key.name) {
+					// FIXADE not correct, we should be inferring inside the object, 
+					// but that is for later
+					data.addOrSetVariable(property.key.name, "Object");
+				}
+			}
+			node.inferredType = newTypeName;
+			data.popScope();
+		} else if (type === "BinaryExpression") {
+			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || 
+					node.operator === "*") {
+				// assume number for now
+				// rules are really much more complicated
+				node.inferredType = "Number";
+			}
+		} else if (type === "UpdsteExpression" || type === "UnaryExpression") {
+			// assume number for now.  actual rules are much more complicated
+			node.inferredType = "Number";
+		} else if (type === "FunctionDeclaration") {
+			data.resetCurrentType();
+
+			var params = [];
+			for (i = 0; i < node.params.length; i++) {
+				params[i] = node.params[i].name;
+			}
+			data.addOrSetFunction(node.id.name, params, "Function");
+		}
+		return true;
+	}
+	
+	/**
+	 * called as the post operation for the proposalCollector visitor.
+	 * Finishes off the inferencing and adds all proposals
+	 */
+	function proposalCollectorPostOp(node, data) {
+		var type = node.type, name, params, res, plen, i, inferredType;
+		
+		if (type === "Program" || type === "BlockStatement") {
+			data.popScope();
+			
+		} else if (type === "ExpressionStatement" || type === "ReturnStatement") {
+			data.resetCurrentType();
+			
+		} if (type === "MemberExpression") {
+			if (data.completionKind === "member" &&
+					(inRange(data.offset, node.property.range) || afterDot(data.offset, node, data.contents))) {
+				// completion on a property of a member expression
+				// currentType is the inferred type of the object expression
+				data.computeInferredProposals(node.object.inferredType);
+			}
+			node.inferredType = node.property.inferredType;
+			data.currentType = node.inferredType;
+			
+		} if (type === "CallExpression") {
+			node.inferredType = node.callee.inferredType;
+			data.currentType = node.inferredType;
+			
+		} else if (type === "FunctionDeclaration" && isAfter(data.offset, node.range) && 
+				data.completionKind === "top") {
+			// Add function proposal only if completion offset is after this function declaration
 			name = node.id.name;
-			var params = node.params;
+			params = node.params;
 			if (name.indexOf(data.prefix) === 0) {
 				res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
 				data.proposals.push({ 
@@ -411,91 +529,48 @@ var esprimaContentAssistant = function() {
 			}
 			// only add parameters if we are completing inside the function
 			if (params && params.length > 0 && inRange(data.offset, node.range)) {
-				var plen = params.length;
-				for (var p = 0; p < plen; p++) {
-					name = params[p].name;
+				plen = params.length;
+				for (i = 0; i < plen; i++) {
+					name = params[i].name;
 					if (name.indexOf(data.prefix) === 0) {
 						data.proposals.push({ proposal: name, description: name + " (parameter of " + node.id.name + ")"});
 					}
 				}
 			}
-		} else if (type === "VariableDeclarator" && isAfter(data.offset, node.range) && data.completionKind === "top") {
-			// although legal to reference before being declared, don't include in list
-			name = node.id.name;
-			if (name.indexOf(data.prefix) === 0) {
-				data.proposals.push({ proposal: node.id.name, description: node.id.name + " (variable)"});
-			}
-		} else if (type === "MemberExpression" && data.completionKind === "member" &&
-				(inRange(data.offset, node.property.range) || afterDot(data.offset, node, data.contents))) {
-			var inferredType = data.allNames[node.object.name];
-			if (inferredType && data.types[inferredType]) {
-				addInferredProposals(inferredType, data);
-			}
-		} else if (type === "VariableDeclaration" && isBefore(data.offset, node.range)) {
-			// must do this check since "VariableDeclarator"s do not seem to have their range set correctly
-			return false;
-		}
-		return true;
-	}
-	
-	var objCount = 0;
-	
-	/**
-	 * called as the post operation for the proposalCollector visitor.
-	 */
-	function doInfer(node, data) {
-		var type = node.type;
-		// now do the inference. might have to be in the post op
-		if (type === 'Identifier' && data.allNames[node.name]) {
-			// case where we have already seen the variable
-			node.inferredType = data.allNames[node.name];
+			// can we do better than function?			
+			node.inferredType = "Function";
+			data.currentType = "Function";
+			
 		} else if (type === "VariableDeclarator") {
-			if (node.init) {
-				data.allNames[node.id.name] = node.init.inferredType;
-			} else {
-				data.allNames[node.id.name] = "Object";
-			}
-		} else if (type === "NewExpression") {
-			node.inferredType = node.callee.name;
-		} else if (type === "AssignmentExpression" && node.left.type === 'Identifier') {
-			// only handle simple assignements, eg- x = y; and not x.y = z;
-			data.allNames[node.left.name] = node.right.inferredType;
-		} else if (type === "Literal") {
-			var oftype = (typeof node.value);
-			node.inferredType = oftype[0].toUpperCase() + oftype.substring(1, oftype.length);
-		} else if (type === "ArrayExpression") {
-			node.inferredType = "Array";
-		} else if (type === "ObjectExpression") {
-			// for object literals, create a new object type so that we can stuff new properties into it.
-			var newTypeName = "Object~"+ objCount++;
-			var newTypeProperties = [{name:"prototype", type: "Object"}];
-			for (var i = 0; i < node.properties.length; i++) {
-				var property = node.properties[i];
-				// only remember if the property is an identifier
-				if (property.key && property.key.name) {
-					newTypeProperties.push(
-						{ name: property.key.name, 
-						  type: property.value.inferredType });  
+			if (isAfter(data.offset, node.range) && data.completionKind === "top") {
+				// although legal to reference before being declared, don't include in list
+				name = node.id.name;
+				if (name.indexOf(data.prefix) === 0) {
+					data.proposals.push({ proposal: node.id.name, description: node.id.name + " (variable)"});
 				}
 			}
-			data.types[newTypeName] = newTypeProperties;
-			node.inferredType = newTypeName;
-		} else if (type === "MemberExpression") {
-			node.inferredType = node.object.inferredType[node.property.id];
-		} else if (type === "BinaryExpression") {
-			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || node.operator === "*") {
-				// assume number for now
-				// rules are really much more complicated
-				node.inferredType = "Number";
+			if (node.init) {
+				inferredType = node.init.inferredType;
+			} else {
+				inferredType = "Object";
 			}
-		} else if (type === "UpdsteExpression") {
-			node.inferredType = "Number";
+			node.inferredType = inferredType;
+			data.currentType = inferredType;
+			data.addOrSetVariable(node.id.name, inferredType);
+		
+		
+		} else if (type === "AssignmentExpression" && node.left.type === 'Identifier') {
+			// only handle simple assignements, eg- x = y; and not x.y = z;
+			// we can do better by walking the tree
+			inferredType = node.right.inferredType;
+			node.inferredType = inferredType;
+			data.addOrSetVariable(node.left.name, inferredType);
+			data.currentType = inferredType;
 		}
 		
 		if (!node.inferredType) {
 			node.inferredType = "Object";
 		}
-		return true;
 	}
 
 	function parse(contents) {
@@ -506,21 +581,22 @@ var esprimaContentAssistant = function() {
 		return parsedProgram;
 	}
 
-	/**
-	 * removes any duplicate proposals
-	 * @param proposals array of sorted proposals
-	 * @return array of proposals, still sorted, and with all duplicates removed
-	 */
-	function squash(proposals) {
-		var newProposals = [], len = proposals.length, i, prevProposal = null;
-		for (i = 0; i < len; i++) {
-			if (proposals[i] !== prevProposal) {
-				newProposals.push(proposals[i]);
-				prevProposal = proposals[i];
-			}
-		}
-		return newProposals;
-	}
+// not correct any more, but we may want to use it later
+//	/**
+//	 * removes any duplicate proposals
+//	 * @param proposals array of sorted proposals
+//	 * @return array of proposals, still sorted, and with all duplicates removed
+//	 */
+//	function squash(proposals) {
+//		var newProposals = [], len = proposals.length, i, prevProposal = null;
+//		for (i = 0; i < len; i++) {
+//			if (proposals[i] !== prevProposal) {
+//				newProposals.push(proposals[i]);
+//				prevProposal = proposals[i];
+//			}
+//		}
+//		return newProposals;
+//	}
 
 	/**
 	 * Main entry point to provider
@@ -528,23 +604,129 @@ var esprimaContentAssistant = function() {
 	var proposalProvider = {
 		computeProposals: function(prefix, buffer, selection) {
 			try {
-				var proposals = [];
 				var root = parse(buffer);
-				var offset = selection.start;
-				var completionKind = shouldVisit(root, offset);
+				var completionKind = shouldVisit(root, selection.start);
 				if (completionKind) {
-					// need to use a copy of types since we make changes to it.
-					var myTypes = new Types();
-					visit(root, { 
-						proposals: proposals, 
-						offset: offset, 
+					var data = {
+						/** a counter used for creating unique names for object literals and scopes */
+						typeCount : 0,
+						/** an array of proposals generated */
+						proposals: [], 
+						/** the offset of content assist invocation */
+						offset: selection.start, 
+						/** the prefix of the invocation */
 						prefix: prefix, 
-						allNames: {Math: "Math"}, 
-						types:myTypes,
+						/** Each element is the type of the current scope, which is a key into the types array */
+						typeStack: ["Object"],
+						/** the type of the expression most recently evaluated */
+						currentType: "Object",  // always points to the top of the type stack
+						/** a map of all the types and their properties currently known */
+						types:new Types(),
+						/** the entire contents being completed on */
 						contents:buffer,
-						completionKind:completionKind
-					}, proposalCollector, doInfer);
-					proposals.sort(function(l,r) {
+						/** "member" or "top"  if Member, completion occurs after a dotted member expression.  if top, completion occurs as the start of a new expression */
+						completionKind:completionKind,
+						newName: function() {
+							return "Object~"+ this.typeCount++;
+						},
+						/** Creates a new empty scope and returns the name */
+						newScope: function() {
+							var newScopeName = this.newName();
+							this.types[newScopeName] = {
+								$$prototype : this.currentType,
+								$$args : {}
+							};
+							this.typeStack.push(newScopeName);
+							this.currentType = newScopeName;
+							return newScopeName;
+						},
+						
+						/** removes the current scope */
+						popScope: function() {
+							var oldScope = this.typeStack.pop();
+							this.currentType = this.typeStack[this.typeStack.length -1];
+							// FIXADE probably want to delete the unused scopes, but useful for now for debugging
+//							this.types[oldScope] = null;
+							return oldScope;
+						},
+						
+						resetCurrentType : function() {
+							this.currentType = this.typeStack[this.typeStack.length -1];
+							return this.currentType;
+						},
+						
+						/** adds the name to the current type/scope */
+						addOrSetVariable : function(name, type) {
+							this.types[this.currentType][name] = type;
+						},
+						
+						/** adds the name and args (array of strings) with the given return type to the current type */
+						addOrSetFunction : function(name, args, type) {
+							this.types[this.currentType][name] = type;
+							this.types[this.currentType].$$args[name] = args;
+						},
+						
+						/** looks up the name in the hierarchy */
+						lookupName : function(name) {
+							var innerLookup = function(name, type) {
+								var res = type[name];
+								if (res) {
+									return res;
+								} else {
+									var proto = type.$$prototype;
+									if (proto) {
+										return innerLookup(name, proto);
+									}
+									return null;
+								}
+							};
+							return innerLookup(name, this.currentType);
+						},
+						
+						computeInferredProposals : function(currentType) {
+							var prop, proto, res, functionArgs, type = this.types[currentType];
+							for (prop in type) {
+								if (type.hasOwnProperty(prop)) {
+									if (prop === "$$prototype") {
+										proto = type[prop];
+									} else if (prop !== "$$args" && prop.indexOf(this.prefix) === 0) {
+										functionArgs = type.$$args[prop];
+										if (functionArgs) {
+											res = calculateFunctionProposal(prop, 
+													functionArgs, data.offset - data.prefix.length);
+											data.proposals.push({ 
+												proposal: res.completion, 
+												description: res.completion + " (function)", 
+												positions: res.positions, 
+												escapePosition: data.offset + res.completion.length 
+											});
+										} else {
+											data.proposals.push({ 
+												proposal: prop,
+												description: prop + " (property)"
+											});
+										}
+									}
+								}
+							}
+							// walk up the prototype hierarchy
+							if (proto) {
+								this.computeInferredProposals(proto);
+							} else if ("hasOwnProperty".indexOf(this.prefix) === 0) {
+								// check to see if we need to add the hasOwnProperty method
+								data.proposals.push({ 
+									proposal: "hasOwnProperty(property)", 
+									description: "hasOwnProperty(property)" + " (function)", 
+									positions: {offset:this.offset+"hasOwnProperty(".length +1, length: "property".length}, 
+									escapePosition: data.offset + "hasOwnProperty(property)".length 
+								});
+							}
+						}
+						
+					};
+					// need to use a copy of types since we make changes to it.
+					visit(root, data, proposalCollector, proposalCollectorPostOp);
+					data.proposals.sort(function(l,r) {
 						if (l.description < r.description) {
 							return -1;
 						} else if (r.description < l.description) {
@@ -553,9 +735,8 @@ var esprimaContentAssistant = function() {
 							return 0;
 						}
 					});
-					proposals = squash(proposals);
 				}
-				return proposals;
+				return data.proposals;
 			} catch (e) {
 				// log error and throw error up
 				if (console && console.log) {

@@ -20,7 +20,7 @@ function computeContentAssistAtEnd(contents, prefix) {
 	}
 	var offset = contents.indexOf("/**/");
 	if (offset < 0) {
-		offset = contents.length;
+		offset = contents.length-1;
 	}
 	
 	return esprimaContentAssistant().computeProposals(prefix, contents, {start: offset});
@@ -51,8 +51,8 @@ $(document).ready(function() {
 	// add parsing tests here
 	module("Parsing module");
 
-	// all content assist tests here
-	module("Content Assist");
+	// all non-inferencing ast-based content assist tests here
+	module("Basic Content Assist");
 	
 	test("content assist setup", function() {
 		expect(2);
@@ -146,6 +146,59 @@ $(document).ready(function() {
 			["abb", "abb (variable)"]
 		]);
 	});
+	test("in function 6", function() {
+		// should not see 'aaa' since that is declared later
+		var results = computeContentAssistAtEnd(
+		"function fun(a, b, c) {\n" +
+		"function other(aa, ab, c) {\n"+
+		"var abb;\na/**/\nvar aaa\n}\n}", "a");
+		testProposals(results, [
+			["a", "a (parameter of fun)"],
+			["aa", "aa (parameter of other)"],
+			["ab", "ab (parameter of other)"],
+			["abb", "abb (variable)"]
+		]);
+	});
+	test("in function 7", function() {
+		// should not see 'aaa' since that is declared later
+		var results = computeContentAssistAtEnd(
+		"function fun(a, b, c) {/**/\n" +
+		"function other(aa, ab, ac) {\n"+
+		"var abb;\na\nvar aaa\n}\n}");
+		testProposals(results, [
+			["a", "a (parameter of fun)"],
+			["b", "b (parameter of fun)"],
+			["c", "c (parameter of fun)"],
+			["fun(a, b, c)", "fun(a, b, c) (function)"]
+		]);
+	});
+	test("in function 8", function() {
+		// should not see 'aaa' since that is declared later
+		var results = computeContentAssistAtEnd(
+		"function fun(a, b, c) {\n" +
+		"function other(aa, ab, ac) {\n"+
+		"var abb;\na\nvar aaa\n}/**/\n}");
+		testProposals(results, [
+			["a", "a (parameter of fun)"],
+			["b", "b (parameter of fun)"],
+			["c", "c (parameter of fun)"],
+			["fun(a, b, c)", "fun(a, b, c) (function)"],
+			["other(aa, ab, ac)", "other(aa, ab, ac) (function)"]
+		]);
+	});
+	
+	
+	// all inferencing based content assist tests here
+	module("Inferencing Content Assist");
+	test("Simple String inferencing", function() {
+		var results = computeContentAssistAtEnd("''.char", "char");
+		testProposals(results, [
+			["charAt(index)", "charAt(index) (function)"],
+			["charCodeAt(index)", "charCodeAt(index) (function)"]
+		]);
+	});
+	
+
 });
 	</script>  
 </head>
