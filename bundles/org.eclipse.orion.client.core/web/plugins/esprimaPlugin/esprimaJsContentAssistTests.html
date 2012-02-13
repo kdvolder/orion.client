@@ -5,7 +5,7 @@
 	<script src="http://code.jquery.com/jquery-latest.js"></script>
 	<link rel="stylesheet" href="http://code.jquery.com/qunit/git/qunit.css" type="text/css" media="screen" />
 	<script src="http://code.jquery.com/qunit/git/qunit.js"></script>
-	<script src="esprima_new.js"></script>
+	<script src="esprima.js"></script>
 	<script>
 	// set inTest so that registration with orion infra does not throw an exception
 	var inTest = true;
@@ -18,7 +18,7 @@ function computeContentAssistAtEnd(contents, prefix) {
 	if (!prefix) {
 		prefix = "";
 	}
-	var offset = contents.indexOf("/**/");
+	var offset = contents.indexOf("/**/")-1;
 	if (offset < 0) {
 		offset = contents.length-1;
 	}
@@ -34,6 +34,9 @@ function testProposal(proposal, text, description) {
 }
 
 function testProposals(actualProposals, expectedProposals) {
+	console.log("Proposals:");
+	console.log(actualProposals);
+
 	equal(actualProposals.length, expectedProposals.length, 
 		"Wrong number of proposals.  Expected:\n" + expectedProposals +"\nActual:\n"+actualProposals);
 		
@@ -177,7 +180,7 @@ $(document).ready(function() {
 		var results = computeContentAssistAtEnd(
 		"function fun(a, b, c) {\n" +
 		"function other(aa, ab, ac) {\n"+
-		"var abb;\na\nvar aaa\n}/**/\n}");
+		"var abb;\na\nvar aaa\n} /**/\n}");
 		testProposals(results, [
 			["a", "a (parameter of fun)"],
 			["b", "b (parameter of fun)"],
@@ -190,6 +193,20 @@ $(document).ready(function() {
 	
 	// all inferencing based content assist tests here
 	module("Inferencing Content Assist");
+	test("Object inferencing with Variable", function() {
+		var results = computeContentAssistAtEnd("var t = {}\nt.h", "h");
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"]
+		]);
+	});
+	test("Object Literal inferencing", function() {
+		var results = computeContentAssistAtEnd("var t = { hhh : 1, hh2 : 8}\nt.h", "h");
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["hh2", "hh2 (property)"],
+			["hhh", "hhh (property)"]
+		]);
+	});
 	test("Simple String inferencing", function() {
 		var results = computeContentAssistAtEnd("''.char", "char");
 		testProposals(results, [
@@ -197,7 +214,76 @@ $(document).ready(function() {
 			["charCodeAt(index)", "charCodeAt(index) (function)"]
 		]);
 	});
+	test("Simple Date inferencing", function() {
+		var results = computeContentAssistAtEnd("new Date().setD", "setD");
+		testProposals(results, [
+			["setDay(dayOfWeek)", "setDay(dayOfWeek) (function)"]
+		]);
+	});
+	test("Number inferencing with Variable", function() {
+		var results = computeContentAssistAtEnd("var t = 1\nt.to", "to");
+		testProposals(results, [
+			["toExponential(digits)", "toExponential(digits) (function)"],
+			["toFixed(digits)", "toFixed(digits) (function)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toPrecision(digits)", "toPrecision(digits) (function)"],
+			["toString()", "toString() (function)"]
+		]);
+	});
 	
+	test("Data flow Object Literal inferencing", function() {
+		var results = computeContentAssistAtEnd("var s = { hhh : 1, hh2 : 8}\nvar t = s;\nt.h", "h");
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["hh2", "hh2 (property)"],
+			["hhh", "hhh (property)"]
+		]);
+	});
+	
+	test("Simple this", function() {
+		var results = computeContentAssistAtEnd("var ssss = 4;\nthis.ss", "ss");
+		testProposals(results, [
+			["ss", "ss (property)"],  // FIXADE see proposalCollector Identifier
+			["ssss", "ssss (property)"]
+		]);
+	});
+	
+	
+	test("Object Literal inside", function() {
+		var results = computeContentAssistAtEnd("var x = { the : 1, far : this.th/**/ };", "th");
+		testProposals(results, [
+			["th", "th (property)"],  // FIXADE see proposalCollector Identifier
+			["the", "the (property)"]
+		]);
+	});
+	test("Object Literal outside", function() {
+		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nx.th", "th");
+		testProposals(results, [
+			["the", "the (property)"]
+		]);
+	});
+	test("Object Literal none", function() {
+		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nthis.th", "th");
+		testProposals(results, [ ]);
+	});
+	
+	/*
+	 yet to do:
+	 1. with, catch, if, while, for (in), this, args in a call, inside object literal, function inside obj literal
+	 2. better work on binary expressions
+	 3. function/method return types vs functions themselves
+	 4, parameterized types (eg- array of string, function that returns number)
+	 5. foo.bar = 8
+	 6. add new properties after being created
+	 \
+	 How to solve the "this" problem in object literals:
+	 1. do shallow visit of keys
+	 2. assign keys to a new type
+	 3. create new scope for inside the literal
+	 4. assign 'this' to the type created in step 2
+	 5. visit internal
+	 6. pop
+	*/
 
 });
 	</script>  

@@ -22,20 +22,20 @@ var esprimaContentAssistant = function() {
 		 * Properties common to all objects - ECMA 262, section 15.2.4.
 		 */
 		this.Object = {
-			toString: "String",
-			oLocaleString : "String",
-			valueOf: "Object",
-			// Urrrgh...can't set this property here because it overrides the real hasOwnProperty
-//			hasOwnProperty: "boolean",
-			isPrototypeOf: "boolean",
-			propertyIsEnumerable: "boolean",
+			// Urrrgh...can't use the real name here because would override the real methods of that name
+			$$toString: "String",
+			$$toLocaleString : "String",
+			$$valueOf: "Object",
+			$$hasOwnProperty: "boolean",
+			$$isPrototypeOf: "boolean",
+			$$propertyIsEnumerable: "boolean",
 			
-			"$$args" : {
-				toString: [],
-				toLocaleString: [],
-//				hasOwnProperty: ["property"],
-				isPrototypeOf: ["object"],
-				propertyIsEnumerable: ["property"]
+			$$args : {
+				$$toString: [],
+				$$toLocaleString: [],
+				$$hasOwnProperty: ["property"],
+				$$isPrototypeOf: ["object"],
+				$$propertyIsEnumerable: ["property"]
 			}
 		};
 		
@@ -60,7 +60,7 @@ var esprimaContentAssistant = function() {
 			toLowerCase : "String",
 			toUpperCase : "String",
 			trim : "String",
-			"$$args" : {
+			$$args : {
 				charAt : ["index"],
 				charCodeAt : ["index"],
 				concat : ["array"],
@@ -232,11 +232,12 @@ var esprimaContentAssistant = function() {
 						for (i = 0; i < child.length; i++) {
 							if (child[i] && child[i].hasOwnProperty("type")) {
 								children.push(child[i]);
-							} else {
+							} else if (key === "properties") {
 								// might be key-value pair of an object expression
 								// don't visit the key since it doesn't have an sloc
 								// and it is handle later by inferencing
-								if (child[i].hasOwnProperty("value")) {
+								if (child[i].hasOwnProperty("key") && child[i].hasOwnProperty("value")) {
+									children.push(child[i].key);
 									children.push(child[i].value);
 								}
 							}
@@ -434,7 +435,10 @@ var esprimaContentAssistant = function() {
 				// name already exists
 				node.inferredType = types[currentType][name];
 			} else {
-				// assume object
+				// If name doesn't already exist, then just add it to the current type.
+				// FIXADE  Is this what we want?  Doing this here will add any otherwise unknown property 
+				// to the list of known properties if it is referenced.  Probably OK, but this has the side effect
+				// of also including any half-formed property that exists as a prefix to the content assist invocation.
 				node.inferredType = "Object";
 				types[currentType][name] = "Object";
 			}
@@ -452,7 +456,7 @@ var esprimaContentAssistant = function() {
 			// for object literals, create a new object type so that we can stuff new properties into it.
 			// we might be able to do better by walking into the object and inferring each RHS of a 
 			// key-value pair
-			newTypeName = data.newScope();
+			newTypeName = data.newObject();
 			for (i = 0; i < node.properties.length; i++) {
 				property = node.properties[i];
 				// only remember if the property is an identifier
@@ -463,7 +467,6 @@ var esprimaContentAssistant = function() {
 				}
 			}
 			node.inferredType = newTypeName;
-			data.popScope();
 		} else if (type === "BinaryExpression") {
 			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || 
 					node.operator === "*") {
@@ -482,6 +485,11 @@ var esprimaContentAssistant = function() {
 				params[i] = node.params[i].name;
 			}
 			data.addOrSetFunction(node.id.name, params, "Function");
+		} else if (type === "VariableDeclarator" || type === "VariableDeclaration") {
+			data.resetCurrentType();
+		} else if (type === "ThisExpression") {
+			node.inferredType = types[currentType]["this"];
+//			node.currentType = node.inferredType;
 		}
 		return true;
 	}
@@ -509,10 +517,11 @@ var esprimaContentAssistant = function() {
 			node.inferredType = node.property.inferredType;
 			data.currentType = node.inferredType;
 			
-		} if (type === "CallExpression") {
+		} else if (type === "CallExpression") {
 			node.inferredType = node.callee.inferredType;
 			data.currentType = node.inferredType;
-			
+		} else if (type === "ObjectExpression") {
+			data.popScope();
 		} else if (type === "FunctionDeclaration" && isAfter(data.offset, node.range) && 
 				data.completionKind === "top") {
 			// Add function proposal only if completion offset is after this function declaration
@@ -555,10 +564,9 @@ var esprimaContentAssistant = function() {
 				inferredType = "Object";
 			}
 			node.inferredType = inferredType;
-			data.currentType = inferredType;
 			data.addOrSetVariable(node.id.name, inferredType);
-		
-		
+			data.currentType = inferredType;
+
 		} else if (type === "AssignmentExpression" && node.left.type === 'Identifier') {
 			// only handle simple assignements, eg- x = y; and not x.y = z;
 			// we can do better by walking the tree
@@ -580,23 +588,6 @@ var esprimaContentAssistant = function() {
 		});
 		return parsedProgram;
 	}
-
-// not correct any more, but we may want to use it later
-//	/**
-//	 * removes any duplicate proposals
-//	 * @param proposals array of sorted proposals
-//	 * @return array of proposals, still sorted, and with all duplicates removed
-//	 */
-//	function squash(proposals) {
-//		var newProposals = [], len = proposals.length, i, prevProposal = null;
-//		for (i = 0; i < len; i++) {
-//			if (proposals[i] !== prevProposal) {
-//				newProposals.push(proposals[i]);
-//				prevProposal = proposals[i];
-//			}
-//		}
-//		return newProposals;
-//	}
 
 	/**
 	 * Main entry point to provider
@@ -638,15 +629,32 @@ var esprimaContentAssistant = function() {
 							};
 							this.typeStack.push(newScopeName);
 							this.currentType = newScopeName;
+							// must add a new 'this' for use inside of the object
+							this.addOrSetVariable("this", newScopeName);
 							return newScopeName;
+						},
+						
+						/** Creates a new empty object scope and returns the name */
+						newObject: function() {
+							var newObjectName = this.newName();
+							this.types[newObjectName] = {
+								$$prototype : "Object",
+								$$args : {}
+							};
+							this.typeStack.push(newObjectName);
+							this.currentType = newObjectName;
+							// add a new 'this' for use inside of the object
+							this.addOrSetVariable("this", newObjectName);
+							return newObjectName;
 						},
 						
 						/** removes the current scope */
 						popScope: function() {
 							var oldScope = this.typeStack.pop();
 							this.currentType = this.typeStack[this.typeStack.length -1];
-							// FIXADE probably want to delete the unused scopes, but useful for now for debugging
-//							this.types[oldScope] = null;
+							// Can't delete old scope since it may have been assigned somewhere
+							// but must remove "this" when outside of the scope
+							this.addOrSetFunction("this", null);
 							return oldScope;
 						},
 						
@@ -684,15 +692,29 @@ var esprimaContentAssistant = function() {
 						},
 						
 						computeInferredProposals : function(currentType) {
-							var prop, proto, res, functionArgs, type = this.types[currentType];
+							var prop, propName, proto, res, functionArgs, type = this.types[currentType];
+							proto = type.$$prototype;
+							
 							for (prop in type) {
 								if (type.hasOwnProperty(prop)) {
-									if (prop === "$$prototype") {
-										proto = type[prop];
-									} else if (prop !== "$$args" && prop.indexOf(this.prefix) === 0) {
+									if (prop === "$$prototype" || prop === "$$args") {
+										continue;
+									}
+									if (!proto && prop.indexOf("$$") === 0) {
+										// no prototype that means we must decode the property name
+										propName = prop.substring(2);
+									} else {
+										propName = prop;
+									}
+									if (propName === "this" && this.completionKind === "member") {
+										// don't show "this" proposals for non-top-level locations
+										// (eg- this.this is wrong)
+										continue;
+									}
+									if (propName.indexOf(this.prefix) === 0) {
 										functionArgs = type.$$args[prop];
 										if (functionArgs) {
-											res = calculateFunctionProposal(prop, 
+											res = calculateFunctionProposal(propName, 
 													functionArgs, data.offset - data.prefix.length);
 											data.proposals.push({ 
 												proposal: res.completion, 
@@ -702,8 +724,8 @@ var esprimaContentAssistant = function() {
 											});
 										} else {
 											data.proposals.push({ 
-												proposal: prop,
-												description: prop + " (property)"
+												proposal: propName,
+												description: propName + " (property)"
 											});
 										}
 									}
@@ -712,17 +734,8 @@ var esprimaContentAssistant = function() {
 							// walk up the prototype hierarchy
 							if (proto) {
 								this.computeInferredProposals(proto);
-							} else if ("hasOwnProperty".indexOf(this.prefix) === 0) {
-								// check to see if we need to add the hasOwnProperty method
-								data.proposals.push({ 
-									proposal: "hasOwnProperty(property)", 
-									description: "hasOwnProperty(property)" + " (function)", 
-									positions: {offset:this.offset+"hasOwnProperty(".length +1, length: "property".length}, 
-									escapePosition: data.offset + "hasOwnProperty(property)".length 
-								});
 							}
 						}
-						
 					};
 					// need to use a copy of types since we make changes to it.
 					visit(root, data, proposalCollector, proposalCollectorPostOp);
@@ -735,10 +748,12 @@ var esprimaContentAssistant = function() {
 							return 0;
 						}
 					});
+					return data.proposals;
+				} else {
+					// invalid completion location
+					return {};
 				}
-				return data.proposals;
 			} catch (e) {
-				// log error and throw error up
 				if (console && console.log) {
 					console.log(e.message);
 					console.log(e.stack);
