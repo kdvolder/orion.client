@@ -27,9 +27,7 @@ exports.ExplorerNavHandler = (function() {
 	 */
 	function ExplorerNavHandler(explorer, options) {
 		this.explorer = explorer;
-		this.renderer = this.explorer.renderer;
 		this.model = this.explorer.model;
-		this.myTree = this.explorer.myTree;
 		
 	    this._listeners = [];
 		
@@ -38,21 +36,24 @@ exports.ExplorerNavHandler = (function() {
 		   						 	return this.isExpanded(model);
 		   						 }),
 		   						 
-		   			isExpandable: this.renderer.isExpandable ? dojo.hitch(this, function(model) {
-					 				return this.renderer.isExpandable(model);
+		   			isExpandable: this.explorer.renderer.isExpandable ? dojo.hitch(this, function(model) {
+					 				return this.explorer.renderer.isExpandable(model);
 								 }) : dojo.hitch(this, function(model) {
 					 				return this.isExpandable(model);
 								 }),				   						 
 		   			
-					forceExpandFunc: this.renderer.forceExpandFunc? dojo.hitch(this, function(modelToExpand, childPosition, callback) {
-			 						return this.forceExpandFunc(modelToExpand, childPosition, callback);
+					forceExpandFunc: this.explorer.forceExpandFunc? dojo.hitch(this, function(modelToExpand, childPosition, callback) {
+			 						return this.explorer.forceExpandFunc(modelToExpand, childPosition, callback);
 						 		 }) : undefined
 		   		   });
 		this._init(options);
 		
-	    var parentDiv = this.myTree._parent;
+	    var parentDiv = this._getEventListeningDiv();
 	    parentDiv.focus();
 		var keyListener = dojo.connect(parentDiv, "onkeydown", dojo.hitch(this, function (e) {
+			if(this.explorer.preventDefaultFunc && this.explorer.preventDefaultFunc(e, this._modelIterator.cursor())){
+				return true;
+			}
 			if(e.keyCode === dojo.keys.DOWN_ARROW){
 				return this.onUpArrow(e);
 			} else if(e.keyCode === dojo.keys.UP_ARROW){
@@ -75,10 +76,18 @@ exports.ExplorerNavHandler = (function() {
 		}));
 		this._listeners.push(keyListener);
 		var l1 = dojo.connect(parentDiv, "onblur", dojo.hitch(this, function (e) {
-			this.toggleCursor(null, false);
+			if(this.explorer.onFocus){
+				this.explorer.onFocus(false);
+			} else {
+				this.toggleCursor(null, false);
+			}
 		}));
 		var l2 = dojo.connect(parentDiv, "onfocus", dojo.hitch(this, function (e) {
-			this.toggleCursor(null, true);
+			if(this.explorer.onFocus){
+				this.explorer.onFocus(true);
+			} else {
+				this.toggleCursor(null, true);
+			}
 		}));
 		this._listeners.push(l1);
 		this._listeners.push(l2);
@@ -90,15 +99,32 @@ exports.ExplorerNavHandler = (function() {
 			if(!options){
 				return;
 			}
-			this.postIterateFunc = options.postIterateFunc;//optional callback providing that if a model item is expanded even if it has children. Default is true if it has children.
-			this.postSelectFunc = options.isExpandable;//optional  callback providing that if a model item is expandable.Default is true .
+			this.preventDefaultFunc = options.preventDefaultFunc;//optional callback. If this function returns true then the default behavior of all key press will stop at this time.
+			                                                     //The key event is passed to preventDefaultFunc. It can implement its own behavior based o nteh key event.
+			this.postDefaultFunc = options.postDefaultFunc;//optional callback. If this function provides addtional behaviors after the default behavior.
+			                                               //Some explorers may want to do something else whne the cursor is changed, etc.
+		},
+		
+		removeListeners: function(){
+			if(this._listeners){
+				for (var i=0; i < this._listeners.length; i++) {
+					dojo.disconnect(this._listeners[i]);
+				}
+			}
+		},
+		
+		_getEventListeningDiv: function(){
+			if(this.explorer.keyEventListeningDiv && typeof this.explorer.keyEventListeningDiv === "function"){
+				return this.explorer.keyEventListeningDiv();
+			}
+			return this.explorer.myTree._parent;
 		},
 		
 		isExpandable: function(model){
 			if(!model){
 				return false;
 			}
-			var expandImage = dojo.byId(this.renderer.expandCollapseImageId(this.model.getId(model)));
+			var expandImage = dojo.byId(this.explorer.renderer.expandCollapseImageId(this.model.getId(model)));
 			return expandImage ? true: false;
 		},
 		
@@ -106,19 +132,23 @@ exports.ExplorerNavHandler = (function() {
 			if(!model){
 				return false;
 			}
-			return this.myTree.isExpanded(this.model.getId(model));
+			return this.explorer.myTree.isExpanded(this.model.getId(model));
 		},
 		
-		refreshModel: function(model){
+		refreshModel: function(model, noReset){
+		    var parentDiv = this._getEventListeningDiv();
+		    parentDiv.focus();
 			this.topIterationNodes = [];
 			this.model = model;
 			if(this.model.getTopIterationNodes){
-				this.model.getTopIterationNodes();
+				this.topIterationNodes = this.model.getTopIterationNodes();
 			} else if(this.model.root && this.model.root.children){
 				this.topIterationNodes = this.model.root.children;
 			}
 			this._modelIterator.setTree(this.topIterationNodes);
-			this._modelIterator.reset();
+			if(!noReset){
+				this._modelIterator.reset();
+			}
 		},
 		
 		toggleCursor:  function(model, on){
@@ -128,9 +158,14 @@ exports.ExplorerNavHandler = (function() {
 			}
 		},
 		
-		cursorOn: function(model){
+		currentModel: function(){
+			return this._modelIterator.cursor();
+		},
+		
+		cursorOn: function(model, force, next){
+			var forward = next === undefined ? false : next;
 			var previousModel, currentModel;
-			if(model){
+			if(model || force){
 				if(currentModel === this._modelIterator.cursor()){
 					return;
 				}
@@ -141,11 +176,21 @@ exports.ExplorerNavHandler = (function() {
 				previousModel = this._modelIterator.prevCursor();
 				currentModel = this._modelIterator.cursor();
 			}
-			if(previousModel === currentModel){
+			if(previousModel === currentModel && !force){
 				return;
 			}
 			this.toggleCursor(previousModel, false);
+			if(force && !currentModel){
+				return;
+			}
 			this.toggleCursor(currentModel, true);
+			var currentRowDiv = this.getRowDiv();
+			if(currentRowDiv && !this._visible(currentRowDiv)) {
+				currentRowDiv.scrollIntoView(!forward);
+			}
+			if(this.explorer.onCursorChanged){
+				this.explorer.onCursorChanged(previousModel, currentModel);
+			}
 		},
 		
 		getRowDiv: function(model){
@@ -161,27 +206,23 @@ exports.ExplorerNavHandler = (function() {
 				return;
 			}
 			if(this._modelIterator.iterate(forward, forceExpand)){
-				this.cursorOn();
+				this.cursorOn(null, false, forward);
 				if(selecting){
 					this._checkRow(this._modelIterator.prevCursor(), true);
-				}
-				var currentRowDiv = this.getRowDiv();
-				if(currentRowDiv && !this._visible(currentRowDiv)) {
-					currentRowDiv.scrollIntoView(!forward);
 				}
 			}
 		},
 		
 		_checkRow: function(model, toggle) {
-			if(this.renderer._useCheckboxSelection){
+			if(this.explorer.renderer._useCheckboxSelection){
 				var tableRow = this.getRowDiv(model);
 				if(!tableRow){
 					return;
 				}
-				var checkBox  = dojo.byId(this.renderer.getCheckBoxId(tableRow.id));
+				var checkBox  = dojo.byId(this.explorer.renderer.getCheckBoxId(tableRow.id));
 				var checked = toggle ? !checkBox.checked : true;
 				if(checked !== checkBox.checked){
-					this.renderer.onCheck(tableRow, checkBox, checked, true);
+					this.explorer.renderer.onCheck(tableRow, checkBox, checked, true);
 				}
 			}
 		},
@@ -190,7 +231,7 @@ exports.ExplorerNavHandler = (function() {
 			if (rowDiv.offsetWidth === 0 || rowDiv.offsetHeight === 0) {
 				return false;
 			}
-		    var parentNode = this.myTree._parent;
+		    var parentNode = this.explorer.myTree._parent;
 			var parentRect = parentNode.getClientRects()[0],
 			rects = rowDiv.getClientRects(),
 			on_top = function(r) {
@@ -242,13 +283,16 @@ exports.ExplorerNavHandler = (function() {
 			}
 			if(this.isExpandable(curModel)){
 				if(this.isExpanded(curModel)){
-					this.myTree.collapse(curModel);
+					this.explorer.myTree.collapse(curModel);
 					e.preventDefault();
 					return true;
 				}
 			}
 			if(!this._modelIterator.topLevel(curModel)){
 				this.cursorOn(curModel.parent);
+			//The cursor is now on a top level item which is collapsed. We need to ask the explorer is it wants to scope up.	
+			} else if (this.explorer.scopeUp && typeof this.explorer.scopeUp === "function"){
+				this.explorer.scopeUp();
 			}
 		},
 		
@@ -260,7 +304,7 @@ exports.ExplorerNavHandler = (function() {
 			}
 			if(this.isExpandable(curModel)){
 				if(!this.isExpanded(curModel)){
-					this.myTree.expand(curModel);
+					this.explorer.myTree.expand(curModel);
 					e.preventDefault();
 					return false;
 				}
@@ -275,12 +319,12 @@ exports.ExplorerNavHandler = (function() {
 		
 		//Enter key simulates a href call if the current row has an href link rendered. The render has to provide the getRowActionElement function that returns the href DIV.
 		onEnter: function(e) {
-			if(this.renderer.getRowActionElement){
+			if(this.explorer.renderer.getRowActionElement){
 				var curModel = this._modelIterator.cursor();
 				if(!curModel){
 					return;
 				}
-				var div = this.renderer.getRowActionElement(this.model.getId(curModel));
+				var div = this.explorer.renderer.getRowActionElement(this.model.getId(curModel));
 				if(div.href){
 					if(e.ctrlKey){
 						window.open(div.href);

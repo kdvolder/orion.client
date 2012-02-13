@@ -11,8 +11,8 @@
 
 /*global define console document */
 
-define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', 'orion/compare/compare-container', 'orion/breadcrumbs', 'orion/git/gitCommands'], 
-		function(dojo, mExplorer, mUtil, mDiffProvider , mCompareContainer, mBreadcrumbs, mGitCommands) {
+define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/compare/diff-provider', 'orion/compare/compare-container', 'orion/breadcrumbs', 'orion/git/gitCommands'], 
+		function(dojo, mExplorer, mUtil, mGlobalCommands, mDiffProvider , mCompareContainer, mBreadcrumbs, mGitCommands) {
 	var exports = {};
 
 	exports.GitCommitExplorer = (function() {
@@ -21,9 +21,10 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', '
 		 * Creates a new Git commit explorer.
 		 * @class Git commit explorer
 		 */
-		function GitCommitExplorer(registry, linkService, selection, parentId, toolbarId, selectionToolsId){
+		function GitCommitExplorer(registry, commandService, linkService, selection, parentId, toolbarId, selectionToolsId){
 			this.parentId = parentId;
 			this.registry = registry;
+			this.commandService = commandService;
 			this.linkService = linkService;
 			this.selection = selection;
 			this.parentId = parentId;
@@ -127,6 +128,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', '
 					that.makeHref(seg, location);
 				}
 			});		
+			mGlobalCommands.setPageTarget(repository, this.registry, this.commandService);
 		};
 		
 		GitCommitExplorer.prototype.makeHref = function(seg, location) {
@@ -197,7 +199,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', '
 			dojo.create( "div", {"style":"padding-top:15px"}, detailsView );
 			
 			if (commit.AuthorImage) {
-				var authorImage = dojo.create("span", {"class":"git-author-icon"}, detailsView);
+				var authorImage = dojo.create("span", {"class":"git-author-icon-small"}, detailsView);
 				var image = new Image();
 				image.src = commit.AuthorImage;
 				image.name = commit.AuthorName;
@@ -242,21 +244,29 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', '
 		};
 
 		GitCommitExplorer.prototype.renderDiff = function(diff, index){
-			var extensionListItem = dojo.create( "div", { "class":"git-list-item" }, dojo.byId("diffNode") );
-			var horizontalBox = dojo.create( "div", null, extensionListItem );
+			
+			// add diff details
+			
+			var diffDetailsItem = dojo.create( "div", { "class":"git-list-item" }, dojo.byId("diffNode") );
+			var diffDetailsHorizontalBox = dojo.create( "div", null, diffDetailsItem );
 
-			var detailsView = dojo.create( "div", {"style":"height:420px"}, horizontalBox );
-			
+			var detailsView = dojo.create( "div", {"style":"float:left"}, diffDetailsHorizontalBox );
 			var diffPath = diff.OldPath;
-			
 			if (diff.ChangeType === "ADD"){
 				diffPath = diff.NewPath;
-			}
+			}	
+			dojo.create( "span", { "class":"gitMainDescription", innerHTML: diffPath + " (" + diff.ChangeType + ") " }, detailsView );
+
+			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"git-action-area"}, diffDetailsHorizontalBox );
+			this.commandService.renderCommands(actionsArea, "object", diff, this, "tool", false);	
 			
-			var title = dojo.create( "span", { "class":"gitMainDescription", innerHTML: diffPath + " (" + diff.ChangeType + ") " }, detailsView );
+			// add inline compare view
 			
-			var description = dojo.create( "div", { id:"diff_" + index , "style":"height: 90%"}, detailsView );
+			var diffItem = dojo.create( "div", { "class":"git-list-item" }, dojo.byId("diffNode") );
+			var diffHorizontalBox = dojo.create( "div", null, diffItem );
 			
+			dojo.create( "div", { "id":"diffArea_" + index, "style":"height:420px"}, diffHorizontalBox );
+
 			var diffProvider = new mCompareContainer.DefaultDiffProvider(this.registry);
 			
 			var diffOptions = {
@@ -265,7 +275,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', '
 				callback : function(){}
 			};
 			
-			var inlineCompareContainer = new mCompareContainer.InlineCompareContainer(this.registry, "diff_" + index, diffOptions);
+			var inlineCompareContainer = new mCompareContainer.InlineCompareContainer(this.registry, "diffArea_" + index, diffOptions);
 			inlineCompareContainer.setOptions({hasConflicts: false, complexURL: diff.DiffLocation});
 			inlineCompareContainer.setDiffTitle("Compare");
 			inlineCompareContainer.startup();
@@ -297,8 +307,8 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', '
 		
 			dojo.place( slideout, titleWrapper );
 			
-			this.registry.getService("orion.page.command").registerCommandContribution("eclipse.orion.git.addTag", 2000, "tagSectionActionsArea");
-			this.registry.getService("orion.page.command").renderCommands(dojo.byId("tagSectionActionsArea"), "dom", commit, this, "button", false);
+			this.commandService.registerCommandContribution("eclipse.orion.git.addTag", 2000, "tagSectionActionsArea");
+			this.commandService.renderCommands(dojo.byId("tagSectionActionsArea"), "dom", commit, this, "button", false);
 			
 			if (!tags && tags.length > 0)
 				return;
@@ -321,15 +331,13 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/compare/diff-provider', '
 			var extensionListItem = dojo.create( "div", { "class":"git-list-item" }, dojo.byId("tagNode") );
 			var horizontalBox = dojo.create( "div", null, extensionListItem );
 
-//			dojo.create( "span", { "class":"git-decor-icon gitImageSprite git-sprite-tag" }, horizontalBox );
-
 			var detailsView = dojo.create( "div", {"class":"stretch"}, horizontalBox );
 			var title = dojo.create( "span", { "class":"gitMainDescription", innerHTML: tag.Name }, detailsView );
 
 			dojo.create( "div", null, horizontalBox );
 
 			var actionsArea = dojo.create( "div", {"id":"tagActionsArea", "class":"git-action-area"}, horizontalBox );
-			this.registry.getService("orion.page.command").renderCommands(actionsArea, "object", tag, this, "tool", false);	
+			this.commandService.renderCommands(actionsArea, "object", tag, this, "tool", false);	
 		};
 
 		return GitCommitExplorer;

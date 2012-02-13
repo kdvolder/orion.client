@@ -24,6 +24,7 @@ define(['require', 'dojo', 'orion/commands', 'orion/searchExplorer', 'orion/sear
 		this.fileService = fileService;
 		this.resultsId = resultsId;
 		this.commandService = commandService;
+		this.explorer = new mSearchExplorer.SearchResultExplorer(this.registry, this.commandService);
 	}
 
 	SearchResultsGenerator.prototype = /** @lends orion.searchResults.SearchResultsGenerator.prototype */ {
@@ -42,19 +43,13 @@ define(['require', 'dojo', 'orion/commands', 'orion/searchExplorer', 'orion/sear
 							foundValidHit = true;
 						}
 						var loc = hit.Location;
-						resultLocation.push({linkLocation: require.toUrl("edit/edit.html") +"#" + loc, location: loc, name: hit.Name, lastModified: hit.LastModified});
+						resultLocation.push({linkLocation: require.toUrl("edit/edit.html") +"#" + loc, location: loc, path: hit.Path, name: hit.Name, lastModified: hit.LastModified});
 						
 					}
 				}
 			}
-			if(this.eventHandlers){
-				for (var i=0; i < this.eventHandlers.length; i++) {
-					dojo.disconnect(this.eventHandlers[i]);
-				}
-			}
-			var explorer = new mSearchExplorer.SearchResultExplorer(this.registry, this.commandService, resultLocation,  resultsNode, query, jsonData.response.numFound);
-			explorer.startUp();
-			this.eventHandlers = explorer.eventHandlers;
+			this.explorer.setResult(resultsNode, resultLocation, query, jsonData.response.numFound);
+			this.explorer.startUp();
 		},
 
 		/**
@@ -90,9 +85,7 @@ define(['require', 'dojo', 'orion/commands', 'orion/searchExplorer', 'orion/sear
 			// console.log("loadResourceList old " + this._lastHash + " new " + path);
 			var parent = dojo.byId(this.resultsId);
 			dojo.place(document.createTextNode("Searching..."), parent, "only");
-			var results = dojo.create("div", null, parent);
-			this._search(results, query);
-			dojo.place(results, parent, "only");
+			this._search(parent, query);
 		}
 		
 	};

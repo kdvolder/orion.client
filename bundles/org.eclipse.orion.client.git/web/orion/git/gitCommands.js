@@ -9,7 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global window widgets eclipse:true serviceRegistry dojo */
+/*global window widgets eclipse:true serviceRegistry define */
 /*browser:true*/
 define(['require', 'dojo', 'orion/commands', 'orion/util',
         'orion/git/widgets/CloneGitRepositoryDialog', 'orion/git/widgets/InitGitRepositoryDialog', 
@@ -45,8 +45,11 @@ var exports = {};
 		}
 		
 		if (selectionToolbarId) {
-			var selectionTools = dojo.create("span", {id: selectionToolbarId}, toolbar, "last");
-			commandService.renderCommands(selectionTools, "dom", null, explorer, "button", true);
+			var selectionTools = dojo.byId(selectionToolbarId);
+			if (selectionTools) {
+				dojo.empty(selectionToolbarId);
+				commandService.renderCommands(selectionToolbarId, "dom", null, explorer, "button"); 
+			}
 		}
 
 		// Stuff we do only the first time
@@ -56,7 +59,7 @@ var exports = {};
 				var selectionTools = dojo.byId(selectionToolbarId);
 				if (selectionTools) {
 					dojo.empty(selectionTools);
-					commandService.renderCommands(selectionTools, "dom", selections, explorer, "button", true);
+					commandService.renderCommands(selectionTools, "dom", selections, explorer, "button");
 				}
 			});
 		}
@@ -882,9 +885,11 @@ var exports = {};
 
 		var rebaseCommand = new mCommands.Command({
 			name : "Rebase",
-			tooltip: "Remove your commits from the active branch, start the active branch again based on the latest state of the selected branch " +
-					"and apply each commit again to the updated active branch.",
+			tooltip: "Rebase your commits by removing them from the active branch, starting the active branch again based on the latest state of the selected branch " +
+					"and applying each commit again to the updated active branch.",
 			id : "eclipse.orion.git.rebase",
+			imageClass: "git-sprite-rebase",
+			spriteClass: "gitCommandSprite",
 			callback: function(data) {
 				var item = data.items;
 				serviceRegistry.getService("orion.git.provider").doRebase(item.HeadLocation, item.Name, "BEGIN", function(jsonData){
@@ -945,9 +950,9 @@ var exports = {};
 				);
 			},
 			visibleWhen : function(item) {
-				this.tooltip = "Remove your commits from the active branch, " +
-					"start the active branch again based on the latest state of '" + item.Name + "' " + 
-					"and apply each commit again to the updated active branch.";
+				this.tooltip = "Rebase your commits by removing them from the active branch, " +
+					"starting the active branch again based on the latest state of '" + item.Name + "' " + 
+					"and applying each commit again to the updated active branch.";
 
 				return item.Type === "RemoteTrackingBranch" || (item.Type === "Branch" && !item.Current);
 			}
@@ -1248,6 +1253,8 @@ var exports = {};
 			name : "Reset",
 			tooltip: "Reset your active branch to the state of the selected branch. Discard all staged and unstaged changes.",
 			id : "eclipse.orion.git.resetIndex",
+			imageClass: "git-sprite-reset",
+			spriteClass: "gitCommandSprite",
 			callback: function(data) {
 				var item = data.items;
 				if(confirm("The content of your active branch will be replaced with " + item.Name + ". " +
@@ -1713,34 +1720,43 @@ var exports = {};
 		});
 		commandService.addCommand(cloneGitRepositoryCommand, "dom");
 
+		var initRepositoryParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter("folderName", "text", "New folder:")], true);
+		
 		var initGitRepositoryCommand = new mCommands.Command({
 			name : "Init Repository",
 			tooltip : "Create a new Git repository in a new folder",
 			id : "eclipse.initGitRepository",
+			parameters: initRepositoryParameters,
 			callback : function(data) {
 				var gitService = serviceRegistry.getService("orion.git.provider");
-				var dialog = new orion.git.widgets.CloneGitRepositoryDialog({
-					serviceRegistry: serviceRegistry,
-					title: "Init Git Repository",
-					fileClient: fileClient,
-					advancedOnly: true,
-					func : function(gitUrl, path, name){
-						exports.getDefaultSshOptions(serviceRegistry).then(function(options){
-							var func = arguments.callee;
-							gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath).then(function(jsonData, secondArg){
-								exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData){
-									if(explorer.redisplayClonesList)
-										dojo.hitch(explorer, explorer.redisplayClonesList)();
-								}, func, "Init Git Repository");
-							}, function(jsonData, secondArg) {
-								exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function() {}, func, "Init Git Repository");
-							});
+				var initRepositoryFunction = function(gitUrl, path, name) {
+					exports.getDefaultSshOptions(serviceRegistry).then(function(options){
+						var func = arguments.callee;
+						gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath).then(function(jsonData, secondArg){
+							exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData){
+								if(explorer.redisplayClonesList)
+									dojo.hitch(explorer, explorer.redisplayClonesList)();
+							}, func, "Init Git Repository");
+						}, function(jsonData, secondArg) {
+							exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function() {}, func, "Init Git Repository");
 						});
-					}
-				});
-						
-				dialog.startup();
-				dialog.show();
+					});
+				};
+				
+				if (data.parameters.valueFor("folderName") && !data.parameters.optionsRequested) {
+					initRepositoryFunction(null, null, data.parameters.valueFor("folderName"));
+				} else {
+					var dialog = new orion.git.widgets.CloneGitRepositoryDialog({
+						serviceRegistry: serviceRegistry,
+						title: "Init Git Repository",
+						fileClient: fileClient,
+						advancedOnly: true,
+						func: initRepositoryFunction
+					});
+							
+					dialog.startup();
+					dialog.show();
+				}
 			},
 			visibleWhen : function(item) {
 				return true;
@@ -1818,35 +1834,7 @@ var exports = {};
 		});
 		commandService.addCommand(applyPatchCommand, "object");
 		
-		var openCommitCommand = new mCommands.Command({
-			name : "Open Commit",
-			tooltip: "Open the commit with the given name",
-			id : "eclipse.orion.git.openCommitCommand",
-			imageClass: "git-sprite-apply_patch",
-			spriteClass: "gitCommandSprite",
-			callback: function(data) {
-				var commitName = prompt("Type the commit name");
-				if (commitName) {
-					if (data.items.Type === "Clone") {
-						window.location = "/git/git-commit.html#/gitapi/commit/" + commitName + data.items.ContentLocation + "?page=1&pageSize=1";
-					} else {
-						var gitService = serviceRegistry.getService("orion.git.provider");
-						gitService.getGitClone(data.items.CloneLocation).then(
-							function(jsonData){
-								var repository = jsonData.Children[0];
-								window.location = "/git/git-commit.html#/gitapi/commit/" + commitName + repository.ContentLocation + "?page=1&pageSize=1";
-							},
-							this.displayErrorOnStatus
-						);
-					}
-				}
-			},
-			visibleWhen : function(item) {
-				console.info(item);
-				return item.Type === "Clone" || item.CloneLocation;
-			}
-		});
-		commandService.addCommand(openCommitCommand, "dom");
+		var openCommitParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter("commitName", "text", "Commit name:")], true);
 		
 		var openCommitCommand = new mCommands.Command({
 			name : "Open Commit",
@@ -1854,30 +1842,109 @@ var exports = {};
 			id : "eclipse.orion.git.openCommitCommand",
 			imageClass: "git-sprite-apply_patch",
 			spriteClass: "gitCommandSprite",
+			parameters: openCommitParameters,
 			callback: function(data) {
-				var repository;
+				var findCommitLocation = function (repositories, commitName, deferred) {
+					if (deferred == null)
+						deferred = new dojo.Deferred();
+					
+					if (repositories.length > 0) {
+						serviceRegistry.getService("orion.git.provider").doGitLog(
+							"/gitapi/commit/" + data.parameters.valueFor("commitName") + repositories[0].ContentLocation + "?page=1&pageSize=1", null, null, "Looking for the commit").then(
+							function(resp){
+								deferred.callback(resp.Children[0].Location);
+							},
+							function(error) {
+								findCommitLocation(repositories.slice(1), commitName, deferred);
+							}
+						);
+					} else {
+						deferred.errback();
+					}
+					
+					return deferred;
+				};
+				
+				var openCommit = function(repositories) {
+					if (data.parameters.optionsRequested) {
+						new orion.git.widgets.OpenCommitDialog(
+							{repositories: repositories, serviceRegistry: serviceRegistry, commitName: data.parameters.valueFor("commitName")}
+						).show();
+					} else {
+						serviceRegistry.getService("orion.page.message").setProgressMessage("Looking for the commit");
+						findCommitLocation(repositories, data.parameters.valueFor("commitName")).then(
+							function(commitLocation){
+								if(commitLocation !== null){
+									var commitPageURL = "/git/git-commit.html#" + commitLocation + "?page=1&pageSize=1";
+									window.open(commitPageURL);
+								}
+							}, function () {
+								var display = [];
+								display.Severity = "warning";
+								display.HTML = false;
+								display.Message = "No commits found";
+								serviceRegistry.getService("orion.page.message").setProgressResult(display);
+							}
+						);
+					}	
+				};
+
 				if (data.items.Type === "Clone") {
-					repository = data.items;
-					new orion.git.widgets.OpenCommitDialog(
-						{repository: repository, serviceRegistry: serviceRegistry}
-					).show();
-				} else {
-					var gitService = serviceRegistry.getService("orion.git.provider");
-					gitService.getGitClone(data.items.CloneLocation).then(
+					var repositories = [data.items];
+					openCommit(repositories);
+				} else if (data.items.CloneLocation){
+					serviceRegistry.getService("orion.git.provider").getGitClone(data.items.CloneLocation).then(
 						function(jsonData){
-							repository = jsonData.Children[0];
-							new orion.git.widgets.OpenCommitDialog(
-								{repository: repository, serviceRegistry: serviceRegistry}
-							).show();
+							var repositories = jsonData.Children;
+							openCommit(repositories);
 						}
 					);
+				} else {
+					var repositories = data.items;
+					openCommit(repositories);
 				}
 			},
 			visibleWhen : function(item) {
-				return item.Type === "Clone" || item.CloneLocation;
+				return item.Type === "Clone" || item.CloneLocation || (item.length > 1 && item[0].Type === "Clone") ;
 			}
 		});
 		commandService.addCommand(openCommitCommand, "dom");
+
+		var mapToGithubCommand = new mCommands.Command({
+			name : "Show in GitHub",
+			tooltip: "Show this repository at GitHub",
+			id : "orion.git.gotoGithub",
+			hrefCallback : function(data) {
+				//url format should include github.com/username/reponame.git or github.com:username/reponame.git
+				var url = /github\.com.*\.git/.exec(data.items.GitUrl)[0];
+				//convert : to / if needed
+				url = url.replace(':', '/');
+				return "https://" + url.substring(0, url.length-4);
+			},
+			visibleWhen : function(item) {
+				//url format should include github.com/username/reponame.git or github.com:username/reponame.git
+				return item.GitUrl && /github\.com.*\.git/.exec(item.GitUrl);
+			}
+		});
+		commandService.addCommand(mapToGithubCommand, "dom");
+
+		var mapToEclipseOrgCommand = new mCommands.Command({
+			name : "Go to eclipse.org",
+			tooltip: "Go to the associated eclipse.org git repository",
+			id : "orion.git.gotoEclipseGit",
+			hrefCallback : function(data) {
+				var item = data.items;
+				var token = "git.eclipse.org/gitroot";
+				var found = item.GitUrl.indexOf(token);
+				if (found > -1) {
+					return "http://git.eclipse.org/c" + item.GitUrl.substr(found+token.length, item.GitUrl.length);
+				}
+			},
+			visibleWhen : function(item) {
+				return item.GitUrl && item.GitUrl.indexOf("git.eclipse.org/gitroot") > -1;
+			}
+		});
+		commandService.addCommand(mapToEclipseOrgCommand, "dom");
 	};
 }());
 return exports;	

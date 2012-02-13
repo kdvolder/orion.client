@@ -51,6 +51,7 @@ define(['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searchUti
 							var hit = jsonData.response.docs[i];
 							transformed.push({name: hit.Name, 
 											  path: hit.Location, 
+											  folderName: mSearchUtils.path2FolderName(hit.Path, hit.Name),
 											  directory: hit.Directory, 
 											  lineNumber: hit.LineNumber});
 						}
@@ -111,8 +112,9 @@ define(['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searchUti
 		 * @param {String} query The text to search for, or null when searching purely on file name
 		 * @param {String} [nameQuery] The name of a file to search for
 		 * @param {String} [sort] The field to sort search results on. By default results will sort by path
+		 * @param {Boolean} [skipLocation] If true, do not use the location property of the searcher. Use "" as the location instead.
 		 */
-		createSearchQuery: function(query, nameQuery, sort)  {
+		createSearchQuery: function(query, nameQuery, sort, skipLocation)  {
 			if (!sort) {
 				sort = "Path";
 			}
@@ -129,7 +131,7 @@ define(['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searchUti
 				rows: 40,
 				start: 0,
 				searchStr: this._luceneEscape(query, true),
-				location: this.location});
+				location: skipLocation ? "": this.location});
 		},
 		/**
 		 * Escapes all characters in the string that require escaping in Lucene queries.
@@ -184,8 +186,7 @@ define(['require', 'dojo', 'dijit', 'orion/auth', 'orion/util', 'orion/searchUti
 						var namesSeenMap = {};
 						
 						function doAppend(domElement, resource) {
-							var path = resource.path;
-							path = path.substring(0, path.length-resource.name.length-1);
+							var path = resource.folderName ? resource.folderName : resource.path;
 							domElement.appendChild(document.createTextNode(' - ' + path + ' '));
 						}
 						

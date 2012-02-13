@@ -88,9 +88,11 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 			}
 		}); 
 		if (selectionToolbarId) {
-			var selectionTools = dojo.create("span", {id: selectionToolbarId}, toolbar, "last");
-			dojo.addClass(selectionTools, "selectionTools");
-			service.renderCommands(selectionTools, "dom", null, explorer, "button"); // true would force icons to text
+			var selectionTools = dojo.byId(selectionToolbarId);
+			if (selectionTools) {
+				dojo.empty(selectionToolbarId);
+				service.renderCommands(selectionToolbarId, "dom", null, explorer, "button"); 
+			}
 		}
 		
 		// Stuff we do only the first time
@@ -728,13 +730,17 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/extensionComma
 		var fileCommands = [];
 		var i;
 		for (i=0; i<commandsReferences.length; i++) {
-			var impl = serviceRegistry.getService(commandsReferences[i]);
-			var info = {};
-			var propertyNames = commandsReferences[i].getPropertyNames();
-			for (var j = 0; j < propertyNames.length; j++) {
-				info[propertyNames[j]] = commandsReferences[i].getProperty(propertyNames[j]);
+			// Exclude any navigation commands themselves, since we are the navigator.
+			var id = commandsReferences[i].getProperty("id");
+			if (id !== "orion.navigateFromFileMetadata") {
+				var impl = serviceRegistry.getService(commandsReferences[i]);
+				var info = {};
+				var propertyNames = commandsReferences[i].getPropertyNames();
+				for (var j = 0; j < propertyNames.length; j++) {
+					info[propertyNames[j]] = commandsReferences[i].getProperty(propertyNames[j]);
+				}
+				fileCommands.push({properties: info, service: impl});
 			}
-			fileCommands.push({properties: info, service: impl});
 		}
 		
 		function getContentTypesMap() {

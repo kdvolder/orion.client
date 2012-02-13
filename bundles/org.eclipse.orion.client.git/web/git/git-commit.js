@@ -12,11 +12,11 @@
 var eclipse;
 /*global define document dojo dijit serviceRegistry:true */
 /*browser:true*/
-define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/commands', 'orion/dialogs', 'orion/selection',
+define(['require', 'dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/commands', 'orion/dialogs', 'orion/selection',
 	'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/globalCommands',
 	'orion/git/gitCommitExplorer', 'orion/git/gitCommands', 'orion/git/gitClient', 'orion/links', 'orion/contentTypes',
 	'dojo/parser', 'dojo/hash', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane', 'orion/widgets/eWebBorderContainer'],
-	function(dojo, mBootstrap, mStatus, mProgress, mCommands, mDialogs, mSelection,
+	function(require, dojo, mBootstrap, mStatus, mProgress, mCommands, mDialogs, mSelection,
 		mFileClient, mOperationsClient, mSearchClient, mGlobalCommands,
 		mGitCommitExplorer, mGitCommands, mGitClient, mLinks, mContentTypes) {
 
@@ -40,7 +40,7 @@ define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/comm
 		var fileClient = new mFileClient.FileClient(serviceRegistry);
 		var contentTypeService = new mContentTypes.ContentTypeService(serviceRegistry);
 
-		var explorer = new mGitCommitExplorer.GitCommitExplorer(serviceRegistry, linkService, /* selection */ null, "artifacts", "pageActions"/*, "selectionTools"*/);
+		var explorer = new mGitCommitExplorer.GitCommitExplorer(serviceRegistry, commandService, linkService, /* selection */ null, "artifacts", "pageActions"/*, "selectionTools"*/);
 		mGlobalCommands.generateBanner("banner", serviceRegistry, commandService, preferences, searcher, explorer);
 
 		// define commands
@@ -54,6 +54,40 @@ define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/comm
 
 		// object contributions
 		commandService.registerCommandContribution("eclipse.removeTag", 1000);
+		
+		var showDiffCommand = new mCommands.Command({
+			name: "Compare",
+			tooltip: "View the side-by-side compare",
+			imageClass: "git-sprite-open_compare",
+			spriteClass: "gitCommandSprite",
+			id: "eclipse.orion.git.diff.showFullCompare",
+			hrefCallback: function(data) {
+				return require.toUrl("compare/compare.html") +"?readonly#" + data.items.DiffLocation;
+			},
+			visibleWhen: function(item) {
+				return item.Type === "Diff";
+			}
+		});		
+
+		commandService.addCommand(showDiffCommand, "object");
+		commandService.registerCommandContribution("eclipse.orion.git.diff.showFullCompare", 1000);
+		
+		var showDiffCommand = new mCommands.Command({
+			name: "Working Directory Version",
+			tooltip: "View the working directory version of the file",
+			imageClass: "git-sprite-open_compare",
+			spriteClass: "gitCommandSprite",
+			id: "eclipse.orion.git.diff.showCurrent",
+			hrefCallback: function(data) {
+				return require.toUrl("edit/edit.html") +"#" + data.items.ContentLocation;
+			},
+			visibleWhen: function(item) {
+				return item.Type === "Diff";
+			}
+		});		
+
+		commandService.addCommand(showDiffCommand, "object");
+		commandService.registerCommandContribution("eclipse.orion.git.diff.showCurrent", 2000);	
 
 		explorer.display(dojo.hash());
 

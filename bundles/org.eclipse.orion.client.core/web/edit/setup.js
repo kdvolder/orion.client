@@ -111,7 +111,13 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 					var setInput = dojo.hitch(this, function(contents, metadata) {
 						if (metadata) {
 							this._fileMetadata = metadata;
-							mGlobalCommands.setPageTarget([metadata, metadata.Parents && metadata.Parents[0]], serviceRegistry, commandService, ["", " on folder"]);
+							// page target is the file but if any interesting links fail, try our parent folder metadata.
+							mGlobalCommands.setPageTarget(metadata, serviceRegistry, commandService, 
+								function() {
+									if (metadata.Parents && metadata.Parents.length > 0) {
+										return fileClient.read(metadata.Parents[0].Location, true);
+									}
+								}, metadata);
 							mGlobalCommands.generateDomCommandsInBanner(commandService, editor);
 							this.setTitle(metadata.Location);
 							this._contentType = contentTypeService.getFileContentType(metadata);
@@ -228,8 +234,8 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 		
 		shouldGoToURI: function(editor, fileURI) {
 			if (editor.isDirty()) {
-				var oldStripped = PageUtil.matchResourceParameters(this.lastFilePath).resource;
-				var newStripped = PageUtil.matchResourceParameters(fileURI).resource;
+				var oldStripped = PageUtil.matchResourceParameters("#" + this.lastFilePath).resource;
+				var newStripped = PageUtil.matchResourceParameters("#" + fileURI).resource;
 				if (oldStripped !== newStripped) {
 					return window.confirm("There are unsaved changes.  Do you still want to navigate away?");
 				}
@@ -338,7 +344,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 				var b = dojo.create("b", null, searchFloat, "last");
 				dojo.place(document.createTextNode("\"" + searchPattern + "\"..."), b, "only");
 				searchFloat.style.display = "block";
-				var query = searcher.createSearchQuery(searchPattern, null, "Name");
+				var query = searcher.createSearchQuery(searchPattern, null, "Name", true);
 				var renderer = searcher.defaultRenderer.makeRenderFunction(searchFloat, false);
 				searcher.search(query, inputManager.getInput(), renderer);
 			}, 0);
