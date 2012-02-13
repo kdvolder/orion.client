@@ -782,4 +782,4 @@ var esprimaContentAssistant = function() {
 	}
 	return proposalProvider;
 };
-window.onload = esprimaContentAssistant; 
+window.onload = esprimaContentAssistant;
