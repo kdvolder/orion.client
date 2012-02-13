@@ -13,9 +13,9 @@
 /*jslint browser:true*/
 /*global define orion window dojo dijit*/
 
-define(['require', 'dojo', 'dijit', "orion/util", 'orion/favorites', 'dijit/Dialog', 'dijit/form/TextBox', 
-		'orion/widgets/_OrionDialogMixin', 'text!orion/widgets/templates/OpenResourceDialog.html'], function(require, dojo, dijit, mUtil, mFavorites) {
-
+define(['require', 'dojo', 'dijit', 'dijit/Dialog', 'dijit/form/TextBox', 
+		'orion/widgets/_OrionDialogMixin', 'text!orion/widgets/templates/OpenResourceDialog.html'], 
+		function(require, dojo, dijit) {
 /**
  * Usage: <code>new widgets.OpenResourceDialog(options).show();</code>
  * 
@@ -54,11 +54,6 @@ var OpenResourceDialog = dojo.declare("orion.widgets.OpenResourceDialog", [dijit
 		this.favService = this.options.favoriteService;
 		if (!this.favService) {
 			throw new Error("Missing required argument: favService");
-		}
-		this.favService = serviceRegistry.getService("orion.core.favorite");
-		if (!this.favService) {
-			new mFavorites.FavoritesService({serviceRegistry: serviceRegistry});
-			this.favService = serviceRegistry.getService("orion.core.favorite");
 		}
 	},
 	
