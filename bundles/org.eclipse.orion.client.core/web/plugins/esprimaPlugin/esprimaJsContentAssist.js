@@ -30,6 +30,9 @@ define("esprimaJsContentAssist", [], function() {
 			$$isPrototypeOf: "boolean",
 			$$propertyIsEnumerable: "boolean",
 			
+			// FIXADE should really be on Function, but arguments is a reserved word.
+			$$arguments : "Arguments",
+			
 			$$args : {
 				$$toString: [],
 				$$toLocaleString: [],
@@ -144,26 +147,29 @@ define("esprimaJsContentAssist", [], function() {
 		};
 		
 		// must refactor this part for the new format
-//		this.Function = [
-//			{name: "prototype", type:"Object"},
-//			{name: "apply", args: ["func", "[args]"], type:"Object"},
-//			{name: "arguments", type:"Arguments"},
-//			{name: "bind", args: []},
-//			{name: "call", args: ["func", "arg"], type:"Object"},
-//			{name: "caller", type:"Function"},
-//			{name: "length", type:"Number"},
-//			{name: "name", type:"String"}
-//		];
-//		
-//		
-//		
-//		
-//		this.Arguments = [
-//			{name: "prototype", type:"Object"},
-//			{name: "callee", type:"Function"},
-//			{name: "length", type:"Number"}
-//		];
-//		
+		this.Function = {
+			apply : "Object",
+			// FIXADE a reserved word...put it in object
+//			arguments : "Arguments",
+			bind : null,
+			call : "Object",
+			caller : "Function",
+			length : "Number",
+			name : "String",
+			$$prototype : "Object",
+			$$args : {
+				apply : ["func", "[args]"],
+				bind : [],
+				call: ["func", "args"]
+			}
+		};
+
+		this.Arguments = {
+			callee : "Function",
+			length : "Number",
+			$$prototype : "Object"
+		};
+
 //		this.RegExp = [
 //			{name: "prototype", type:"Object"},
 //			{name: "g", type:"Object"},
@@ -298,8 +304,17 @@ define("esprimaJsContentAssist", [], function() {
 		return {completion: completion, positions: positions};
 	}
 
+	/**
+	 * checks that offset overlaps with the given range
+	 * Since esprima ranges are zero-based, inclusive of 
+	 * the first char and exclusive of the last char, must
+	 * use a +1 at the end.
+	 * eg- (^ is the line start)
+	 *       ^x    ---> range[0,0]
+	 *       ^  xx ---> range[2,3]
+	 */
 	function inRange(offset, range) {
-		return range[0] <= offset && range[1] >= offset;
+		return range[0] <= offset && range[1]+1 >= offset;
 	}
 	/**
 	 * checks that offset is before the range
@@ -318,7 +333,7 @@ define("esprimaJsContentAssist", [], function() {
 		if (!range) {
 			return true;
 		}
-		return offset > range[0];
+		return offset > range[1]+1;
 	}
 	
 	/**
@@ -521,18 +536,19 @@ define("esprimaJsContentAssist", [], function() {
 			data.currentType = node.inferredType;
 		} else if (type === "ObjectExpression") {
 			data.popScope();
-		} else if (type === "FunctionDeclaration" && isAfter(data.offset, node.range) && 
+		} else if (type === "FunctionDeclaration" && 
+				(inRange(data.offset, node.range) || isAfter(data.offset, node.range)) && 
 				data.completionKind === "top") {
-			// Add function proposal only if completion offset is after this function declaration
+			// Add function proposal only if completion offset is inside or after this function declaration
 			name = node.id.name;
 			params = node.params;
 			if (name.indexOf(data.prefix) === 0) {
-				res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length - 1);
+				res = calculateFunctionProposal(node.id.name, params, data.replaceStart - 1);
 				data.proposals.push({ 
 					proposal: res.completion, 
 					description: res.completion + " (function)", 
 					positions: res.positions, 
-					escapePosition: data.offset + res.completion.length - data.prefix.length
+					escapePosition: data.replaceStart + res.completion.length
 				});
 			}
 			// only add parameters if we are completing inside the function
@@ -588,15 +604,16 @@ define("esprimaJsContentAssist", [], function() {
 		return parsedProgram;
 	}
 
+	function EsprimaJavaScriptContentAssistProvider() {}
+	
 	/**
 	 * Main entry point to provider
 	 */
-	function EsprimaJavaScriptContentAssistProvider() {}
-	
 	EsprimaJavaScriptContentAssistProvider.prototype = {
 		computeProposals: function(prefix, buffer, selection) {
 			try {
 				var root = parse(buffer);
+				// note that if selection has length > 0, then just ignore everything past the start
 				var completionKind = shouldVisit(root, selection.start);
 				if (completionKind) {
 					var data = {
@@ -606,6 +623,10 @@ define("esprimaJsContentAssist", [], function() {
 						proposals: [], 
 						/** the offset of content assist invocation */
 						offset: selection.start, 
+						/** 
+						 * the location of the start of the area that will be replaced 
+						 */
+						replaceStart: selection.start - prefix.length, 
 						/** the prefix of the invocation */
 						prefix: prefix, 
 						/** Each element is the type of the current scope, which is a key into the types array */
@@ -651,11 +672,11 @@ define("esprimaJsContentAssist", [], function() {
 						
 						/** removes the current scope */
 						popScope: function() {
-							var oldScope = this.typeStack.pop();
-							this.currentType = this.typeStack[this.typeStack.length -1];
 							// Can't delete old scope since it may have been assigned somewhere
 							// but must remove "this" when outside of the scope
 							this.addOrSetFunction("this", null);
+							var oldScope = this.typeStack.pop();
+							this.currentType = this.typeStack[this.typeStack.length -1];
 							return oldScope;
 						},
 						
@@ -716,15 +737,15 @@ define("esprimaJsContentAssist", [], function() {
 										functionArgs = type.$$args[prop];
 										if (functionArgs) {
 											res = calculateFunctionProposal(propName, 
-													functionArgs, data.offset - data.prefix.length);
-											data.proposals.push({ 
+													functionArgs, data.replaceStart - 1);
+											this.proposals.push({ 
 												proposal: res.completion, 
 												description: res.completion + " (function)", 
 												positions: res.positions, 
-												escapePosition: data.offset + res.completion.length 
+												escapePosition: data.replaceStart + res.completion.length 
 											});
 										} else {
-											data.proposals.push({ 
+											this.proposals.push({ 
 												proposal: propName,
 												description: propName + " (property)"
 											});
