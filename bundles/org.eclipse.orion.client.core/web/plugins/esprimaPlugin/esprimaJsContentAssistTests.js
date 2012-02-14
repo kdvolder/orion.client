@@ -42,7 +42,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 //		console.log(actualProposals);
 		
 		assert.equal(actualProposals.length, expectedProposals.length, 
-			"Wrong number of proposals.  Expected:\n" + expectedProposals +"\nActual:\n"+actualProposals);
+			"Wrong number of proposals.  Expected:\n" + JSON.stringify(expectedProposals) +"\nActual:\n" + JSON.stringify(actualProposals));
 			
 		for (var i = 0; i < actualProposals.length; i++) {
 			testProposal(actualProposals[i], expectedProposals[i][0], expectedProposals[i][1]);
@@ -283,6 +283,39 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["the", "the (property)"]
 		]);
 	};
+	tests["test this reference 1"] = function() {
+		var results = computeContentAssistAtEnd("var xxxx;\nthis.x", "x");
+		testProposals(results, [
+			["x", "x (property)"],
+			["xxxx", "xxxx (property)"]
+		]);
+	};
+	tests["test binary expression 1"] = function() {
+		var results = computeContentAssistAtEnd("(1+3).toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
+	
+	// not working since for loop is not storing slocs of var ii
+//	tests["test for loop 1"] = function() {
+//		var results = computeContentAssistAtEnd("for (var ii=0;i/**/<8;ii++) { ii }", "i");
+//		testProposals(results, [
+//			["ii", "ii (property)"]
+//		]);
+//	};
+//	tests["test for loop 2"] = function() {
+//		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;i/**/++) { ii }", "i");
+//		testProposals(results, [
+//			["ii", "ii (property)"]
+//		]);
+//	};
+//	tests["test for loop 3"] = function() {
+//		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;ii++) { i/**/ }", "i");
+//		testProposals(results, [
+//			["ii", "ii (property)"]
+//		]);
+//	};
 	
 	/*
 	 yet to do:
