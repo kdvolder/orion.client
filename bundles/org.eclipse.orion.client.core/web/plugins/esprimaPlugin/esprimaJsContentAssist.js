@@ -12,7 +12,7 @@
  *******************************************************************************/
 
 /*global define require eclipse esprima window console inTest*/
-var esprimaContentAssistant = function() {
+define("esprimaJsContentAssist", [], function() {
 
 	/**
 	 * A prototype of that contains the common built-in types
@@ -516,7 +516,6 @@ var esprimaContentAssistant = function() {
 			}
 			node.inferredType = node.property.inferredType;
 			data.currentType = node.inferredType;
-			
 		} else if (type === "CallExpression") {
 			node.inferredType = node.callee.inferredType;
 			data.currentType = node.inferredType;
@@ -528,12 +527,12 @@ var esprimaContentAssistant = function() {
 			name = node.id.name;
 			params = node.params;
 			if (name.indexOf(data.prefix) === 0) {
-				res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length);
+				res = calculateFunctionProposal(node.id.name, params, data.offset - data.prefix.length - 1);
 				data.proposals.push({ 
 					proposal: res.completion, 
 					description: res.completion + " (function)", 
 					positions: res.positions, 
-					escapePosition: data.offset + res.completion.length 
+					escapePosition: data.offset + res.completion.length - data.prefix.length
 				});
 			}
 			// only add parameters if we are completing inside the function
@@ -592,7 +591,9 @@ var esprimaContentAssistant = function() {
 	/**
 	 * Main entry point to provider
 	 */
-	var proposalProvider = {
+	function EsprimaJavaScriptContentAssistProvider() {}
+	
+	EsprimaJavaScriptContentAssistProvider.prototype = {
 		computeProposals: function(prefix, buffer, selection) {
 			try {
 				var root = parse(buffer);
@@ -762,24 +763,7 @@ var esprimaContentAssistant = function() {
 			}
 		}
 	};
-
-
-	try {
-		// --- registration logic for new content assist provider
-		var provider = new eclipse.PluginProvider();
-		provider.registerServiceProvider("orion.edit.contentAssist", proposalProvider, {
-			contentType: ["text.javascript"],
-			name: "Esprima based JavaScript content assist",
-			id: "orion.edit.contentassist.esprima"
-		});
-		provider.connect();
-	} catch (e) {
-		if (inTest) {
-			// testing outside of Orion...can ignore
-		} else {
-			throw (e);
-		}
-	}
-	return proposalProvider;
-};
-window.onload = esprimaContentAssistant;
+	return {
+		EsprimaJavaScriptContentAssistProvider : EsprimaJavaScriptContentAssistProvider
+	};
+});
