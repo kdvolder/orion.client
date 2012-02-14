@@ -48,12 +48,77 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			testProposal(actualProposals[i], expectedProposals[i][0], expectedProposals[i][1]);
 		}
 	}
-	
+
+	function parse(contents) {
+		return esprima.parse(contents,{
+			range: false,
+			loc: false,
+			tolerant: true
+		});
+	}
+
+	function assertNoErrors(ast) {
+		assert.ok(ast.errors===null || ast.errors.length===0,
+			'errors: '+ast.errors.length+'\n'+ast.errors);
+	}
+
+	function assertErrors(ast,expectedErrors) {
+		var expectedErrorList = (expectedErrors instanceof Array ? expectedErrors: [expectedErrors]);
+		var correctNumberOfErrors = ast.errors!==null && ast.errors.length===expectedErrorList.length;
+		assert.ok(correctNumberOfErrors,'errors: '+ast.errors.length+'\n'+ast.errors);
+		if (correctNumberOfErrors) {
+			for (var e=0;e<expectedErrors.length;e++) {
+				var expectedError = expectedErrorList[e];
+				var actualError = ast.errors[e];
+				assert.equal(actualError.lineNumber,expectedError.lineNumber,"checking line for message #"+(e+1)+": "+actualError);
+				var actualMessage = actualError.message.replace(/Line [0-9]*: /,'');
+				assert.equal(actualMessage,expectedError.message,"checking text for message #"+(e+1)+": "+actualError);
+			}
+		}
+	}
+
+
+	function stringify(parsedProgram) {
+		var body = parsedProgram.body;
+		if (body.length===1) {
+			body=body[0];
+		}
+		var replacer = function(key,value) {
+			if (key==='computed') {
+				return;
+			}
+			return value;
+		};
+		return JSON.stringify(body,replacer).replace(/"/g,'');
+	}
+
+	function message(line, text) {
+		return {
+			lineNumber:line,
+			message:text
+		};
+	}
+
 	//////////////////////////////////////////////////////////
 	// tests
 	//////////////////////////////////////////////////////////
 
 	var tests = {};
+
+tests.testEmpty = function() {};
+
+	tests["test recovery basic parse"] = function() {
+		var parsedProgram = parse("foo.bar");
+		assertNoErrors(parsedProgram);
+		assert.equal(stringify(parsedProgram),"{type:ExpressionStatement,expression:{type:MemberExpression,object:{type:Identifier,name:foo},property:{type:Identifier,name:bar}}}");
+	};
+
+	tests["test recovery - dot followed by EOF"] = function() {
+		var parsedProgram = parse("foo.");
+		assertErrors(parsedProgram,message(1,'Unexpected end of input'));
+		assert.equal(stringify(parsedProgram),"{type:ExpressionStatement,expression:{type:MemberExpression,object:{type:Identifier,name:foo}}}");
+	};
+
 	tests["test Content Assist Setup"] = function() {
 		assert.ok(esprimaContentAssistant, "Found Esprima content assistant");
 		assert.ok(esprimaContentAssistant.computeProposals, "Found proposal computer");
