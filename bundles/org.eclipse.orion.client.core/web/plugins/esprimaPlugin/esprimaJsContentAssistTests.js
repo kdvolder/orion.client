@@ -12,10 +12,13 @@
  *******************************************************************************/
 
 /*global define console setTimeout esprimaContentAssistant*/
-define(["orion/assert"], function(assert) {
+define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, assert) {
+	
 	//////////////////////////////////////////////////////////
 	// helpers
 	//////////////////////////////////////////////////////////
+	var esprimaContentAssistant = new mEsprimaPlugin.EsprimaJavaScriptContentAssistProvider();
+	
 	function computeContentAssistAtEnd(contents, prefix) {
 		if (!prefix) {
 			prefix = "";
@@ -25,7 +28,7 @@ define(["orion/assert"], function(assert) {
 			offset = contents.length-1;
 		}
 		
-		return esprimaContentAssistant().computeProposals(prefix, contents, {start: offset});
+		return esprimaContentAssistant.computeProposals(prefix, contents, {start: offset});
 	}
 	
 	function testProposal(proposal, text, description) {
@@ -36,9 +39,9 @@ define(["orion/assert"], function(assert) {
 	}
 	
 	function testProposals(actualProposals, expectedProposals) {
-		console.log("Proposals:");
-		console.log(actualProposals);
-	
+//		console.log("Proposals:");
+//		console.log(actualProposals);
+		
 		assert.equal(actualProposals.length, expectedProposals.length, 
 			"Wrong number of proposals.  Expected:\n" + expectedProposals +"\nActual:\n"+actualProposals);
 			
@@ -63,7 +66,7 @@ define(["orion/assert"], function(assert) {
 	
 	tests["test Content Assist Setup"] = function() {
 		assert.ok(esprimaContentAssistant, "Found Esprima content assistant");
-		assert.ok(esprimaContentAssistant().computeProposals, "Found proposal computer");
+		assert.ok(esprimaContentAssistant.computeProposals, "Found proposal computer");
 	};
 	
 	tests["test Empty Content Assist"] = function() {
