@@ -22,9 +22,9 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		if (!prefix) {
 			prefix = "";
 		}
-		var offset = contents.indexOf("/**/")-1;
+		var offset = contents.indexOf("/**/");
 		if (offset < 0) {
-			offset = contents.length-1;
+			offset = contents.length;
 		}
 		
 		return esprimaContentAssistant.computeProposals(prefix, contents, {start: offset});
@@ -260,7 +260,28 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	};
 	tests["test Object Literal none"] = function() {
 		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nthis.th", "th");
-		testProposals(results, [ ]);
+		testProposals(results, [
+			["th", "th (property)"]
+		]);
+	};
+	tests["test Object Literal outside 2"] = function() {
+		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nvar who = x.th", "th");
+		testProposals(results, [
+			["the", "the (property)"]
+		]);
+	};
+	tests["test Object Literal outside 3"] = function() {
+		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nwho(x.th/**/)", "th");
+		testProposals(results, [
+			["the", "the (property)"]
+		]);
+	};
+	tests["test Object Literal outside 4"] = function() {
+		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nwho(yyy. x.th/**/)", "th");
+		testProposals(results, [
+			["th", "th (property)"],
+			["the", "the (property)"]
+		]);
 	};
 	
 	/*
