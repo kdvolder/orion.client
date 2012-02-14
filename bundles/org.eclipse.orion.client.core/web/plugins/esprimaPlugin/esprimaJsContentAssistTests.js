@@ -7,8 +7,7 @@
  * License v1.0 (http://www.eclipse.org/org/documents/edl-v10.html). 
  *
  * Contributors:
- *     Andy Clement (vmware) - initial API and implementation
- *     Andrew Eisenberg (vmware) - implemented visitor pattern
+ *     Andrew Eisenberg (vmware) - initial API and implementation
  *******************************************************************************/
 
 /*global define console setTimeout esprimaContentAssistant*/
@@ -55,15 +54,6 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	//////////////////////////////////////////////////////////
 
 	var tests = {};
-
-	// add parsing tests here
-	// uncomment this line if we can get qunit-style modules
-	// module("Parsing module");
-
-	// all non-inferencing ast-based content assist tests here
-	// uncomment this line if we can get qunit-style modules
-    // module("Basic Content Assist");
-	
 	tests["test Content Assist Setup"] = function() {
 		assert.ok(esprimaContentAssistant, "Found Esprima content assistant");
 		assert.ok(esprimaContentAssistant.computeProposals, "Found proposal computer");
@@ -73,6 +63,8 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssistAtEnd("");
 		assert.equal(results.length, 0);
 	};
+	
+	// non-inferencing content assist
 	tests["test Single Var Content Assist"] = function() {
 		var results = computeContentAssistAtEnd("var zzz;\n");
 		assert.equal(results.length, 1, "Wrong number of proposals found");
@@ -197,7 +189,6 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	
 	
 	// all inferencing based content assist tests here
-//	module("Inferencing Content Assist");
 	tests["test Object inferencing with Variable"] = function() {
 		var results = computeContentAssistAtEnd("var t = {}\nt.h", "h");
 		testProposals(results, [
