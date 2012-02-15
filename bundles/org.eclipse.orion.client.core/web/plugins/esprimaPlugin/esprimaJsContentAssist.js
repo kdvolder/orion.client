@@ -38,7 +38,8 @@ define("esprimaJsContentAssist", [], function() {
 				$$toLocaleString: [],
 				$$hasOwnProperty: ["property"],
 				$$isPrototypeOf: ["object"],
-				$$propertyIsEnumerable: ["property"]
+				$$propertyIsEnumerable: ["property"],
+				$$valueOf: []
 			}
 		};
 		
@@ -170,16 +171,30 @@ define("esprimaJsContentAssist", [], function() {
 			$$prototype : "Object"
 		};
 
-//		this.RegExp = [
-//			{name: "prototype", type:"Object"},
-//			{name: "g", type:"Object"},
-//			{name: "i", type:"Object"},
-//			{name: "gi", type:"Object"},
-//			{name: "m", type:"Object"},
-//			{name: "exec", args:["str"], type:"Array"}, 
-//			{name: "test", args:["str"], type:"Array"}
-//		];
-//		
+		this.RegExp = {
+			g : "Object",
+			i : "Object",
+			gi : "Object",
+			m : "Object",
+			exec : "Array",
+			test : "Array",
+			
+			$$prototype : "Object",
+			$$args : {
+				exec : ["str"],
+				test : ["str"]
+			}
+		};
+		
+		this.Error = {
+			name : "String",
+			message : "String",
+			stack : "String",
+			$$prototype : "Object",
+			$$args : { }
+		};
+		
+		
 //		this.Math = [
 //			{name: "prototype", type:"Object"},
 //		
@@ -213,6 +228,17 @@ define("esprimaJsContentAssist", [], function() {
 //			{name: "sqrt", args: ["val"], type:"Number"},
 //			{name: "tan", args: ["val"], type:"Number"}		
 //		];
+
+		this.JSON = {
+			parse : "Object",
+			stringify : "String",
+			$$prototype : "Object",
+			$$args : {
+				parse : ["str"],
+				stringify : ["obj"]
+			}
+		};
+		
 	};
 
 	/**
@@ -303,7 +329,7 @@ define("esprimaJsContentAssist", [], function() {
 		completion += ')';
 		return {completion: completion, positions: positions};
 	}
-
+	
 	/**
 	 * checks that offset overlaps with the given range
 	 * Since esprima ranges are zero-based, inclusive of 
@@ -337,16 +363,56 @@ define("esprimaJsContentAssist", [], function() {
 	}
 	
 	/**
+	 * Determines if the offset is inside this member expression, but after the '.' and before the 
+	 * start of the property.
+	 * eg, the following returns true:
+	 *   foo   .^bar	 
+	 *   foo   .  ^ bar
+	 * The following returns false:
+	 *   foo   ^.  bar
+	 *   foo   .  b^ar
+	 */
+	function afterDot(offset, memberExpr, contents) {
+		// check for broken AST
+		var end;
+		if (memberExpr.property) {
+			end = memberExpr.property.range[0];
+		} else {
+			end = memberExpr.range[1];
+		}
+		// only do the work if we are in between the 
+		if (!inRange(offset, memberExpr.range) ||
+			inRange(offset, memberExpr.object.range) ||
+			offset <= end) {
+			return false;
+		}
+		
+		var dotLoc = memberExpr.object.range[1];
+		while (contents.charAt(dotLoc) !== "." && dotLoc < end) {
+			dotLoc++;
+		}
+		
+		if (contents.charAt(dotLoc) !== ".") {
+			return false;
+		}
+		
+		return dotLoc < offset;
+	}
+	
+	
+	/**
 	 * @return "top" if we are at a start of a new expression fragment (eg- at an empty line, 
 	 * or a new parameter).  "member" if we are after a dot in a member expression.  false otherwise
 	 */
-	function shouldVisit(root, offset) {
+	function shouldVisit(root, offset, contents) {
 		/**
 		 * A visitor that finds the parent stack at the given location
 		 */ 
 		var findParent = function(node, parents, isInitialVisit) {
 			if (!isInitialVisit) {
+				// for the end visit just ensure that the parent stack is empty
 				parents.pop();
+				// return value is ignored
 				return false;
 			}
 			
@@ -358,6 +424,10 @@ define("esprimaJsContentAssist", [], function() {
 				if ((node.type === "FunctionDeclaration" || node.type === "FunctionExpression") && 
 						isBefore(offset, node.body.range)) {
 					// completion occurs on the word "function"
+					throw "done";
+				}
+				// special case where we are completing immediately after a '.' 
+				if (node.type === "MemberExpression" && !node.property && afterDot(offset, node, contents)) {
 					throw "done";
 				}
 				return true;
@@ -377,9 +447,14 @@ define("esprimaJsContentAssist", [], function() {
 
 		if (parents && parents.length) {
 			var parent = parents.pop();
-			if (parent.type === "MemberExpression" && inRange(offset, parent.property.range)) {
-				// on the right hand side of a property, eg: foo.b^
-				return "member";
+			if (parent.type === "MemberExpression") {
+				if (parent.property && inRange(offset, parent.property.range)) {
+					// on the right hand side of a property, eg: foo.b^
+					return "member";
+				} else if (inRange(offset, parent.range) && afterDot(offset, parent, contents)) {
+					// on the right hand side of a dot with no text after, eg: foo.^
+					return "member";
+				}
 			} else if (parent.type === "VariableDeclarator" && (!parent.init || isBefore(offset, parent.init.range))) {
 				// the name of a variable declaration
 				return false;
@@ -392,38 +467,6 @@ define("esprimaJsContentAssist", [], function() {
 		}
 		return "top";
 	}	
-
-	/**
-	 * Determines if the offset is inside this member expression, but after the '.' and before the 
-	 * start of the property.
-	 * eg, the following returns true:
-	 *   foo   .^bar	 
-	 *   foo   .  ^ bar
-	 * The following returns false:
-	 *   foo   ^.  bar
-	 *   foo   .  b^ar
-	 */
-	function afterDot(offset, memberExpr, contents) {
-		// only do the work if we are in between the 
-		if (!inRange(offset, memberExpr.range) ||
-			inRange(offset, memberExpr.object.range) ||
-			inRange(offset, memberExpr.property.range)) {
-			return false;
-		}
-		
-		var dotLoc = memberExpr.object.range[1];
-		while (contents.charAt(dotLoc) !== "." && dotLoc < memberExpr.property.range[0]) {
-			dotLoc++;
-		}
-		
-		if (contents.charAt(dotLoc) !== ".") {
-			return false;
-		}
-		
-		return dotLoc < offset;
-	}
-	
-	
 
 	/**
 	 * This function takes the current AST node and does the first inferencing step for it.
@@ -446,16 +489,17 @@ define("esprimaJsContentAssist", [], function() {
 			node.inferredType = data.newScope();
 		} else if (type === 'Identifier') {
 			name = node.name;
-			if (types[currentType][name]) {
+			newTypeName = data.lookupName(name);
+			if (newTypeName) {
 				// name already exists
-				node.inferredType = types[currentType][name];
+				node.inferredType = newTypeName;
 			} else {
 				// If name doesn't already exist, then just add it to the current type.
 				// FIXADE  Is this what we want?  Doing this here will add any otherwise unknown property 
 				// to the list of known properties if it is referenced.  Probably OK, but this has the side effect
 				// of also including any half-formed property that exists as a prefix to the content assist invocation.
 				node.inferredType = "Object";
-				types[currentType][name] = "Object";
+				data.addVariable(name, "Object");
 			}
 		} else if (type === "ExpressionStatement" || type === "ReturnStatement") {
 			data.resetCurrentType();
@@ -478,7 +522,7 @@ define("esprimaJsContentAssist", [], function() {
 				if (property.key && property.key.name) {
 					// FIXADE not correct, we should be inferring inside the object, 
 					// but that is for later
-					data.addOrSetVariable(property.key.name, "Object");
+					data.addVariable(property.key.name, "Object");
 				}
 			}
 			node.inferredType = newTypeName;
@@ -489,7 +533,7 @@ define("esprimaJsContentAssist", [], function() {
 				// rules are really much more complicated
 				node.inferredType = "Number";
 			}
-		} else if (type === "UpdsteExpression" || type === "UnaryExpression") {
+		} else if (type === "UpdateExpression" || type === "UnaryExpression") {
 			// assume number for now.  actual rules are much more complicated
 			node.inferredType = "Number";
 		} else if (type === "FunctionDeclaration") {
@@ -499,12 +543,27 @@ define("esprimaJsContentAssist", [], function() {
 			for (i = 0; i < node.params.length; i++) {
 				params[i] = node.params[i].name;
 			}
-			data.addOrSetFunction(node.id.name, params, "Function");
+			data.addFunction(node.id.name, params, "Function");
 		} else if (type === "VariableDeclarator" || type === "VariableDeclaration") {
 			data.resetCurrentType();
+		} else if (type === "CatchClause") {
+			// create a new scope for the catch parameter
+			node.inferredType = data.newScope();
+			if (node.param) {
+				node.param.inferredType = "Error";
+				data.addVariable(node.param.name, "Error");
+				
+				// now add the catch parameter to the list of proposals if appropriate
+				if (inRange(data.offset, node.range) && 
+						isAfter(data.offset, node.param.range) && data.completionKind === "top") {
+					name = node.param.name;
+					if (name.indexOf(data.prefix) === 0) {
+						data.proposals.push({ proposal: name, description: name + " (variable)"});
+					}
+				}
+			}
 		} else if (type === "ThisExpression") {
 			node.inferredType = types[currentType]["this"];
-//			node.currentType = node.inferredType;
 		}
 		return true;
 	}
@@ -516,20 +575,27 @@ define("esprimaJsContentAssist", [], function() {
 	function proposalCollectorPostOp(node, data) {
 		var type = node.type, name, params, res, plen, i, inferredType;
 		
-		if (type === "Program" || type === "BlockStatement") {
+		if (type === "Program" || type === "BlockStatement" || type === "CatchClause") {
 			data.popScope();
 			
-		} else if (type === "ExpressionStatement" || type === "ReturnStatement") {
+		} else if (type === "ExpressionStatement" || 
+					type === "ReturnStatement" || 
+					type === "ForStatement" || 
+					type === "WhileStatement" ||
+					type === "TryStatement" ||
+					type === "VariableDeclaration") {
 			data.resetCurrentType();
 			
 		} if (type === "MemberExpression") {
 			if (data.completionKind === "member" &&
-					(inRange(data.offset, node.property.range) || afterDot(data.offset, node, data.contents))) {
+					((node.property && inRange(data.offset, node.property.range)) || 
+					afterDot(data.offset, node, data.contents))) {
 				// completion on a property of a member expression
 				// currentType is the inferred type of the object expression
 				data.computeInferredProposals(node.object.inferredType);
 			}
-			node.inferredType = node.property.inferredType;
+			// node.propery will be null for mal-formed asts
+			node.inferredType = node.property ? node.property.inferredType : node.object.inferredType;
 			data.currentType = node.inferredType;
 		} else if (type === "CallExpression") {
 			node.inferredType = node.callee.inferredType;
@@ -570,7 +636,7 @@ define("esprimaJsContentAssist", [], function() {
 				// although legal to reference before being declared, don't include in list
 				name = node.id.name;
 				if (name.indexOf(data.prefix) === 0) {
-					data.proposals.push({ proposal: node.id.name, description: node.id.name + " (variable)"});
+					data.proposals.push({ proposal: name, description: name + " (variable)"});
 				}
 			}
 			if (node.init) {
@@ -579,7 +645,7 @@ define("esprimaJsContentAssist", [], function() {
 				inferredType = "Object";
 			}
 			node.inferredType = inferredType;
-			data.addOrSetVariable(node.id.name, inferredType);
+			data.addVariable(node.id.name, inferredType);
 			data.currentType = inferredType;
 
 		} else if (type === "AssignmentExpression" && node.left.type === 'Identifier') {
@@ -614,7 +680,7 @@ define("esprimaJsContentAssist", [], function() {
 			try {
 				var root = parse(buffer);
 				// note that if selection has length > 0, then just ignore everything past the start
-				var completionKind = shouldVisit(root, selection.start);
+				var completionKind = shouldVisit(root, selection.start, buffer);
 				if (completionKind) {
 					var data = {
 						/** a counter used for creating unique names for object literals and scopes */
@@ -652,7 +718,7 @@ define("esprimaJsContentAssist", [], function() {
 							this.typeStack.push(newScopeName);
 							this.currentType = newScopeName;
 							// must add a new 'this' for use inside of the object
-							this.addOrSetVariable("this", newScopeName);
+							this.addVariable("this", newScopeName);
 							return newScopeName;
 						},
 						
@@ -666,7 +732,7 @@ define("esprimaJsContentAssist", [], function() {
 							this.typeStack.push(newObjectName);
 							this.currentType = newObjectName;
 							// add a new 'this' for use inside of the object
-							this.addOrSetVariable("this", newObjectName);
+							this.addVariable("this", newObjectName);
 							return newObjectName;
 						},
 						
@@ -674,7 +740,7 @@ define("esprimaJsContentAssist", [], function() {
 						popScope: function() {
 							// Can't delete old scope since it may have been assigned somewhere
 							// but must remove "this" when outside of the scope
-							this.addOrSetFunction("this", null);
+							this.addVariable("this", null);
 							var oldScope = this.typeStack.pop();
 							this.currentType = this.typeStack[this.typeStack.length -1];
 							return oldScope;
@@ -686,31 +752,53 @@ define("esprimaJsContentAssist", [], function() {
 						},
 						
 						/** adds the name to the current type/scope */
-						addOrSetVariable : function(name, type) {
+						addVariable : function(name, type) {
 							this.types[this.currentType][name] = type;
 						},
 						
+						/** 
+						 * like add variable, but first checks the prototype hierarchy
+						 * if exists in prototype hierarchy, then replace the type
+						 */
+						addOrSetVariable : function(name, type) {
+							var current = this.types[this.currentType], found = false;
+							while (current) {
+								if (current[name]) {
+									// found it, just overwrite
+									current[name] = type;
+									found = true;
+									break;
+								} else {
+									current = current.$$prototype;
+								}
+							}
+							if (!found) {
+								// not found, so just add to current scope
+								this.types[this.currentType][name] = type;
+							}
+						},
+						
 						/** adds the name and args (array of strings) with the given return type to the current type */
-						addOrSetFunction : function(name, args, type) {
+						addFunction : function(name, args, type) {
 							this.types[this.currentType][name] = type;
 							this.types[this.currentType].$$args[name] = args;
 						},
 						
 						/** looks up the name in the hierarchy */
 						lookupName : function(name) {
-							var innerLookup = function(name, type) {
+							var innerLookup = function(name, type, types) {
 								var res = type[name];
 								if (res) {
 									return res;
 								} else {
 									var proto = type.$$prototype;
 									if (proto) {
-										return innerLookup(name, proto);
+										return innerLookup(name, types[proto], types);
 									}
 									return null;
 								}
 							};
-							return innerLookup(name, this.currentType);
+							return innerLookup(name, this.types[this.currentType], this.types);
 						},
 						
 						computeInferredProposals : function(currentType) {

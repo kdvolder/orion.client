@@ -10,7 +10,7 @@
  *     Andrew Eisenberg (vmware) - initial API and implementation
  *******************************************************************************/
 
-/*global define console setTimeout esprimaContentAssistant*/
+/*global define esprima console setTimeout esprimaContentAssistant*/
 define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, assert) {
 	
 	//////////////////////////////////////////////////////////
@@ -161,6 +161,22 @@ tests.testEmpty = function() {};
 		testProposals(results, [
 			["fun(a, b, c)", "fun(a, b, c) (function)"],
 			["other(a, b, c)", "other(a, b, c) (function)"]
+		]);
+	};
+	tests["test scopes 1"] = function() {
+		// only the outer foo is available
+		var results = computeContentAssistAtEnd(
+				"var foo;\nfunction other(a, b, c) {\nfunction inner() { var foo2; }\nf/**/}", "f");
+		testProposals(results, [
+			["foo", "foo (variable)"]
+		]);
+	};
+	tests["test scopes 2"] = function() {
+		// the inner assignment should not affect the value of foo
+		var results = computeContentAssistAtEnd("var foo;\n" +
+				"var foo = 1;\nfunction other(a, b, c) {\nfunction inner() { foo2 = \"\"; }\nfoo.toF/**/}", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
 		]);
 	};
 	tests["test multi function content assist 2"] = function() {
@@ -363,41 +379,86 @@ tests.testEmpty = function() {};
 	};
 	
 	// not working since for loop is not storing slocs of var ii
-//	tests["test for loop 1"] = function() {
-//		var results = computeContentAssistAtEnd("for (var ii=0;i/**/<8;ii++) { ii }", "i");
-//		testProposals(results, [
-//			["ii", "ii (property)"]
-//		]);
-//	};
-//	tests["test for loop 2"] = function() {
-//		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;i/**/++) { ii }", "i");
-//		testProposals(results, [
-//			["ii", "ii (property)"]
-//		]);
-//	};
-//	tests["test for loop 3"] = function() {
-//		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;ii++) { i/**/ }", "i");
-//		testProposals(results, [
-//			["ii", "ii (property)"]
-//		]);
-//	};
+	tests["test for loop 1"] = function() {
+		var results = computeContentAssistAtEnd("for (var ii=0;i/**/<8;ii++) { ii }", "i");
+		testProposals(results, [
+			["ii", "ii (variable)"]
+		]);
+	};
+	tests["test for loop 2"] = function() {
+		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;i/**/++) { ii }", "i");
+		testProposals(results, [
+			["ii", "ii (variable)"]
+		]);
+	};
+	tests["test for loop 3"] = function() {
+		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;ii++) { i/**/ }", "i");
+		testProposals(results, [
+			["ii", "ii (variable)"]
+		]);
+	};
+	tests["test while loop 1"] = function() {
+		var results = computeContentAssistAtEnd("var iii;\nwhile(ii/**/ === null) {\n}", "ii");
+		testProposals(results, [
+			["iii", "iii (variable)"]
+		]);
+	};
+	tests["test while loop 2"] = function() {
+		var results = computeContentAssistAtEnd("var iii;\nwhile(this.ii/**/ === null) {\n}", "ii");
+		testProposals(results, [
+			["ii", "ii (property)"],
+			["iii", "iii (property)"]
+		]);
+	};
+	tests["test while loop 3"] = function() {
+		var results = computeContentAssistAtEnd("var iii;\nwhile(iii === null) {this.ii/**/\n}", "ii");
+		testProposals(results, [
+			["ii", "ii (property)"],
+			["iii", "iii (property)"]
+		]);
+	};
+	tests["test catch clause 1"] = function() {
+		var results = computeContentAssistAtEnd("try { } catch (eee) {e/**/  }", "e");
+		testProposals(results, [
+			["eee", "eee (variable)"]
+		]);
+	};
+	tests["test catch clause 2"] = function() {
+		// the type of the catch variable is Error
+		var results = computeContentAssistAtEnd("try { } catch (eee) {\neee.me/**/  }", "me");
+		testProposals(results, [
+			["message", "message (property)"]
+		]);
+	};
+	tests["test broken after dot"] = function() {
+		var results = computeContentAssistAtEnd("var ttt = { ooo:8};\nttt.", "");
+		testProposals(results, [
+			["arguments", "arguments (property)"],  // this one really shouldn't be here
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["ooo", "ooo (property)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			// FIXADE currently not showing this, should we?
+//			["prototype", "prototype(property) (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
+		]);
+	};
+	
+//	urrgh...function called as function 'this' is not right
+	
 	
 	/*
 	 yet to do:
-	 1. with, catch, if, while, for (in), this, args in a call, inside object literal, function inside obj literal
+	 1. with, if, for in, this, args in a call, function inside obj literal
 	 2. better work on binary expressions
 	 3. function/method return types vs functions themselves
+	 3a. inferring the return type of a function
 	 4, parameterized types (eg- array of string, function that returns number)
 	 5. foo.bar = 8
 	 6. add new properties after being created
-	 \
-	 How to solve the "this" problem in object literals:
-	 1. do shallow visit of keys
-	 2. assign keys to a new type
-	 3. create new scope for inside the literal
-	 4. assign 'this' to the type created in step 2
-	 5. visit internal
-	 6. pop
+	 7. Regex and math types
 	*/
 	return tests;
 });
