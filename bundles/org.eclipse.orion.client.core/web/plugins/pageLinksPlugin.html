@@ -66,14 +66,18 @@
 			href: true,
 			forceSingleItem: true
 		});
-		
 		provider.registerServiceProvider("orion.page.link.related", null, {
 			id: "orion.navigateFromFileMetadata"
 		});
 		provider.registerServiceProvider("orion.page.link.related", null, {
 			id: "orion.navigateFromGitMetadata"
 		});
-
+		provider.registerServiceProvider("orion.page.link", serviceImpl, {
+			name: "Console",
+			id: "orion.gcli",
+			href: qualifyURL("../console/orion-gcli-console.html#"),
+			target: "Console"
+		});
 		provider.connect();
 	};
 	</script>

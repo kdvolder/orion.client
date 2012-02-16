@@ -401,6 +401,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			//     required attribute: id - the id of the navigation link
 			//     required attribute: href - the URL for the navigation link
 			//     optional attribute: image - a URL to an icon representing the link (currently not used, may use in future)
+			//	   optional attribute: target - value to set the as the 'target' attribute of the link.
 			var navLinks= serviceRegistry.getServiceReferences("orion.page.link");
 			for (var i=0; i<navLinks.length; i++) {
 				var info = {};
@@ -409,7 +410,11 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 					info[propertyNames[j]] = navLinks[i].getProperty(propertyNames[j]);
 				}
 				if (info.href && info.name) {
-					var link = dojo.create("a", {href: info.href}, primaryNav, "last");
+					var attribs = {href: info.href};
+					if (info.target) {
+						attribs.target = info.target;
+					}
+					var link = dojo.create("a", attribs, primaryNav, "last");
 					text = document.createTextNode(info.name);
 					dojo.place(text, link, "only");
 				}

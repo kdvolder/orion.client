@@ -97,7 +97,7 @@ define(['dojo', 'orion/textview/textView'], function(dojo, mTextView) {
 				this._inputListeners = [];
 				textView.addEventListener("Modify", function(modelChangedEvent) {
 					var text = self._currentInput.getText();
-					var index = text.indexOf("\r\n");
+					var index = text.indexOf("\n");
 					if (index !== -1) {
 						var value = text.substring(0, index);
 						for (var i = 0; i < self._inputListeners.length; i++) {
