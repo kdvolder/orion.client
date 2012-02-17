@@ -1,0 +1,21 @@
+This bundle contains a client-side command-line UI based on mozilla/gcli.
+
+To install use take the following steps:
+
+1. setup a self-hosting orion environment on your onw machine following the instructions here
+   http://wiki.eclipse.org/Orion/Getting_the_source
+   
+2. Add this bundle (org.eclipse.orion.client.console) to your web-ide.launch configuration. 
+
+3. Run the launch configuration as described in http://wiki.eclipse.org/Orion/Getting_the_source
+
+4. Open localhost:8080 in a webbrowser.
+
+5. Install the orion plugin from url http://localhost:8080/console/gcliConsolePlugin.html
+   following the instructions from this page:
+   
+   http://wiki.eclipse.org/Orion/How_Tos/Installing_A_Plugin
+   
+The plugin will add a 'Console' link to the orion toolbar. 
+For the plugin to work, it needs to be installed from the same domain that your orion is
+running on (i.e. localhost:8080).
