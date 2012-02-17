@@ -1,0 +1,3 @@
+[submodule "bundles/org.eclipse.orion.client.console/submodules/gcli"]
+	path = bundles/org.eclipse.orion.client.console/submodules/gcli
+	url = git://github.com/mozilla/gcli.git
