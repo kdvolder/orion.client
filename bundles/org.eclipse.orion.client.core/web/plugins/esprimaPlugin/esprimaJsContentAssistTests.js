@@ -125,42 +125,108 @@ tests.testEmpty = function() {};
 	};
 	
 	tests["test Empty Content Assist"] = function() {
-		var results = computeContentAssistAtEnd("");
+		var results = computeContentAssistAtEnd("x", "x");
 		assert.equal(results.length, 0);
 	};
 	
 	// non-inferencing content assist
+	tests["test Empty File Content Assist"] = function() {
+		var results = computeContentAssistAtEnd("");
+		testProposals(results, [
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
+		]);
+	};
 	tests["test Single Var Content Assist"] = function() {
+		var results = computeContentAssistAtEnd("var zzz = 9;\n");
+		testProposals(results, [
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"],
+			["zzz", "zzz (property)"]
+		]);
+	};
+	tests["test Single Var Content Assist 2"] = function() {
 		var results = computeContentAssistAtEnd("var zzz;\n");
-		assert.equal(results.length, 1, "Wrong number of proposals found");
-		testProposal(results[0], "zzz", "zzz (variable)");
+		testProposals(results, [
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"],
+			["zzz", "zzz (property)"]
+		]);
 	};
 	tests["test multi var content assist 1"] = function() {
 		var results = computeContentAssistAtEnd("var zzz;\nvar xxx, yyy;\n");
 		testProposals(results, [
-			["xxx", "xxx (variable)"],
-			["yyy", "yyy (variable)"],
-			["zzz", "zzz (variable)"]
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"],
+			["xxx", "xxx (property)"],
+			["yyy", "yyy (property)"],
+			["zzz", "zzz (property)"]
 		]);
 	};
 	tests["test multi var content assist 2"] = function() {
 		var results = computeContentAssistAtEnd("var zzz;\nvar zxxx, xxx, yyy;\nz","z");
 		testProposals(results, [
-			["zxxx", "zxxx (variable)"],
-			["zzz", "zzz (variable)"]
+			["zxxx", "zxxx (property)"],
+			["zzz", "zzz (property)"]
 		]);
 	};
 	tests["test single function content assist"] = function() {
 		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\n");
 		testProposals(results, [
-			["fun(a, b, c)", "fun(a, b, c) (function)"]
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["fun(a, b, c)", "fun(a, b, c) (function)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
 		]);
 	};
 	tests["test multi function content assist 1"] = function() {
 		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {}\n");
 		testProposals(results, [
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
 			["fun(a, b, c)", "fun(a, b, c) (function)"],
-			["other(a, b, c)", "other(a, b, c) (function)"]
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["other(a, b, c)", "other(a, b, c) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
 		]);
 	};
 	tests["test scopes 1"] = function() {
@@ -168,7 +234,7 @@ tests.testEmpty = function() {};
 		var results = computeContentAssistAtEnd(
 				"var foo;\nfunction other(a, b, c) {\nfunction inner() { var foo2; }\nf/**/}", "f");
 		testProposals(results, [
-			["foo", "foo (variable)"]
+			["foo", "foo (property)"]
 		]);
 	};
 	tests["test scopes 2"] = function() {
@@ -188,21 +254,41 @@ tests.testEmpty = function() {};
 	tests["test in function 1"] = function() {
 		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {/**/}", "");
 		testProposals(results, [
-			["a", "a (parameter of other)"],
-			["b", "b (parameter of other)"],
-			["c", "c (parameter of other)"],
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["a", "a (property)"],
+			["arguments", "arguments (property)"],
+			["b", "b (property)"],
+			["c", "c (property)"],
 			["fun(a, b, c)", "fun(a, b, c) (function)"],
-			["other(a, b, c)", "other(a, b, c) (function)"]
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["other(a, b, c)", "other(a, b, c) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
 		]);
 	};
 	tests["test in function 2"] = function() {
 		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(a, b, c) {\n/**/nuthin}", "");
 		testProposals(results, [
-			["a", "a (parameter of other)"],
-			["b", "b (parameter of other)"],
-			["c", "c (parameter of other)"],
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["a", "a (property)"],
+			["arguments", "arguments (property)"],
+			["b", "b (property)"],
+			["c", "c (property)"],
 			["fun(a, b, c)", "fun(a, b, c) (function)"],
-			["other(a, b, c)", "other(a, b, c) (function)"]
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["other(a, b, c)", "other(a, b, c) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
 		]);
 	};
 	tests["test in function 3"] = function() {
@@ -214,17 +300,19 @@ tests.testEmpty = function() {};
 	tests["test in function 4"] = function() {
 		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(aa, ab, c) {a/**/}", "a");
 		testProposals(results, [
-			["aa", "aa (parameter of other)"],
-			["ab", "ab (parameter of other)"]
+			["aa", "aa (property)"],
+			["ab", "ab (property)"],
+			["arguments", "arguments (property)"]
 		]);
 	};
 	tests["test in function 5"] = function() {
 		// should not see 'aaa' since that is declared later
 		var results = computeContentAssistAtEnd("function fun(a, b, c) {}\nfunction other(aa, ab, c) {var abb;\na/**/\nvar aaa}", "a");
 		testProposals(results, [
-			["aa", "aa (parameter of other)"],
-			["ab", "ab (parameter of other)"],
-			["abb", "abb (variable)"]
+			["aa", "aa (property)"],
+			["ab", "ab (property)"],
+			["abb", "abb (property)"],
+			["arguments", "arguments (property)"]
 		]);
 	};
 	tests["test in function 6"] = function() {
@@ -234,10 +322,13 @@ tests.testEmpty = function() {};
 		"function other(aa, ab, c) {\n"+
 		"var abb;\na/**/\nvar aaa\n}\n}", "a");
 		testProposals(results, [
-			["a", "a (parameter of fun)"],
-			["aa", "aa (parameter of other)"],
-			["ab", "ab (parameter of other)"],
-			["abb", "abb (variable)"]
+			["a", "a (property)"],
+			["aa", "aa (property)"],
+			["ab", "ab (property)"],
+			["abb", "abb (property)"],
+			// FIXADE Yikes!  getting arguments twice for nested function
+			["arguments", "arguments (property)"],
+			["arguments", "arguments (property)"]
 		]);
 	};
 	tests["test in function 7"] = function() {
@@ -247,10 +338,20 @@ tests.testEmpty = function() {};
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n}\n}");
 		testProposals(results, [
-			["a", "a (parameter of fun)"],
-			["b", "b (parameter of fun)"],
-			["c", "c (parameter of fun)"],
-			["fun(a, b, c)", "fun(a, b, c) (function)"]
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["a", "a (property)"],
+			["arguments", "arguments (property)"],
+			["b", "b (property)"],
+			["c", "c (property)"],
+			["fun(a, b, c)", "fun(a, b, c) (function)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
 		]);
 	};
 	tests["test in function 8"] = function() {
@@ -260,11 +361,21 @@ tests.testEmpty = function() {};
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n} /**/\n}");
 		testProposals(results, [
-			["a", "a (parameter of fun)"],
-			["b", "b (parameter of fun)"],
-			["c", "c (parameter of fun)"],
+			["JSON", "JSON (property)"],
+			["Math", "Math (property)"],
+			["a", "a (property)"],
+			["arguments", "arguments (property)"],
+			["b", "b (property)"],
+			["c", "c (property)"],
 			["fun(a, b, c)", "fun(a, b, c) (function)"],
-			["other(aa, ab, ac)", "other(aa, ab, ac) (function)"]
+			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+			["other(aa, ab, ac)", "other(aa, ab, ac) (function)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+			["this", "this (property)"],
+			["toLocaleString()", "toLocaleString() (function)"],
+			["toString()", "toString() (function)"],
+			["valueOf()", "valueOf() (function)"]
 		]);
 	};
 	
@@ -316,11 +427,28 @@ tests.testEmpty = function() {};
 			["hhh", "hhh (property)"]
 		]);
 	};
+	tests["test Data flow inferencing 1"] = function() {
+		var results = computeContentAssistAtEnd("var ttt = 9\nttt.toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
+	tests["test Data flow inferencing 2"] = function() {
+		var results = computeContentAssistAtEnd("ttt = 9\nttt.toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
+	tests["test Data flow inferencing 2"] = function() {
+		var results = computeContentAssistAtEnd("var ttt = \"\"\nttt = 9\nttt.toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
 	
 	tests["test Simple this"] = function() {
 		var results = computeContentAssistAtEnd("var ssss = 4;\nthis.ss", "ss");
 		testProposals(results, [
-			["ss", "ss (property)"],  // FIXADE see proposalCollector Identifier
 			["ssss", "ssss (property)"]
 		]);
 	};
@@ -329,7 +457,6 @@ tests.testEmpty = function() {};
 	tests["test Object Literal inside"] = function() {
 		var results = computeContentAssistAtEnd("var x = { the : 1, far : this.th/**/ };", "th");
 		testProposals(results, [
-			["th", "th (property)"],  // FIXADE see proposalCollector Identifier
 			["the", "the (property)"]
 		]);
 	};
@@ -342,7 +469,6 @@ tests.testEmpty = function() {};
 	tests["test Object Literal none"] = function() {
 		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nthis.th", "th");
 		testProposals(results, [
-			["th", "th (property)"]
 		]);
 	};
 	tests["test Object Literal outside 2"] = function() {
@@ -358,16 +484,14 @@ tests.testEmpty = function() {};
 		]);
 	};
 	tests["test Object Literal outside 4"] = function() {
-		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nwho(yyy. x.th/**/)", "th");
+		var results = computeContentAssistAtEnd("var x = { the : 1, far : 2 };\nwho(yyy, x.th/**/)", "th");
 		testProposals(results, [
-			["th", "th (property)"],
 			["the", "the (property)"]
 		]);
 	};
 	tests["test this reference 1"] = function() {
 		var results = computeContentAssistAtEnd("var xxxx;\nthis.x", "x");
 		testProposals(results, [
-			["x", "x (property)"],
 			["xxxx", "xxxx (property)"]
 		]);
 	};
@@ -382,45 +506,46 @@ tests.testEmpty = function() {};
 	tests["test for loop 1"] = function() {
 		var results = computeContentAssistAtEnd("for (var ii=0;i/**/<8;ii++) { ii }", "i");
 		testProposals(results, [
-			["ii", "ii (variable)"]
+			["ii", "ii (property)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"]
 		]);
 	};
 	tests["test for loop 2"] = function() {
 		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;i/**/++) { ii }", "i");
 		testProposals(results, [
-			["ii", "ii (variable)"]
+			["ii", "ii (property)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"]
 		]);
 	};
 	tests["test for loop 3"] = function() {
 		var results = computeContentAssistAtEnd("for (var ii=0;ii<8;ii++) { i/**/ }", "i");
 		testProposals(results, [
-			["ii", "ii (variable)"]
+			["ii", "ii (property)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"]
 		]);
 	};
 	tests["test while loop 1"] = function() {
 		var results = computeContentAssistAtEnd("var iii;\nwhile(ii/**/ === null) {\n}", "ii");
 		testProposals(results, [
-			["iii", "iii (variable)"]
+			["iii", "iii (property)"]
 		]);
 	};
 	tests["test while loop 2"] = function() {
 		var results = computeContentAssistAtEnd("var iii;\nwhile(this.ii/**/ === null) {\n}", "ii");
 		testProposals(results, [
-			["ii", "ii (property)"],
 			["iii", "iii (property)"]
 		]);
 	};
 	tests["test while loop 3"] = function() {
 		var results = computeContentAssistAtEnd("var iii;\nwhile(iii === null) {this.ii/**/\n}", "ii");
 		testProposals(results, [
-			["ii", "ii (property)"],
 			["iii", "iii (property)"]
 		]);
 	};
 	tests["test catch clause 1"] = function() {
 		var results = computeContentAssistAtEnd("try { } catch (eee) {e/**/  }", "e");
 		testProposals(results, [
-			["eee", "eee (variable)"]
+			["eee", "eee (property)"]
 		]);
 	};
 	tests["test catch clause 2"] = function() {
@@ -430,15 +555,65 @@ tests.testEmpty = function() {};
 			["message", "message (property)"]
 		]);
 	};
-	tests["test broken after dot"] = function() {
+	
+	
+	tests["test get global var"] = function() {
+		// should infer that we are referring to the globally defined xxx, not the param
+		var results = computeContentAssistAtEnd("var xxx = 9;\nfunction fff(xxx) { this.xxx.toF/**/}", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
+	
+	tests["test get local var"] = function() {
+		// should infer that we are referring to the locally defined xxx, not the global
+		var results = computeContentAssistAtEnd("var xxx = 9;\nfunction fff(xxx) { xxx.toF/**/}", "toF");
+		testProposals(results, [
+		]);
+	};
+
+	tests["test Math 1"] = function() {
+		var results = computeContentAssistAtEnd("Mat", "Mat");
+		testProposals(results, [
+			["Math", "Math (property)"]
+		]);
+	};
+	tests["test Math 2"] = function() {
+		var results = computeContentAssistAtEnd("this.Mat", "Mat");
+		testProposals(results, [
+			["Math", "Math (property)"]
+		]);
+	};
+	tests["test Math 3"] = function() {
+		// Math not available when this isn't the global this
+		var results = computeContentAssistAtEnd("var ff = { f: this.Mat }", "Mat");
+		testProposals(results, [
+		]);
+	};
+	tests["test Math 4"] = function() {
+		var results = computeContentAssistAtEnd("this.Math.E", "E");
+		testProposals(results, [
+			["E", "E (property)"]
+		]);
+	};
+	tests["test JSON 4"] = function() {
+		var results = computeContentAssistAtEnd("this.JSON.st", "st");
+		testProposals(results, [
+			["stringify(obj)", "stringify(obj) (function)"]
+		]);
+	};
+	
+	////////////////////////////
+	// tests for broken syntax
+	////////////////////////////
+
+	tests["test broken after dot 1"] = function() {
 		var results = computeContentAssistAtEnd("var ttt = { ooo:8};\nttt.", "");
 		testProposals(results, [
-			["arguments", "arguments (property)"],  // this one really shouldn't be here
 			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
 			["ooo", "ooo (property)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
-			// FIXADE currently not showing this, should we?
 //			["prototype", "prototype(property) (property)"],
 			["toLocaleString()", "toLocaleString() (function)"],
 			["toString()", "toString() (function)"],
@@ -446,7 +621,35 @@ tests.testEmpty = function() {};
 		]);
 	};
 	
-//	urrgh...function called as function 'this' is not right
+	// not working
+//		tests["test broken after dot 2"] = function() {
+//		var results = computeContentAssistAtEnd("var ttt = { ooo:8};\nif (ttt./**/) { ttt }", "");
+//		testProposals(results, [
+//			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+//			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+//			["ooo", "ooo (property)"],
+//			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+////			["prototype", "prototype(property) (property)"],
+//			["toLocaleString()", "toLocaleString() (function)"],
+//			["toString()", "toString() (function)"],
+//			["valueOf()", "valueOf() (function)"]
+//		]);
+//	};
+
+	// not working
+//	tests["test broken after dot 3"] = function() {
+//		var results = computeContentAssistAtEnd("var ttt = { ooo:8};function() { \nttt.}", "");
+//		testProposals(results, [
+//			["hasOwnProperty(property)", "hasOwnProperty(property) (function)"],
+//			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
+//			["ooo", "ooo (property)"],
+//			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
+////			["prototype", "prototype(property) (property)"],
+//			["toLocaleString()", "toLocaleString() (function)"],
+//			["toString()", "toString() (function)"],
+//			["valueOf()", "valueOf() (function)"]
+//		]);
+//	};
 	
 	
 	/*
@@ -455,10 +658,12 @@ tests.testEmpty = function() {};
 	 2. better work on binary expressions
 	 3. function/method return types vs functions themselves
 	 3a. inferring the return type of a function
-	 4, parameterized types (eg- array of string, function that returns number)
+	 4, propertyized types (eg- array of string, function that returns number)
 	 5. foo.bar = 8
 	 6. add new properties after being created
 	 7. Regex and math types
+	 8. Need some way of distinguishing between top-level and not  Math, JSON, and the other object are only top level
+	 9. Don't add proposals throughout, always add potentials to the scope and at the end compute them
 	*/
 	return tests;
 });

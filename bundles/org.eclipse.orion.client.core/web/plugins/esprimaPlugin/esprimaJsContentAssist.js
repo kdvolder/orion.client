@@ -30,9 +30,6 @@ define("esprimaJsContentAssist", [], function() {
 			$$isPrototypeOf: "boolean",
 			$$propertyIsEnumerable: "boolean",
 			
-			// FIXADE should really be on Function, but arguments is a reserved word.
-			$$arguments : "Arguments",
-			
 			$$args : {
 				$$toString: [],
 				$$toLocaleString: [],
@@ -41,6 +38,16 @@ define("esprimaJsContentAssist", [], function() {
 				$$propertyIsEnumerable: ["property"],
 				$$valueOf: []
 			}
+		};
+		
+		// the global object
+		this.Global = {
+			// the global 'this'
+			"this": "Global",  
+			Math: "Math",
+			JSON: "JSON",
+			$$prototype : "Object",
+			$$args : { }
 		};
 		
 		/**
@@ -150,8 +157,7 @@ define("esprimaJsContentAssist", [], function() {
 		// must refactor this part for the new format
 		this.Function = {
 			apply : "Object",
-			// FIXADE a reserved word...put it in object
-//			arguments : "Arguments",
+			"arguments" : "Arguments",
 			bind : null,
 			call : "Object",
 			caller : "Function",
@@ -195,39 +201,59 @@ define("esprimaJsContentAssist", [], function() {
 		};
 		
 		
-//		this.Math = [
-//			{name: "prototype", type:"Object"},
-//		
-//			// properties
-//			{name: "E", type:"Number"},
-//			{name: "LN2", type:"Number"},
-//			{name: "LN10", type:"Number"},
-//			{name: "LOG2E", type:"Number"},
-//			{name: "LOG10E", type:"Number"},
-//			{name: "PI", type:"Number"},
-//			{name: "SQRT1_2", type:"Number"},
-//			{name: "SQRT2", type:"Number"},
-//			
-//			// Methods
-//			{name: "abs", args: ["val"], type:"Number"},
-//			{name: "acos", args: ["val"], type:"Number"},
-//			{name: "asin", args: ["val"], type:"Number"},
-//			{name: "atan", args: ["val"], type:"Number"},
-//			{name: "atan2", args: ["val1", "val2"], type:"Number"},
-//			{name: "ceil", args: ["val"], type:"Number"},
-//			{name: "cos", args: ["val"], type:"Number"},
-//			{name: "exp", args: ["val"], type:"Number"},
-//			{name: "floor", args: ["val"], type:"Number"},
-//			{name: "log", args: ["val"], type:"Number"},
-//			{name: "max", args: ["val1", "val2"], type:"Number"},
-//			{name: "min", args: ["val1", "val2"], type:"Number"},
-//			{name: "pow", args: ["x", "y"], type:"Number"},
-//			{name: "random", args: [], type:"Number"},
-//			{name: "round", args: ["val"], type:"Number"},
-//			{name: "sin", args: ["val"], type:"Number"},
-//			{name: "sqrt", args: ["val"], type:"Number"},
-//			{name: "tan", args: ["val"], type:"Number"}		
-//		];
+		this.Math = {
+		
+			// properties
+			E : "Number",
+			LN2 : "Number",
+			LN10 : "Number",
+			LOG2E : "Number",
+			LOG10E : "Number",
+			PI : "Number",
+			SQRT1_2 : "Number",
+			SQRT2 : "Number",
+		
+			// Methods
+			abs : "Number",
+			acos : "Number",
+			asin : "Number",
+			atan : "Number",
+			atan2 : "Number",
+			ceil : "Number",
+			cos : "Number",
+			exp : "Number",
+			floor : "Number",
+			log : "Number",
+			max : "Number",
+			min : "Number",
+			pow : "Number",
+			random : "Number",
+			round : "Number",
+			sin : "Number",
+			sqrt : "Number",
+			tan : "Number",
+			$$prototype : "Object",
+			$$args : {
+				abs : ["val"],
+				acos : ["val"],
+				asin : ["val"],
+				atan : ["val"],
+				atan2 : ["val1", "val2"],
+				ceil : ["val"],
+				cos : ["val"],
+				exp : ["val"],
+				floor : ["val"],
+				log : ["val"],
+				max : ["val1", "val2"],
+				min : ["val1", "val2"],
+				pow : ["x", "y"],
+				random : [],
+				round : ["val"],
+				sin : ["val"],
+				sqrt : ["val"],
+				tan : ["val"]
+			}
+		};
 
 		this.JSON = {
 			parse : "Object",
@@ -258,7 +284,7 @@ define("esprimaJsContentAssist", [], function() {
 			// gather children to visit
 			children = [];
 			for (key in node) {
-				if (key !== "range") {
+				if (key !== "range" && key !== "errors") {
 					child = node[key];
 					if (child instanceof Array) {
 						for (i = 0; i < child.length; i++) {
@@ -383,7 +409,7 @@ define("esprimaJsContentAssist", [], function() {
 		// only do the work if we are in between the 
 		if (!inRange(offset, memberExpr.range) ||
 			inRange(offset, memberExpr.object.range) ||
-			offset <= end) {
+			offset < end) {
 			return false;
 		}
 		
@@ -404,25 +430,33 @@ define("esprimaJsContentAssist", [], function() {
 	 * @return "top" if we are at a start of a new expression fragment (eg- at an empty line, 
 	 * or a new parameter).  "member" if we are after a dot in a member expression.  false otherwise
 	 */
-	function shouldVisit(root, offset, contents) {
+	function shouldVisit(root, offset, prefix, contents) {
 		/**
 		 * A visitor that finds the parent stack at the given location
 		 */ 
 		var findParent = function(node, parents, isInitialVisit) {
 			if (!isInitialVisit) {
-				// for the end visit just ensure that the parent stack is empty
+			
+				// if we have reached the end of an inRange block expression then 
+				// this means we are completing on an empty expression
+				if (node.type === "Program" || (node.type === "BlockStatement") &&
+						inRange(offset, node.range)) {
+					throw "done";
+				}
+			
 				parents.pop();
 				// return value is ignored
 				return false;
 			}
 			
-			if (node.range && inRange(offset, node.range)) {
+			// the program node is always in range even if the range numbers do not line up
+			if ((node.range && inRange(offset, node.range)) || node.type === "Program") {
 				if (node.type === "Identifier") {
 					throw "done";
 				}
 				parents.push(node);
 				if ((node.type === "FunctionDeclaration" || node.type === "FunctionExpression") && 
-						isBefore(offset, node.body.range)) {
+						node.nody && isBefore(offset, node.body.range)) {
 					// completion occurs on the word "function"
 					throw "done";
 				}
@@ -455,6 +489,27 @@ define("esprimaJsContentAssist", [], function() {
 					// on the right hand side of a dot with no text after, eg: foo.^
 					return "member";
 				}
+			} else if (parent.type === "Program" || parent.type === "BlockStatement") {
+				// completion at a new expression
+				if (!prefix) {
+					// empty identifier
+					// add a synthetic ExpressionStatemtn and Identifier
+					// it doesn't have to be in the correct location since children are visited in lexical order
+					// also note that this means we create synthetic nodes for arguments of method calls and
+					// after binary expressions...I think this is all right. (ADE)
+					
+					var exprStatement = { 
+						expression : {
+							name: "",  // an empty expression
+							type: "Identifier",
+							range : [offset, offset+1]
+						},
+						type :"ExpressionStatement",
+						range : [offset, offset+1]
+					};
+					
+					parent.body.push(exprStatement);
+
 			} else if (parent.type === "VariableDeclarator" && (!parent.init || isBefore(offset, parent.init.range))) {
 				// the name of a variable declaration
 				return false;
@@ -462,8 +517,8 @@ define("esprimaJsContentAssist", [], function() {
 					isBefore(offset, parent.body.range)) {
 				// a function declaration
 				return false;
+				}
 			}
-			
 		}
 		return "top";
 	}	
@@ -474,8 +529,7 @@ define("esprimaJsContentAssist", [], function() {
 	 * @param data the data for the visitor.  See computeProposals below for full description of contents
 	 */
 	function proposalCollector(node, data) {
-		var type = node.type, currentType = data.currentType, types = data.types, 
-				oftype, name, i, property, newTypeName;
+		var type = node.type, oftype, name, i, property, params, plen, newTypeName;
 		
 		if (type === "BlockStatement" && !inRange(data.offset, node.range)) {
 			// out of range
@@ -485,25 +539,14 @@ define("esprimaJsContentAssist", [], function() {
 			return false;
 		}
 		
-		if (type === "Program" || type === "BlockStatement") {
-			node.inferredType = data.newScope();
-		} else if (type === 'Identifier') {
-			name = node.name;
-			newTypeName = data.lookupName(name);
-			if (newTypeName) {
-				// name already exists
-				node.inferredType = newTypeName;
+		if (type === "Program") {
+			// do nothing...
+		} else if (type === "BlockStatement") {
+			if (node.isConstructor) {
+				node.inferredType = data.newObject();
 			} else {
-				// If name doesn't already exist, then just add it to the current type.
-				// FIXADE  Is this what we want?  Doing this here will add any otherwise unknown property 
-				// to the list of known properties if it is referenced.  Probably OK, but this has the side effect
-				// of also including any half-formed property that exists as a prefix to the content assist invocation.
-				node.inferredType = "Object";
-				data.addVariable(name, "Object");
+				node.inferredType = data.newScope();
 			}
-		} else if (type === "ExpressionStatement" || type === "ReturnStatement") {
-			data.resetCurrentType();
-		
 		} else if (type === "NewExpression") {
 			node.inferredType = node.callee.name;
 		} else if (type === "Literal") {
@@ -516,54 +559,57 @@ define("esprimaJsContentAssist", [], function() {
 			// we might be able to do better by walking into the object and inferring each RHS of a 
 			// key-value pair
 			newTypeName = data.newObject();
+			node.inferredType = newTypeName;
 			for (i = 0; i < node.properties.length; i++) {
 				property = node.properties[i];
 				// only remember if the property is an identifier
 				if (property.key && property.key.name) {
-					// FIXADE not correct, we should be inferring inside the object, 
+					// FIXADE not correct since we should be inferring inside the object, 
 					// but that is for later
-					data.addVariable(property.key.name, "Object");
+					// pass in the object expression as the target so that the "this" variable
+					// is augmented correctly.
+					data.addVariable(property.key.name, node, "Object");
 				}
 			}
-			node.inferredType = newTypeName;
-		} else if (type === "BinaryExpression") {
-			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || 
-					node.operator === "*") {
-				// assume number for now
-				// rules are really much more complicated
-				node.inferredType = "Number";
-			}
-		} else if (type === "UpdateExpression" || type === "UnaryExpression") {
-			// assume number for now.  actual rules are much more complicated
-			node.inferredType = "Number";
 		} else if (type === "FunctionDeclaration") {
-			data.resetCurrentType();
 
-			var params = [];
-			for (i = 0; i < node.params.length; i++) {
-				params[i] = node.params[i].name;
+			name = node.id.name;
+			params = node.params;
+			data.addFunction(node.id.name, params, node.target, "Function");
+			
+			// check for possible constructor
+			// assume that function name that starts with capital is 
+			// a constructor
+			if (node.body && node.id.name.charAt(0) === node.id.name.charAt(0).toUpperCase()) {
+				// create new object so that there is a custom "this"
+				node.body.isConstructor = true;
 			}
-			data.addFunction(node.id.name, params, "Function");
-		} else if (type === "VariableDeclarator" || type === "VariableDeclaration") {
-			data.resetCurrentType();
+			data.newScope();
+			data.addVariable("arguments", node.target, "Arguments");
+
+			// add parameters to the current scope
+			if (params && params.length > 0) {
+				plen = params.length;
+				for (i = 0; i < plen; i++) {
+					name = params[i].name;
+					data.addVariable(name, node.target);
+				}	
+			}
+			
 		} else if (type === "CatchClause") {
 			// create a new scope for the catch parameter
 			node.inferredType = data.newScope();
 			if (node.param) {
 				node.param.inferredType = "Error";
-				data.addVariable(node.param.name, "Error");
-				
-				// now add the catch parameter to the list of proposals if appropriate
-				if (inRange(data.offset, node.range) && 
-						isAfter(data.offset, node.param.range) && data.completionKind === "top") {
-					name = node.param.name;
-					if (name.indexOf(data.prefix) === 0) {
-						data.proposals.push({ proposal: name, description: name + " (variable)"});
-					}
-				}
+				data.addVariable(node.param.name, node.target, "Error");
 			}
-		} else if (type === "ThisExpression") {
-			node.inferredType = types[currentType]["this"];
+		} else if (type === "MemberExpression") {
+			if (node.property) {
+				// keep track of the target of the property expression
+				// so that its type can be used as the seed for finding properties
+				node.property.target = node.object;
+			}
+		
 		}
 		return true;
 	}
@@ -573,88 +619,78 @@ define("esprimaJsContentAssist", [], function() {
 	 * Finishes off the inferencing and adds all proposals
 	 */
 	function proposalCollectorPostOp(node, data) {
-		var type = node.type, name, params, res, plen, i, inferredType;
+		var type = node.type, name, inferredType, newTypeName;
 		
-		if (type === "Program" || type === "BlockStatement" || type === "CatchClause") {
+		if (type === "Program") {
+			// do nothing...
+		} else if (type === "BlockStatement" || type === "CatchClause") {
 			data.popScope();
-			
-		} else if (type === "ExpressionStatement" || 
-					type === "ReturnStatement" || 
-					type === "ForStatement" || 
-					type === "WhileStatement" ||
-					type === "TryStatement" ||
-					type === "VariableDeclaration") {
-			data.resetCurrentType();
 			
 		} if (type === "MemberExpression") {
-			if (data.completionKind === "member" &&
-					((node.property && inRange(data.offset, node.property.range)) || 
-					afterDot(data.offset, node, data.contents))) {
-				// completion on a property of a member expression
-				// currentType is the inferred type of the object expression
-				data.computeInferredProposals(node.object.inferredType);
+			if (afterDot(data.offset, node, data.contents)) {
+				// completion after a dot with no prefix
+				data.createProposals(data.scope(node.object));
 			}
+			// inferred type is the type of the property expression
 			// node.propery will be null for mal-formed asts
 			node.inferredType = node.property ? node.property.inferredType : node.object.inferredType;
-			data.currentType = node.inferredType;
 		} else if (type === "CallExpression") {
 			node.inferredType = node.callee.inferredType;
-			data.currentType = node.inferredType;
 		} else if (type === "ObjectExpression") {
 			data.popScope();
-		} else if (type === "FunctionDeclaration" && 
-				(inRange(data.offset, node.range) || isAfter(data.offset, node.range)) && 
-				data.completionKind === "top") {
-			// Add function proposal only if completion offset is inside or after this function declaration
-			name = node.id.name;
-			params = node.params;
-			if (name.indexOf(data.prefix) === 0) {
-				res = calculateFunctionProposal(node.id.name, params, data.replaceStart - 1);
-				data.proposals.push({ 
-					proposal: res.completion, 
-					description: res.completion + " (function)", 
-					positions: res.positions, 
-					escapePosition: data.replaceStart + res.completion.length
-				});
+		} else if (type === "BinaryExpression") {
+			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || 
+					node.operator === "*") {
+				// assume number for now
+				// rules are really much more complicated
+				node.inferredType = "Number";
+			} else {
+				node.inferredType = "Object";
 			}
-			// only add parameters if we are completing inside the function
-			if (params && params.length > 0 && inRange(data.offset, node.range)) {
-				plen = params.length;
-				for (i = 0; i < plen; i++) {
-					name = params[i].name;
-					if (name.indexOf(data.prefix) === 0) {
-						data.proposals.push({ proposal: name, description: name + " (parameter of " + node.id.name + ")"});
-					}
-				}
+		} else if (type === "UpdateExpression" || type === "UnaryExpression") {
+			// assume number for now.  actual rules are much more complicated
+			node.inferredType = "Number";
+		} else if (type === "FunctionDeclaration" || type === "FunctionExpression") {
+			if (node.body.isConstructor) {
+				node.inferredType = node.body.inferredType;
+			} else {
+				// can do better here.  We should be able to infer the return type
+				node.inferredType = "Function";
 			}
-			// can we do better than function?			
-			node.inferredType = "Function";
-			data.currentType = "Function";
-			
+			data.popScope();
 		} else if (type === "VariableDeclarator") {
-			if (isAfter(data.offset, node.range) && data.completionKind === "top") {
-				// although legal to reference before being declared, don't include in list
-				name = node.id.name;
-				if (name.indexOf(data.prefix) === 0) {
-					data.proposals.push({ proposal: name, description: name + " (variable)"});
-				}
-			}
 			if (node.init) {
 				inferredType = node.init.inferredType;
 			} else {
 				inferredType = "Object";
 			}
 			node.inferredType = inferredType;
-			data.addVariable(node.id.name, inferredType);
-			data.currentType = inferredType;
+			data.addVariable(node.id.name, node.target, inferredType);
 
 		} else if (type === "AssignmentExpression" && node.left.type === 'Identifier') {
 			// only handle simple assignements, eg- x = y; and not x.y = z;
-			// we can do better by walking the tree
+			// we can do better by walking the LHS and finding the right-most identifier
 			inferredType = node.right.inferredType;
 			node.inferredType = inferredType;
-			data.addOrSetVariable(node.left.name, inferredType);
-			data.currentType = inferredType;
+			data.addOrSetVariable(node.left.name, node.left.target, inferredType);
+		} else if (type === 'Identifier') {
+			if (inRange(data.offset, node.range)) {
+				// We're finished compute all the proposals
+				data.createProposals(data.scope(node.target));
+				throw "done";
+			}
+			
+			name = node.name;
+			newTypeName = data.lookupName(name, node.target);
+			if (newTypeName) {
+				// name already exists
+				node.inferredType = newTypeName;
+			} else {
+				// If name doesn't already exist, then just assume "Object".
+				node.inferredType = "Object";
+			}
+		} else if (type === "ThisExpression") {
+			node.inferredType = data.lookupName("this");
 		}
 		
 		if (!node.inferredType) {
@@ -680,59 +716,58 @@ define("esprimaJsContentAssist", [], function() {
 			try {
 				var root = parse(buffer);
 				// note that if selection has length > 0, then just ignore everything past the start
-				var completionKind = shouldVisit(root, selection.start, buffer);
+				var completionKind = shouldVisit(root, selection.start, prefix, buffer);
 				if (completionKind) {
 					var data = {
 						/** a counter used for creating unique names for object literals and scopes */
 						typeCount : 0,
 						/** an array of proposals generated */
-						proposals: [], 
+						proposals : [], 
 						/** the offset of content assist invocation */
-						offset: selection.start, 
+						offset : selection.start, 
 						/** 
 						 * the location of the start of the area that will be replaced 
 						 */
-						replaceStart: selection.start - prefix.length, 
+						replaceStart : selection.start - prefix.length, 
 						/** the prefix of the invocation */
-						prefix: prefix, 
+						prefix : prefix, 
 						/** Each element is the type of the current scope, which is a key into the types array */
-						typeStack: ["Object"],
-						/** the type of the expression most recently evaluated */
-						currentType: "Object",  // always points to the top of the type stack
+						typeStack : ["Global"],
 						/** a map of all the types and their properties currently known */
-						types:new Types(),
+						types : new Types(),
 						/** the entire contents being completed on */
-						contents:buffer,
+						contents : buffer,
 						/** "member" or "top"  if Member, completion occurs after a dotted member expression.  if top, completion occurs as the start of a new expression */
-						completionKind:completionKind,
+						completionKind : completionKind,
 						newName: function() {
 							return "Object~"+ this.typeCount++;
 						},
-						/** Creates a new empty scope and returns the name */
+						/** Creates a new empty scope and returns the name of the scope*/
 						newScope: function() {
+							// the prototype is always the currently top level scope
+							var targetType = this.scope();
 							var newScopeName = this.newName();
 							this.types[newScopeName] = {
-								$$prototype : this.currentType,
+								$$prototype : targetType,
 								$$args : {}
 							};
 							this.typeStack.push(newScopeName);
-							this.currentType = newScopeName;
-							// must add a new 'this' for use inside of the object
-							this.addVariable("this", newScopeName);
 							return newScopeName;
 						},
 						
-						/** Creates a new empty object scope and returns the name */
+						/** Creates a new empty object scope and returns the name of this object */
 						newObject: function() {
+							// the prototype is always "Object"
+							this.newScope();
 							var newObjectName = this.newName();
+							// assume that objects have their own "this" object
+							// prototype of Object
 							this.types[newObjectName] = {
 								$$prototype : "Object",
 								$$args : {}
 							};
-							this.typeStack.push(newObjectName);
-							this.currentType = newObjectName;
-							// add a new 'this' for use inside of the object
-							this.addVariable("this", newObjectName);
+							this.addVariable("this", null, newObjectName);
+							
 							return newObjectName;
 						},
 						
@@ -740,28 +775,43 @@ define("esprimaJsContentAssist", [], function() {
 						popScope: function() {
 							// Can't delete old scope since it may have been assigned somewhere
 							// but must remove "this" when outside of the scope
-							this.addVariable("this", null);
+							this.removeVariable("this");
 							var oldScope = this.typeStack.pop();
-							this.currentType = this.typeStack[this.typeStack.length -1];
 							return oldScope;
 						},
 						
-						resetCurrentType : function() {
-							this.currentType = this.typeStack[this.typeStack.length -1];
-							return this.currentType;
+						/**
+						 * returns the type for the current scope
+						 * if a target is passed in (optional), then use the
+						 * inferred type of the target instead (if it exists)
+						 */
+						scope : function(target) {
+							return target && target.inferredType ? 
+								target.inferredType : this.typeStack[this.typeStack.length -1];
 						},
 						
-						/** adds the name to the current type/scope */
-						addVariable : function(name, type) {
-							this.types[this.currentType][name] = type;
+						/** adds the name to the target type.
+						 * if target is passed in then use the type corresponding to 
+						 * the target, otherwise use the current scope
+						 */
+						addVariable : function(name, target, type) {
+							this.types[this.scope(target)][name] = type ? type : "Object";
+						},
+						
+						/** removes the variable from the current type */
+						removeVariable : function(name, target) {
+							this.types[this.scope(target)][name] = null;
 						},
 						
 						/** 
 						 * like add variable, but first checks the prototype hierarchy
 						 * if exists in prototype hierarchy, then replace the type
 						 */
-						addOrSetVariable : function(name, type) {
-							var current = this.types[this.currentType], found = false;
+						addOrSetVariable : function(name, target, type) {
+							var targetType = this.scope(target);
+							var current = this.types[targetType], found = false;
+							// if no type provided, assume object
+							type = type ? type : "Object";
 							while (current) {
 								if (current[name]) {
 									// found it, just overwrite
@@ -774,35 +824,47 @@ define("esprimaJsContentAssist", [], function() {
 							}
 							if (!found) {
 								// not found, so just add to current scope
-								this.types[this.currentType][name] = type;
+								this.types[targetType][name] = type;
 							}
 						},
 						
 						/** adds the name and args (array of strings) with the given return type to the current type */
-						addFunction : function(name, args, type) {
-							this.types[this.currentType][name] = type;
-							this.types[this.currentType].$$args[name] = args;
+						addFunction : function(name, args, target, type) {
+							var targetType = this.scope(target);
+							this.types[targetType][name] = type ? type : "Object";
+							this.types[targetType].$$args[name] = args;
 						},
 						
 						/** looks up the name in the hierarchy */
-						lookupName : function(name) {
+						lookupName : function(name, target) {
 							var innerLookup = function(name, type, types) {
+
 								var res = type[name];
+								
+								// if we are in Object, then we may have special prefixed names to deal with
+								var proto = type.$$prototype;
+								if (!res && !proto) {
+									name = "$$" + name;					
+									res = type[name];
+								}
+								
 								if (res) {
 									return res;
 								} else {
-									var proto = type.$$prototype;
 									if (proto) {
 										return innerLookup(name, types[proto], types);
 									}
 									return null;
 								}
 							};
-							return innerLookup(name, this.types[this.currentType], this.types);
+							return innerLookup(name, this.types[this.scope(target)], this.types);
 						},
 						
-						computeInferredProposals : function(currentType) {
-							var prop, propName, proto, res, functionArgs, type = this.types[currentType];
+						createProposals : function(targetType) {
+							if (!targetType) {
+								targetType = this.scope();
+							}
+							var prop, propName, proto, res, functionArgs, type = this.types[targetType];
 							proto = type.$$prototype;
 							
 							for (prop in type) {
@@ -843,12 +905,19 @@ define("esprimaJsContentAssist", [], function() {
 							}
 							// walk up the prototype hierarchy
 							if (proto) {
-								this.computeInferredProposals(proto);
+								this.createProposals(proto);
 							}
 						}
 					};
 					// need to use a copy of types since we make changes to it.
-					visit(root, data, proposalCollector, proposalCollectorPostOp);
+					try {
+						visit(root, data, proposalCollector, proposalCollectorPostOp);
+					} catch (done) {
+						if (done !== "done") {
+							// a real error
+							throw done;
+						}
+					}
 					data.proposals.sort(function(l,r) {
 						if (l.description < r.description) {
 							return -1;
