@@ -155,7 +155,6 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		return matchesReplaced;
 	};
 	
-	
 	SearchResultModel.prototype.writeIncrementalNewContent = function(replaceStr, modelList, reportList,  index, onComplete){
 		var model = modelList[index];
 		if(!model || index === modelList.length){
@@ -167,7 +166,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 			this.getFileContent(model, dojo.hitch(this, function(fileItem){
 				matchesReplaced = this.matchesReplaced(fileItem);
 				var newContents = [];
-				this.generateNewContents(fileItem.contents, newContents, fileItem, replaceStr); 
+				mSearchUtils.generateNewContents(fileItem.contents, newContents, fileItem, replaceStr, this.queryObj.inFileQuery.searchStrLength); 
 				var contents = newContents.join(this._lineDelimiter);
 				
 				var etag = fileItem.ETag;
@@ -212,228 +211,24 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		return result;
 	};
 	
-	/**
-	 * Helper for finding regex matches in text contents.
-	 * 
-	 * @param {String}
-	 *            pattern A valid regexp pattern.
-	 * @param {String}
-	 *            flags Valid regexp flags: [is]
-	 * @param {Number}
-	 *            [startIndex] Default is false.
-	 * @return {Object} An object giving the match details, or
-	 *         <code>null</code> if no match found. The
-	 *         returned object will have the properties:<br />
-	 *         {Number} index<br />
-	 *         {Number} length
-	 */
-	SearchResultModel.prototype._findRegExp =  function(text, pattern, flags, startIndex) {
-		if (!pattern) {
-			return null;
-		}
-		flags = flags || "";
-		// 'g' makes exec() iterate all matches, 'm' makes ^$
-		// work linewise
-		flags += (flags.indexOf("g") === -1 ? "g" : "")
-				+ (flags.indexOf("m") === -1 ? "m" : "");
-		var regexp = new RegExp(pattern, flags);
-		var result = null, match = null;
-		result = regexp.exec(text.substring(startIndex));
-		return result && {
-			startIndex : result.index + startIndex,
-			length : result[0].length
-		};
-	};
-	
-	SearchResultModel.prototype.searchOnelineLiteral =  function(lineString, searchStr, onlyOnce){
-		var i,startIndex = 0;
-		var found = false;
-		var result = [];
-		while(true){
-			i = lineString.indexOf(searchStr, startIndex);
-			if (i < 0) {
-				break;
-			} else {
-				result.push({startIndex: i});
-				found = true;
-				if(onlyOnce){
-					break;
-				}
-				startIndex = i + this.queryObj.inFileQuery.searchStrLength;
-			}
-		}
-		if(found) {
-			return result;
-		}
-		return null;
-		
-	};
-	
-	SearchResultModel.prototype.searchOnelineRegEx =  function(lineString, onlyOnce){
-		var i,startIndex = 0;
-		var found = false;
-		var result = [];
-		while(true){
-			var regExResult = this._findRegExp(lineString, this.queryObj.inFileQuery.regExp.pattern, this.queryObj.inFileQuery.regExp.flags, startIndex);
-			if(regExResult){
-				result.push(regExResult);
-				found = true;
-				if(onlyOnce){
-					break;
-				}
-				startIndex = regExResult.startIndex + regExResult.length;
-			} else {
-				break;
-			}
-		}
-		if(found) {
-			return result;
-		}
-		return null;
-	};
-	
 	SearchResultModel.prototype.hitOnceWithinFile = function( fileContentText){
 		var lineString = fileContentText.toLowerCase();
 		var result;
 		if(this.queryObj.inFileQuery.wildCard){
-			result = this.searchOnelineRegEx(lineString, true);
+			result = mSearchUtils.searchOnelineRegEx(this.queryObj.inFileQuery, lineString, true);
 		} else {
-			result = this.searchOnelineLiteral(lineString, this.queryObj.inFileQuery.searchStr, true);
+			result = mSearchUtils.searchOnelineLiteral(this.queryObj.inFileQuery, lineString, true);
 		}
 		return result;
 	};
-	
-	SearchResultModel.prototype.generateNewContents = function( oldContents, newContents, fileModelNode, replaceStr){
-		if(fileModelNode && oldContents){
-			var updating;
-			if(newContents.length > 0){
-				updating = true;
-			} else {
-				updating = false;
-			}
-			for(var i = 0; i < oldContents.length ; i++){
-				var lineStringOrigin = oldContents[i];
-				var changingLine = false;
-				var checked = false;
-				var fullChecked = false;
-				var checkedMatches = [];
-				var originalMatches;
-				var startNumber = 0;
-				for(var j = 0; j < fileModelNode.children.length; j++){
-					var lnumber = fileModelNode.children[j].lineNumber - 1;
-					if(lnumber === i){
-						startNumber = j;
-						for(var k = 0; k < fileModelNode.children[j].matches.length; k++ ){
-							if(fileModelNode.children[j+k].checked !== false){
-								checkedMatches.push(k);
-							}
-						}
-						checked = (checkedMatches.length > 0);
-						fullChecked = (checkedMatches.length === fileModelNode.children[j].matches.length);
-						originalMatches = fileModelNode.children[j].matches; 
-						changingLine = true;
-						break;
-					}
-				}
-				if(changingLine){
-					var newStr;
-					if(!checked){
-						newStr = lineStringOrigin;
-						for(var k = 0; k < fileModelNode.children[startNumber].matches.length; k++ ){
-							fileModelNode.children[startNumber+k].newMatches = fileModelNode.children[startNumber+k].matches;
-						}
-					} else{
-						var result =  mSearchUtils.replaceCheckedMatches(lineStringOrigin, replaceStr, originalMatches, checkedMatches, this.queryObj.inFileQuery.searchStrLength);
-						newStr = result.replacedStr;
-						for(var k = 0; k < fileModelNode.children[startNumber].matches.length; k++ ){
-							fileModelNode.children[startNumber+k].newMatches = result.newMatches;
-						}
-					}
-					if(updating){
-						newContents[i] = newStr;
-					} else {
-						newContents.push(newStr);
-					}
-				} else if(!updating){
-					newContents.push(lineStringOrigin);
-				}
-			}
-		}
-	};
-	
-	SearchResultModel.prototype.generateMatchContext = function(contextAroundLength, fileContents, lineNumber/*zero based*/){
-		var context = [];
-		var totalContextLength = contextAroundLength*2 + 1;
-		var startFrom, endTo;
-		if(fileContents.length <= totalContextLength){
-			startFrom = 0;
-			endTo = fileContents.length -1;
-		} else {
-			startFrom = lineNumber - contextAroundLength;
-			if(startFrom < 0){
-				startFrom = 0;
-				endTo = startFrom + totalContextLength - 1;
-			} else {
-				endTo = lineNumber + contextAroundLength;
-				if(endTo > (fileContents.length -1)){
-					endTo = fileContents.length -1;
-					startFrom = endTo - totalContextLength + 1;
-				}
-				
-			}
-		}
-		for(var i = startFrom; i <= endTo; i++){
-			context.push({context: fileContents[i], current: (i === lineNumber)});
-		}
-		return context;
-	};
-	
-	SearchResultModel.prototype.searchWithinFile = function( fileModelNode, fileContentText){
-		var fileContents = fileContentText.split(this._lineDelimiter);
-		if(this.replaceMode()){
-			fileModelNode.contents = fileContents;
-		}
-		if(fileModelNode){
-			fileModelNode.children = [];
-			var totalMatches = 0;
-			for(var i = 0; i < fileContents.length ; i++){
-				var lineStringOrigin = fileContents[i];
-				if(lineStringOrigin && lineStringOrigin.length > 0){
-					var lineString = lineStringOrigin.toLowerCase();
-					var result;
-					if(this.queryObj.inFileQuery.wildCard){
-						result = this.searchOnelineRegEx(lineString);
-					} else {
-						result = this.searchOnelineLiteral(lineString, this.queryObj.inFileQuery.searchStr);
-					}
-					if(result){
-						var lineNumber = i+1;
-						if(!this.replaceMode()){
-							var detailNode = {parent: fileModelNode, context: this.generateMatchContext(2, fileContents, i), checked: fileModelNode.checked, type: "detail", matches: result, lineNumber: lineNumber, name: lineStringOrigin, linkLocation: fileModelNode.linkLocation + ",line=" + lineNumber, location: fileModelNode.location + "-" + lineNumber};
-							fileModelNode.children.push(detailNode);
-						} else {
-							for(var j = 0; j < result.length; j++){
-								var matchNumber = j+1;
-								var detailNode = {parent: fileModelNode, checked: fileModelNode.checked, type: "detail", matches: result, lineNumber: lineNumber, matchNumber: matchNumber, name: lineStringOrigin, location: fileModelNode.location + "-" + lineNumber + "-" + matchNumber};
-								fileModelNode.children.push(detailNode);
-							}
-						}
-						totalMatches += result.length;
-					}
-				}
-			}
-			fileModelNode.totalMatches = totalMatches;
-		}
-	};
-	
-	
+
 	SearchResultModel.prototype.getFileContent = function(fileItem, onComplete, writing){
 		if(fileItem.contents){
 			onComplete(fileItem);
 		} else {
 			this.fileClient.read(fileItem.location).then(
 				dojo.hitch(this, function(jsonData) {
-					this.searchWithinFile(fileItem, jsonData);
+					mSearchUtils.searchWithinFile(this.queryObj.inFileQuery, fileItem, jsonData, this._lineDelimiter, this.replaceMode());
 					if(this.onMatchNumberChanged && !writing){
 						this.onMatchNumberChanged(fileItem);
 					}
@@ -447,7 +242,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		}
 	};
 	
-	SearchResultModel.prototype.getChildren = function(/* dojo.data.Item */ parentItem, /* function(items) */ onComplete){
+	SearchResultModel.prototype.getChildren = function(parentItem, onComplete){
 		if(!parentItem){
 			return;
 		}
@@ -458,7 +253,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		} else if (parentItem.type === "file" && parentItem.location) {
 			this.fileClient.read(parentItem.location).then(
 					dojo.hitch(this, function(jsonData) {
-						  this.searchWithinFile(parentItem, jsonData);
+						  mSearchUtils.searchWithinFile(this.queryObj.inFileQuery, parentItem, jsonData, this._lineDelimiter, this.replaceMode());
 						  if(this.onMatchNumberChanged){
 							  this.onMatchNumberChanged(parentItem);
 						  }
@@ -878,7 +673,31 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 				that.replaceAll();
 			},
 			visibleWhen : function(item) {
-				return that.model.replaceMode();
+				return that.model.replaceMode() && !that._reporting;
+			}
+		});
+	
+		var hideCompareCommand = new mCommands.Command({
+			name: "Hide Compare",
+			tooltip: "Hide compare view of changes",
+			id: "orion.globalSearch.hideCompare",
+			callback: function(data) {
+				that.toggleCompare(false);
+			},
+			visibleWhen : function(item) {
+				return that.model.replaceMode() && !that._reporting && that._uiFactory;
+			}
+		});
+	
+		var showCompareCommand = new mCommands.Command({
+			name: "Show Compare",
+			tooltip: "Show compare view of changes",
+			id: "orion.globalSearch.showCompare",
+			callback: function(data) {
+				that.toggleCompare(true);
+			},
+			visibleWhen : function(item) {
+				return that.model.replaceMode() && !that._reporting && !that._uiFactory;
 			}
 		});
 	
@@ -897,12 +716,16 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		this._commandService.addCommand(saveResultsCommand, "dom");
 		this._commandService.addCommand(previewCurrentPageCommand, "dom");
 		this._commandService.addCommand(searchAgainCommand, "dom");
+		this._commandService.addCommand(hideCompareCommand, "dom");
+		this._commandService.addCommand(showCompareCommand, "dom");
 		this._commandService.addCommand(replaceAllCommand, "dom");
 		this._commandService.addCommandGroup("orion.searchActions.unlabeled", 200, null, null, "pageActions");
 		this._commandService.registerCommandContribution("orion.saveSearchResults", 1, "pageActions", "orion.searchActions.unlabeled");
 		this._commandService.registerCommandContribution("orion.previewCurrentPage", 2, "pageActions", "orion.searchActions.unlabeled");
 		this._commandService.registerCommandContribution("orion.globalSearch.searchAgain", 3, "pageActions", "orion.searchActions.unlabeled");
-		this._commandService.registerCommandContribution("orion.globalSearch.replaceAll", 4, "pageActions", "orion.searchActions.unlabeled");
+		this._commandService.registerCommandContribution("orion.globalSearch.hideCompare", 4, "pageActions", "orion.searchActions.unlabeled");
+		this._commandService.registerCommandContribution("orion.globalSearch.showCompare", 5, "pageActions", "orion.searchActions.unlabeled");
+		this._commandService.registerCommandContribution("orion.globalSearch.replaceAll", 6, "pageActions", "orion.searchActions.unlabeled");
 
 		var previousPage = new mCommands.Command({
 			name : "< Previous Page",
@@ -940,7 +763,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 			id: "orion.search.nextResult",
 			groupId: "orion.searchGroup",
 			visibleWhen : function(item) {
-				return !that.model.replaceMode();
+				return !that._reporting;
 			},
 			callback : function() {
 				that.gotoNext(true, true);
@@ -951,7 +774,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 			id: "orion.search.prevResult",
 			groupId: "orion.searchGroup",
 			visibleWhen : function(item) {
-				return !that.model.replaceMode();
+				return !that._reporting;
 			},
 			callback : function() {
 				that.gotoNext(false, true);
@@ -1150,23 +973,44 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		});
 	};
 	
-	SearchResultExplorer.prototype.replacePreview = function(replaceStr) {
-		this.initCommands();
+	SearchResultExplorer.prototype.toggleCompare = function(show) {
+		this.replacePreview(false, show);
+	};
+	
+	SearchResultExplorer.prototype.replacePreview = function(init, comparing) {
 
 		dojo.empty(this.getParentDivId());
-		this._uiFactory = new mSearchFeatures.SearchUIFactory({
-			parentDivID: this.getParentDivId()
-		});
-		this._uiFactory.buildUI();
-		
-		this.reportStatus("Preparing preview...");	
+		if(comparing){
+			this._uiFactory = new mSearchFeatures.SearchUIFactory({
+				parentDivID: this.getParentDivId()
+			});
+			this._uiFactory.buildUI();
+			this.twoWayCompareContainer = null;
+			this._currentPreviewModel = null;
+		} else {
+			if(this._uiFactory){
+				this._uiFactory.destroy();
+			}
+			this._uiFactory = null;
+			this.twoWayCompareContainer = null;
+			this._currentPreviewModel = null;
+		}
+		this.initCommands();
+		if(init){
+			this.reportStatus("Preparing preview...");	
+		}
 		var that = this;
-		this.createTree(this._uiFactory.getMatchDivID(), this.model, {indent: 20, onCollapse: function(model){that.onCollapse(model);}});
-		this.hookUpNavHandler();
-		this.gotoCurrent(this.restoreLocationStatus());
-		this.reportStatus("");	
-		this.loadOneFileMetaData(0, function(){that.refreshIndex();});
+		this.createTree(this._uiFactory ? this._uiFactory.getMatchDivID() : this.getParentDivId(), this.model, {indent: 20, onCollapse: function(model){that.onCollapse(model);}});
 
+		if(init){
+			this.hookUpNavHandler();
+			this.gotoCurrent(this.restoreLocationStatus());
+			this.reportStatus("");	
+			this.loadOneFileMetaData(0, function(){that.refreshIndex();});
+		} else {
+			this.hookUpNavHandler();
+			this.gotoCurrent(this.restoreLocationStatus());
+		}
 	};
 	
 	SearchResultExplorer.prototype.getItemChecked = function(item) {
@@ -1188,7 +1032,6 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 	};
 	
 	SearchResultExplorer.prototype.onNewContentChanged = function(fileItem) {
-		this.model.generateNewContents(fileItem, this._replaceStr);
 		if(fileItem === this.model.fileModel(this.navHandler.currentModel())){
 			this.buildPreview(true);
 		}
@@ -1220,6 +1063,9 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 	};
 	
 	SearchResultExplorer.prototype.buildPreview = function(updating) {
+		if(!this._uiFactory){
+			return;
+		}
 		if(this.model.indexedFileItems.length === 0){
 			return;
 		}
@@ -1231,7 +1077,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		}
 		var that = this;
 		this.model.getFileContent(fileItem, function(fileItem){
-			that.model.generateNewContents(fileItem.contents, that._currentReplacedContents, fileItem, that._replaceStr); 
+			mSearchUtils.generateNewContents(fileItem.contents, that._currentReplacedContents, fileItem, that._replaceStr, that.model.queryObj.inFileQuery.searchStrLength); 
 			// Diff operations
 			var fType = that._getContentType(fileItem);
 			dojo.when(fType, function(fType) {
@@ -1321,7 +1167,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 
 		dojo.empty("pageNavigationActions");
 		this._commandService.renderCommands("pageNavigationActions", "dom", that, that, "button");
-		if(this.model.replaceMode()){
+		if(this.model.replaceMode() || this._reporting){
 			mUtil.forceLayout("pageNavigationActions");
 			return;
 		}
@@ -1334,13 +1180,23 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 			id : "globalSearchOptMenu"
 		});
 		
-		newMenu.addChild(new dijit.CheckedMenuItem({
-			label: "Sort by Name",
-			checked: that.model.sortByName,
-			onChange : function(checked) {
-				that.sortWithName(checked);
-			}
-		}));
+		if(!this.model.replaceMode()){
+			newMenu.addChild(new dijit.CheckedMenuItem({
+				label: "Sort by Name",
+				checked: that.model.sortByName,
+				onChange : function(checked) {
+					that.sortWithName(checked);
+				}
+			}));
+		} else {
+			newMenu.addChild(new dijit.CheckedMenuItem({
+				label: "Compare changes",
+				checked: true,
+				onChange : function(checked) {
+					that.toggleCompare(checked);
+				}
+			}));
+		}
 		var menuButton = new dijit.form.DropDownButton({
 			label : "Options",
 			dropDown : newMenu
@@ -1481,8 +1337,8 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 			}
 			this.twoWayCompareContainer.gotoMatch(currentModel.lineNumber-1, currentModel.matches[currentModel.matchNumber-1], 
 					currentModel.newMatches[currentModel.matchNumber-1], this.model.queryObj.inFileQuery.searchStrLength,
-					function(){that.renderer.focus();});
-			window.setTimeout(function(){that.renderer.focus();}, 300);
+					function(){window.setTimeout(function(){that.renderer.focus();}, 200);});
+			window.setTimeout(function(){that.renderer.focus();}, 0);
 		}
 	};	
 	
@@ -1490,7 +1346,10 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		this.renderer.replaceDetailIcon(prevModel, "none");	
 		this.model.storeStatus(currentModel);
 		var that = this;
-		if(this.model.replaceMode()){
+		if(this.model.replaceMode() ){
+			if(!this._uiFactory){
+				return;
+			}
 			if(!this._timer){
 				this._timer = window.setTimeout(function(){that.onReplaceCursorChanged(prevModel, currentModel);that.timerRunning = false;that._timer = null;}, 500);
 			} else if (this.timerRunning){
@@ -1560,7 +1419,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 			this.reportStatus("");	
 			this.loadOneFileMetaData(0, function(){that.refreshIndex();});
 		} else {
-			that.replacePreview(that._replaceStr);
+			that.replacePreview(true, true);
 		}
 	};
 	
@@ -1646,7 +1505,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 		if(!this.model.replaceMode() || !secondLevel){
 			return this.parentNode.id;
 		} else {
-			return this._uiFactory.getMatchDivID();
+			return this._uiFactory ? this._uiFactory.getMatchDivID() : this.parentNode.id;
 		}
 	};
 	

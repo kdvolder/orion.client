@@ -838,8 +838,9 @@ var exports = {};
 						display.Severity = "Ok";
 						display.HTML = false;
 						display.Message = result.jsonData.Result;
-					}
-					else if(result.jsonData){
+						
+						dojo.hitch(explorer, explorer.changedItem)(item);
+					} else if(result.jsonData){
 						var statusLocation = item.HeadLocation.replace("commit/HEAD", "status");
 
 						display.Severity = "Warning";
@@ -848,6 +849,7 @@ var exports = {};
 							+ ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#" 
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					} else if(result.error) {
+						var statusLocation = item.HeadLocation.replace("commit/HEAD", "status");
 						display.Severity = "Error";
 						if(result.error.responseText && JSON.parse(result.error.responseText)){
 							var resp = JSON.parse(result.error.responseText);
@@ -860,7 +862,6 @@ var exports = {};
 							+ statusLocation + "\">Git Status page</a>.<span>";
 					}
 
-					dojo.hitch(explorer, explorer.changedItem)(item);
 					progressService.setProgressResult(display);
 				}, function (error, ioArgs) {
 						var display = [];
@@ -901,6 +902,8 @@ var exports = {};
 						display.Severity = "Ok";
 						display.HTML = false;
 						display.Message = jsonData.Result;
+						
+						dojo.hitch(explorer, explorer.changedItem)(item);
 					}
 					// handle special cases
 					else if (jsonData.Result == "STOPPED") {
@@ -943,7 +946,7 @@ var exports = {};
 							+ ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#"
 							+ statusLocation +"\">Git Status page</a>.<span>";
 					} 
-					dojo.hitch(explorer, explorer.changedItem)(item);
+
 					serviceRegistry.getService("orion.page.message").setProgressResult(display);
 					}, 
 					displayErrorOnStatus
@@ -1544,13 +1547,9 @@ var exports = {};
 							refreshStatusCallBack();
 							progressService.setProgressResult(display);
 						} else if (result.jsonData){
-							var statusLocation = item.HeadLocation.replace("commit/HEAD", "status");
-							
 							display.Severity = "Warning";
 							display.HTML = true;
-							display.Message = "<span>" + result.jsonData.Result
-								+ ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#"
-								+ statusLocation +"\">Git Status page</a>.<span>";
+							display.Message = "<span>" + result.jsonData.Result+"<span>";
 
 							progressService.setProgressResult(display);
 						} else if (result.error) {
@@ -1562,21 +1561,16 @@ var exports = {};
 								display.Message = result.error.message;
 							}
 							display.HTML = true;
-							display.Message ="<span>" + display.Message + " Go to <a href=\"" + require.toUrl("git/git-status.html") + "#"
-								+ statusLocation + "\">Git Status page</a>.<span>";
+							display.Message ="<span>" + display.Message + "<span>";
 							
 							progressService.setProgressResult(display);
 						}
 					}, function (error, ioArgs) {
 						var display = [];
 						
-						var statusLocation = item.HeadLocation.replace("commit/HEAD", "status");
-						
 						display.Severity = "Error";
 						display.HTML = true;
-						display.Message = "<span>" + dojo.fromJson(ioArgs.xhr.responseText).DetailedMessage
-						+ ". Go to <a href=\"" + require.toUrl("git/git-status.html") + "#"
-						+ statusLocation +"\">Git Status page</a>.<span>";
+						display.Message = "<span>" + dojo.fromJson(ioArgs.xhr.responseText).DetailedMessage +"</span>";
 						
 						progressService.setProgressResult(display);
 					});
@@ -1664,6 +1658,101 @@ var exports = {};
 	};
 
 	exports.createGitClonesCommands = function(serviceRegistry, commandService, explorer, toolbarId, selectionTools, fileClient) {
+		
+		function displayErrorOnStatus(error) {
+			
+			if (error.status === 401 || error.status === 403)
+				return;
+			
+			var display = [];
+			
+			display.Severity = "Error";
+			display.HTML = false;
+			
+			try {
+				var resp = JSON.parse(error.responseText);
+				display.Message = resp.DetailedMessage ? resp.DetailedMessage : resp.Message;
+			} catch (Exception) {
+				display.Message = error.message;
+			}
+			
+			serviceRegistry.getService("orion.page.message").setProgressResult(display);
+		}
+		
+		// Git repository configuration
+		
+		var addConfigParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter('key', 'text', 'Key:'), 
+		                                                               new mCommands.CommandParameter('value', 'text', 'Value:')], false);
+		
+		var addConfigEntryCommand = new mCommands.Command({
+			name: "New Configuration Entry",
+			tooltip: "Add a new entry to the repository configuration",
+			imageClass: "core-sprite-add",
+			id: "eclipse.orion.git.addConfigEntryCommand",
+			parameters: addConfigParameters,
+			callback: function(data) {
+				var item = data.items;
+				var gitService = serviceRegistry.getService("orion.git.provider");
+				if (data.parameters.valueFor("key") && data.parameters.valueFor("value")){
+					gitService.addCloneConfigurationProperty(item.ConfigLocation, data.parameters.valueFor("key"), data.parameters.valueFor("value")).then(
+						function(jsonData){
+							dojo.hitch(explorer, explorer.changedItem)(item);
+						}, displayErrorOnStatus
+					);
+				}
+			}
+		});
+		commandService.addCommand(addConfigEntryCommand, "dom");
+		
+		var editConfigParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter('value', 'text', 'Value:')], false);
+		
+		var editConfigEntryCommand = new mCommands.Command({
+			name: "Edit",
+			tooltip: "Edit the configuration entry",
+			imageClass: "core-sprite-edit",
+			id: "eclipse.orion.git.editConfigEntryCommand",
+			parameters: editConfigParameters,
+			callback: function(data) {
+				var item = data.items;
+				var gitService = serviceRegistry.getService("orion.git.provider");
+				if (data.parameters.valueFor("value")){
+					gitService.editCloneConfigurationProperty(item.Location, data.parameters.valueFor("value")).then(
+						function(jsonData){
+							dojo.hitch(explorer, explorer.changedItem)(item);
+						}, displayErrorOnStatus
+					);
+				}
+			},
+			visibleWhen: function(item) {
+				return (item.Key && item.Value && item.Location);
+			}
+		});
+		commandService.addCommand(editConfigEntryCommand, "object");
+		
+		var deleteConfigEntryCommand = new mCommands.Command({
+			name: "Delete",
+			tooltip: "Delete the configuration entry",
+			imageClass: "core-sprite-delete",
+			id: "eclipse.orion.git.deleteConfigEntryCommand",
+			callback: dojo.hitch(this, function(data) {
+				var item = data.items;
+				var gitService = serviceRegistry.getService("orion.git.provider");
+				if (confirm("Are you sure you want to delete " + item.Key + "?")) {
+					gitService.deleteCloneConfigurationProperty(item.Location).then(
+						function(jsonData) {
+							dojo.hitch(explorer, explorer.changedItem)(item);
+						}, displayErrorOnStatus
+					);
+				}
+			}),
+			visibleWhen: function(item) {
+				return (item.Key && item.Value && item.Location);
+			}
+		});
+		commandService.addCommand(deleteConfigEntryCommand, "object");
+		
+		//
+		
 		var cloneParameters = new mCommands.ParametersDescription([new mCommands.CommandParameter("url", "url", "Repository URL:")], true);
 
 		function forceSingleItem(item) {
