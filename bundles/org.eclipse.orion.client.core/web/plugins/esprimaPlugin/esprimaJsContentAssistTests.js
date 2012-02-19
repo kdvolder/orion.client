@@ -630,6 +630,66 @@ tests.testEmpty = function() {};
 			["toFixed(digits)", "toFixed(digits) (function)"]
 		]);
 	};
+	tests["test constructor 1"] = function() {
+		var results = computeContentAssistAtEnd(
+		"function Fun() {\n	this.xxx = 9;\n	this.uuu = this.x/**/;}", "x");
+		testProposals(results, [
+			["xxx", "xxx (property)"]
+		]);
+	};
+	tests["test constructor 2"] = function() {
+		var results = computeContentAssistAtEnd(
+		"function Fun() {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
+		"var y = new Fun();\n" +	
+		"y.x", "x");
+		testProposals(results, [
+			["xxx", "xxx (property)"]
+		]);
+	};
+	tests["test constructor 3"] = function() {
+		var results = computeContentAssistAtEnd(
+		"function Fun() {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
+		"var y = new Fun();\n" +
+		"y.xxx.toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
+	tests["test constructor 3"] = function() {
+		var results = computeContentAssistAtEnd(
+		"function Fun() {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
+		"var y = new Fun();\n" +
+		"y.uuu.toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
+	tests["test nested object expressions 1"] = function() {
+		var results = computeContentAssistAtEnd(
+		"var ttt = { xxx : { yyy : { zzz : 1} } };\n" +
+		"ttt.xxx.y", "y");
+		testProposals(results, [
+			["yyy", "yyy (property)"]
+		]);
+	};
+	tests["test nested object expressions 2"] = function() {
+		var results = computeContentAssistAtEnd(
+		"var ttt = { xxx : { yyy : { zzz : 1} } };\n" +
+		"ttt.xxx.yyy.z", "z");
+		testProposals(results, [
+			["zzz", "zzz (property)"]
+		]);
+	};
+	tests["test nested object expressions 3"] = function() {
+		var results = computeContentAssistAtEnd(
+		"var ttt = { xxx : { yyy : { zzz : 1} } };\n" +
+		"ttt.xxx.yyy.zzz.toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
+	
+	
 	
 	////////////////////////////
 	// tests for broken syntax
@@ -680,9 +740,12 @@ tests.testEmpty = function() {};
 	/*
 	 yet to do:
 	 1. with, function inside obj literal
+	 *  nested object literal suppport, correct typing of object literal keys
+	 *  function argument types
 	 3. function/method return types vs functions themselves
 	 4. inferring the return type of a function
-	 5. propertyized types (eg- array of string, function that returns number)
+	 5. parameterized types (eg- array of string, function that returns number)
+	 *  function expressions
 	*/
 	return tests;
 });

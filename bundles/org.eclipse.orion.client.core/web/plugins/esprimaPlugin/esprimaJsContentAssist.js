@@ -294,6 +294,9 @@ define("esprimaJsContentAssist", [], function() {
 								// might be key-value pair of an object expression
 								// don't visit the key since it doesn't have an sloc
 								// and it is handle later by inferencing
+
+								// FIXADE - I don't know if this is still necessary since it looks like esprima has changed the
+								// way it handles properties in object expressions and they may now be proper AST nodes
 								if (child[i].hasOwnProperty("key") && child[i].hasOwnProperty("value")) {
 									children.push(child[i].key);
 									children.push(child[i].value);
@@ -548,10 +551,11 @@ define("esprimaJsContentAssist", [], function() {
 	function proposalCollector(node, data) {
 		var type = node.type, oftype, name, i, property, params, plen, newTypeName;
 		
-		if (type === "BlockStatement" && !inRange(data.offset, node.range)) {
-			// out of range
-			return false;
-		} else if (type === "VariableDeclaration" && isBefore(data.offset, node.range)) {
+//		if (type === "BlockStatement" && !inRange(data.offset, node.range)) {
+//			// out of range
+//			return false;
+//		} else 
+		if (type === "VariableDeclaration" && isBefore(data.offset, node.range)) {
 			// must do this check since "VariableDeclarator"s do not seem to have their range set correctly
 			return false;
 		}
@@ -559,10 +563,10 @@ define("esprimaJsContentAssist", [], function() {
 		if (type === "Program") {
 			// do nothing...
 		} else if (type === "BlockStatement") {
-			if (node.isConstructor) {
-				node.inferredType = data.newObject();
-			} else {
 				node.inferredType = data.newScope();
+			if (node.isConstructor) {
+//				node.inferredType = data.newObject();
+			} else {
 			}
 		} else if (type === "NewExpression") {
 			node.inferredType = node.callee.name;
@@ -581,10 +585,9 @@ define("esprimaJsContentAssist", [], function() {
 				property = node.properties[i];
 				// only remember if the property is an identifier
 				if (property.key && property.key.name) {
-					// FIXADE not correct since we should be inferring inside the object, 
-					// but that is for later
-					// pass in the object expression as the target so that the "this" variable
-					// is augmented correctly.
+					// for now, just add as an object property.
+					// after finishing the ObjectExpression, go and update 
+					// all of the variables to reflect their final inferred type
 					data.addVariable(property.key.name, node, "Object");
 				}
 			}
@@ -600,6 +603,11 @@ define("esprimaJsContentAssist", [], function() {
 			if (node.body && node.id.name.charAt(0) === node.id.name.charAt(0).toUpperCase()) {
 				// create new object so that there is a custom "this"
 				node.body.isConstructor = true;
+				node.inferredType = data.newObject(name);
+			} else {
+				// FIXADE wish we could do better here and infer the actual return type
+				// Also, should be returning a type of Function parameterized by its return type, not Function istelf
+				node.inferredType = "Function";
 			}
 			data.newScope();
 			data.addVariable("arguments", node.target, "Arguments");
@@ -636,7 +644,7 @@ define("esprimaJsContentAssist", [], function() {
 	 * Finishes off the inferencing and adds all proposals
 	 */
 	function proposalCollectorPostOp(node, data) {
-		var type = node.type, name, inferredType, newTypeName, rightMost;
+		var type = node.type, name, inferredType, newTypeName, rightMost, kvps, i;
 		
 		if (type === "Program") {
 			// do nothing...
@@ -654,6 +662,22 @@ define("esprimaJsContentAssist", [], function() {
 		} else if (type === "CallExpression") {
 			node.inferredType = node.callee.inferredType;
 		} else if (type === "ObjectExpression") {
+			// now that we know all the types of the values, use that to populate the types of the keys
+			// FIXADE esprima has changed the way it does key-value pairs,  Should do it differently here
+			kvps = node.properties;
+			for (i = 0; i < kvps.length; i++) {
+				if (kvps[i].hasOwnProperty("key")) {
+					// only do this for keys that are identifiers
+					// set the proper inferred type for the key node
+					// and also update the variable
+					name = kvps[i].key.name;
+					if (name) {
+						inferredType = kvps[i].value.inferredType;
+						kvps[i].key.inferredType = inferredType;
+						data.addVariable(name, node, inferredType);
+					}
+				}
+			}
 			data.popScope();
 		} else if (type === "BinaryExpression") {
 			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || 
@@ -668,12 +692,6 @@ define("esprimaJsContentAssist", [], function() {
 			// assume number for now.  actual rules are much more complicated
 			node.inferredType = "Number";
 		} else if (type === "FunctionDeclaration" || type === "FunctionExpression") {
-			if (node.body.isConstructor) {
-				node.inferredType = node.body.inferredType;
-			} else {
-				// can do better here.  We should be able to infer the return type
-				node.inferredType = "Function";
-			}
 			data.popScope();
 		} else if (type === "VariableDeclarator") {
 			if (node.init) {
@@ -775,10 +793,11 @@ define("esprimaJsContentAssist", [], function() {
 						},
 						
 						/** Creates a new empty object scope and returns the name of this object */
-						newObject: function() {
+						newObject: function(newObjectName) {
 							// the prototype is always "Object"
 							this.newScope();
-							var newObjectName = this.newName();
+							// if no name passed in, create a new one
+							newObjectName = newObjectName? newObjectName : this.newName();
 							// assume that objects have their own "this" object
 							// prototype of Object
 							this.types[newObjectName] = {
