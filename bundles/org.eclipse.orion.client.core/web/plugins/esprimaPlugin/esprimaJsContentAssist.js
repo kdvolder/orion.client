@@ -334,6 +334,23 @@ define("esprimaJsContentAssist", [], function() {
 	}
 
 	/**
+	 * finds the right-most segment of a dotted MemberExpression
+	 * if it is an identifier, or null otherwise
+	 */
+	function findRightMost(node) {
+		if (!node) {
+			return null;
+		}
+		if (node.type === "Identifier") {
+			return node;
+		} else if (node.type === "MemberExpression") {
+			return findRightMost(node.property);
+		} else {
+			return null;
+		}
+	}
+	
+	/**
 	 * Convert an array of parameters into a string and also compute linked editing positions
 	 * @return { completion, positions }
 	 */
@@ -619,7 +636,7 @@ define("esprimaJsContentAssist", [], function() {
 	 * Finishes off the inferencing and adds all proposals
 	 */
 	function proposalCollectorPostOp(node, data) {
-		var type = node.type, name, inferredType, newTypeName;
+		var type = node.type, name, inferredType, newTypeName, rightMost;
 		
 		if (type === "Program") {
 			// do nothing...
@@ -667,12 +684,14 @@ define("esprimaJsContentAssist", [], function() {
 			node.inferredType = inferredType;
 			data.addVariable(node.id.name, node.target, inferredType);
 
-		} else if (type === "AssignmentExpression" && node.left.type === 'Identifier') {
-			// only handle simple assignements, eg- x = y; and not x.y = z;
-			// we can do better by walking the LHS and finding the right-most identifier
+		} else if (type === "AssignmentExpression") {
 			inferredType = node.right.inferredType;
 			node.inferredType = inferredType;
-			data.addOrSetVariable(node.left.name, node.left.target, inferredType);
+			// when we have this.that.theOther.f need to find the right-most identifier
+			rightMost = findRightMost(node.left);
+			if (rightMost) {
+				data.addOrSetVariable(rightMost.name, rightMost.target, inferredType);
+			}
 		} else if (type === 'Identifier') {
 			if (inRange(data.offset, node.range)) {
 				// We're finished compute all the proposals

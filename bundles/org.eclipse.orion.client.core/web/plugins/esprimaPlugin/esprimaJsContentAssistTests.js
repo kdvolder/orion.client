@@ -602,6 +602,34 @@ tests.testEmpty = function() {};
 			["stringify(obj)", "stringify(obj) (function)"]
 		]);
 	};
+	tests["test multi-dot inferencing 1"] = function() {
+		var results = computeContentAssistAtEnd("var a = \"\";\na.charAt().charAt().charAt().ch", "ch");
+		testProposals(results, [
+			["charAt(index)", "charAt(index) (function)"],
+			["charCodeAt(index)", "charCodeAt(index) (function)"]
+		]);
+	};
+	tests["test multi-dot inferencing 2"] = function() {
+		var results = computeContentAssistAtEnd(
+		"var zz = {};\nzz.zz = zz;\nzz.zz.zz.z", "z");
+		testProposals(results, [
+			["zz", "zz (property)"]
+		]);
+	};
+	tests["test multi-dot inferencing 3"] = function() {
+		var results = computeContentAssistAtEnd(
+		"var x = { yy : { } };\nx.yy.zz = 1;\nx.yy.z", "z");
+		testProposals(results, [
+			["zz", "zz (property)"]
+		]);
+	};
+	tests["test multi-dot inferencing 4"] = function() {
+		var results = computeContentAssistAtEnd(
+		"var x = { yy : { } };\nx.yy.zz = 1;\nx.yy.zz.toF", "toF");
+		testProposals(results, [
+			["toFixed(digits)", "toFixed(digits) (function)"]
+		]);
+	};
 	
 	////////////////////////////
 	// tests for broken syntax
@@ -614,7 +642,6 @@ tests.testEmpty = function() {};
 			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
 			["ooo", "ooo (property)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
-//			["prototype", "prototype(property) (property)"],
 			["toLocaleString()", "toLocaleString() (function)"],
 			["toString()", "toString() (function)"],
 			["valueOf()", "valueOf() (function)"]
@@ -629,7 +656,6 @@ tests.testEmpty = function() {};
 //			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
 //			["ooo", "ooo (property)"],
 //			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
-////			["prototype", "prototype(property) (property)"],
 //			["toLocaleString()", "toLocaleString() (function)"],
 //			["toString()", "toString() (function)"],
 //			["valueOf()", "valueOf() (function)"]
@@ -644,7 +670,6 @@ tests.testEmpty = function() {};
 //			["isPrototypeOf(object)", "isPrototypeOf(object) (function)"],
 //			["ooo", "ooo (property)"],
 //			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (function)"],
-////			["prototype", "prototype(property) (property)"],
 //			["toLocaleString()", "toLocaleString() (function)"],
 //			["toString()", "toString() (function)"],
 //			["valueOf()", "valueOf() (function)"]
@@ -654,16 +679,10 @@ tests.testEmpty = function() {};
 	
 	/*
 	 yet to do:
-	 1. with, if, for in, this, args in a call, function inside obj literal
-	 2. better work on binary expressions
+	 1. with, function inside obj literal
 	 3. function/method return types vs functions themselves
-	 3a. inferring the return type of a function
-	 4, propertyized types (eg- array of string, function that returns number)
-	 5. foo.bar = 8
-	 6. add new properties after being created
-	 7. Regex and math types
-	 8. Need some way of distinguishing between top-level and not  Math, JSON, and the other object are only top level
-	 9. Don't add proposals throughout, always add potentials to the scope and at the end compute them
+	 4. inferring the return type of a function
+	 5. propertyized types (eg- array of string, function that returns number)
 	*/
 	return tests;
 });
