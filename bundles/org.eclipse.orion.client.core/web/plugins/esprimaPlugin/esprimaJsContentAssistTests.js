@@ -132,7 +132,7 @@ tests.testEmpty = function() {};
 	tests["test recovery - dot followed by EOF"] = function() {
 		var parsedProgram = parse("foo.");
 		assertErrors(parsedProgram,message(1,'Unexpected end of input'));
-		assert.equal(stringify(parsedProgram),"{type:ExpressionStatement,expression:{type:MemberExpression,object:{type:Identifier,name:foo}}}");
+		assert.equal(stringify(parsedProgram),"{type:ExpressionStatement,expression:{type:MemberExpression,object:{type:Identifier,name:foo},property:null}}");
 	};
 
 	tests["test Content Assist Setup"] = function() {
