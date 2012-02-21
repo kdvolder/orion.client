@@ -465,10 +465,16 @@ tests.testEmpty = function() {};
 			["toFixed(digits)", "toFixed(digits) (esprima)"]
 		]);
 	};
-	tests["test Data flow inferencing 2"] = function() {
+	tests["test Data flow inferencing 3"] = function() {
 		var results = computeContentAssist("var ttt = \"\"\nttt = 9\nttt.toF", "toF");
 		testProposals(results, [
 			["toFixed(digits)", "toFixed(digits) (esprima)"]
+		]);
+	};
+	tests["test Data flow inferencing 4"] = function() {
+		var results = computeContentAssist("var name = toString(property.key.value);\nname.co", "co");
+		testProposals(results, [
+			["concat(array)", "concat(array) (esprima)"]
 		]);
 	};
 	
