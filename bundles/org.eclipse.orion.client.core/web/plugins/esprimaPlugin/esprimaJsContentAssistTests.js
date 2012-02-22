@@ -619,7 +619,7 @@ tests.testEmpty = function() {};
 	};
 	tests["test Math 3"] = function() {
 		// Math not available when this isn't the global this
-		var results = computeContentAssist("var ff = { f: this.Mat }", "Mat");
+		var results = computeContentAssist("var ff = { f: this.Mat/**/ }", "Mat");
 		testProposals(results, [
 		]);
 	};
@@ -705,6 +705,64 @@ tests.testEmpty = function() {};
 		"y.uuu.toF", "toF");
 		testProposals(results, [
 			["toFixed(digits)", "toFixed(digits) (esprima)"]
+		]);
+	};
+	
+	tests["test Function args 1"] = function() {
+		var results = computeContentAssist(
+		"var ttt, uuu;\nttt(/**/)");
+		testProposals(results, [
+			["JSON", "JSON (esprima)"],
+			["Math", "Math (esprima)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["this", "this (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["ttt", "ttt (esprima)"],
+			["uuu", "uuu (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
+	tests["test Function args 2"] = function() {
+		var results = computeContentAssist(
+		"var ttt, uuu;\nttt(ttt, /**/)");
+		testProposals(results, [
+			["JSON", "JSON (esprima)"],
+			["Math", "Math (esprima)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["this", "this (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["ttt", "ttt (esprima)"],
+			["uuu", "uuu (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
+	tests["test Function args 3"] = function() {
+		var results = computeContentAssist(
+		"var ttt, uuu;\nttt(ttt, /**/, uuu)");
+		testProposals(results, [
+			["JSON", "JSON (esprima)"],
+			["Math", "Math (esprima)"],
+			["arguments", "arguments (esprima)"],
+			["fun(a, b, c)", "fun(a, b, c) (esprima)"],
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["other(aa, ab, ac)", "other(aa, ab, ac) (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["this", "this (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["ttt", "ttt (esprima)"],
+			["uuu", "uuu (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
 		]);
 	};
 	
@@ -826,10 +884,37 @@ tests.testEmpty = function() {};
 			["valueOf()", "valueOf() (esprima)"]
 		]);
 	};
+	// same as above, except use /**/
+	tests["test broken after dot 3a"] = function() {
+		var results = computeContentAssist("var ttt = { ooo:this./**/};", "");
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["ooo", "ooo (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
 
-	// not working
 	tests["test broken after dot 4"] = function() {
 		var results = computeContentAssist("var ttt = { ooo:8};\nfunction ff() { \nttt.}", "", "var ttt = { ooo:8};\nfunction ff() { \nttt.".length);
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["ooo", "ooo (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
+	// same as above, except use /**/
+	tests["test broken after dot 4a"] = function() {
+		var results = computeContentAssist("var ttt = { ooo:8};\nfunction ff() { \nttt./**/}", "");
 		testProposals(results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
