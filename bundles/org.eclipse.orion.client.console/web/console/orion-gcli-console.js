@@ -13,8 +13,8 @@
 /*global define dojo dijit orion window widgets localStorage*/
 /*jslint browser:true devel:true*/
 
-define(['dojo', 'orion/git/gitClient', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 'orion/searchClient', 'orion/fileClient', 'gcli/index'], 
-function(dojo,  mGitClient,            mBootstrap,        mStatus,        mCommands,        mGlobalCommands,        mSearchClient,        mFileClient,        gcli,         gclitest) {
+define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 'orion/searchClient', 'orion/fileClient', 'gcli/index'], 
+function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalCommands,        mSearchClient,        mFileClient,        gcli,         gclitest) {
 
 	var fileClient;
 	var statusService;
@@ -480,7 +480,9 @@ function(dojo,  mGitClient,            mBootstrap,        mStatus,        mComma
 			    }
 			]
 		});
-		
+	}
+	
+	function initGenericCommands() {
 		gcli.addCommand({
 			name: 'ls',
 			description: 'Show a list of files at the current directory',
@@ -507,6 +509,7 @@ function(dojo,  mGitClient,            mBootstrap,        mStatus,        mComma
 			exec: pwdExec,
 			returnType: 'string'
 		});
+	}
 		
 //		
 //		gcli.addCommand({
@@ -527,7 +530,7 @@ function(dojo,  mGitClient,            mBootstrap,        mStatus,        mComma
 //			returnType: 'string',
 //			exec: gitStatusExec
 //		});
-	}
+//	}
 	
 	function initVmcCommands() {
 		gcli.addCommand({
@@ -624,12 +627,32 @@ function(dojo,  mGitClient,            mBootstrap,        mStatus,        mComma
 		
 	}
 	
-	function initCommands() {
+	function initCommands(serviceRegistry, k) {
+		initGenericCommands();
 		initNpmCommands();
 		initVmcCommands();
+		k();
+// Code below does NOT work	
+//		var commandProviderRefs = serviceRegistry.getServiceReferences('orion.console.commands');
+//		var deferreds = []; 
+//		for (var i = 0; i < commandProviderRefs.length; i++) {
+//			var ref = commandProviderRefs[i];
+//			var commandProvider = serviceRegistry.getService(ref);
+//			var definer = commandProvider.defineCommands;
+//			if (typeof(definer)==='function') {
+//				deferreds.push(definer());
+//			} else {
+//				console.log('commandProvider has no defineCommands function. Ignoring it!');
+//				console.log(commandProvider);
+//			}
+//		}
+//		new dojo.DeferredList(deferreds).then(function (functions) {
+//			console.log(functions);
+//			k();
+//		});
 	}
 	
-	dojo.addOnLoad(function() {
+	dojo.ready(function() {
 		mBootstrap.startup().then(function(core) {
 		
 			var serviceRegistry = core.serviceRegistry;
@@ -654,8 +677,9 @@ function(dojo,  mGitClient,            mBootstrap,        mStatus,        mComma
 			mGlobalCommands.generateBanner("banner", serviceRegistry, commandService, preferences, searcher);
 
 			statusService.setMessage("Loading...");
-			dojo.ready(initCommands);
-			gcli.createView();
+			initCommands(serviceRegistry, function () {
+				gcli.createView();
+			});
 		});
 	});
 });

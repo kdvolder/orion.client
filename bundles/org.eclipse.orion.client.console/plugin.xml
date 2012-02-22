@@ -9,12 +9,22 @@
                path="/web/console">
          </resource-mapping>
       </httpcontext>
+      <httpcontext
+            id="org.eclipse.orion.server.configurator.httpcontext.console.gcli">
+         <resource-mapping
+               path="/submodules/gcli">
+         </resource-mapping>
+      </httpcontext>
    </extension>
    <extension
          point="org.eclipse.equinox.http.registry.resources">
       <resource
             alias="/console"
             httpcontextId="org.eclipse.orion.server.configurator.httpcontext.console">
+      </resource>
+      <resource
+            alias="/console/gcli"
+            httpcontextId="org.eclipse.orion.server.configurator.httpcontext.console.gcli">
       </resource>
    </extension>
 </plugin>

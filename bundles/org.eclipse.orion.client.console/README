@@ -2,8 +2,11 @@ This bundle contains a client-side command-line UI based on mozilla/gcli.
 
 To install use take the following steps:
 
-1. setup a self-hosting orion environment on your onw machine following the instructions here
+1. setup a self-hosting orion environment on your own machine following the instructions here
    http://wiki.eclipse.org/Orion/Getting_the_source
+   
+   IMPORTANT: make sure to use the --recursive option when cloning the client plugins.
+   The gcli code is included as a git submodule.
    
 2. Add this bundle (org.eclipse.orion.client.console) to your web-ide.launch configuration. 
 
