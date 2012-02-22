@@ -18,15 +18,16 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	//////////////////////////////////////////////////////////
 	var esprimaContentAssistant = new mEsprimaPlugin.EsprimaJavaScriptContentAssistProvider();
 	
-	function computeContentAssist(contents, prefix) {
+	function computeContentAssist(contents, prefix, offset) {
 		if (!prefix) {
 			prefix = "";
 		}
-		var offset = contents.indexOf("/**/");
-		if (offset < 0) {
-			offset = contents.length;
-		}
-		
+		if (!offset) {
+			offset = contents.indexOf("/**/");
+			if (offset < 0) {
+				offset = contents.length;
+			}
+		}		
 		return esprimaContentAssistant.computeProposals(prefix, contents, {start: offset});
 	}
 	
@@ -799,35 +800,47 @@ tests.testEmpty = function() {};
 		]);
 	};
 	
-	// not working
-//		tests["test broken after dot 2"] = function() {
-//		var results = computeContentAssist("var ttt = { ooo:8};\nif (ttt./**/) { ttt }", "");
-//		testProposals(results, [
-//			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
-//			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
-//			["ooo", "ooo (esprima)"],
-//			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
-//			["prototype", "prototype (esprima)"],
-//			["toLocaleString()", "toLocaleString() (esprima)"],
-//			["toString()", "toString() (esprima)"],
-//			["valueOf()", "valueOf() (esprima)"]
-//		]);
-//	};
+	tests["test broken after dot 2"] = function() {
+		var results = computeContentAssist("var ttt = { ooo:8};\nif (ttt.) { ttt }", "", "var ttt = { ooo:8};\nif (ttt.".length);
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["ooo", "ooo (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
+	tests["test broken after dot 3"] = function() {
+		var results = computeContentAssist("var ttt = { ooo:this.};", "", "var ttt = { ooo:this.".length);
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["ooo", "ooo (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
 
 	// not working
-//	tests["test broken after dot 3"] = function() {
-//		var results = computeContentAssist("var ttt = { ooo:8};function() { \nttt.}", "");
-//		testProposals(results, [
-//			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
-//			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
-//			["ooo", "ooo (esprima)"],
-//			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
-//			["prototype", "prototype (esprima)"],
-//			["toLocaleString()", "toLocaleString() (esprima)"],
-//			["toString()", "toString() (esprima)"],
-//			["valueOf()", "valueOf() (esprima)"]
-//		]);
-//	};
+	tests["test broken after dot 4"] = function() {
+		var results = computeContentAssist("var ttt = { ooo:8};\nfunction ff() { \nttt.}", "", "var ttt = { ooo:8};\nfunction ff() { \nttt.".length);
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["ooo", "ooo (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
 	
 	
 	/*
