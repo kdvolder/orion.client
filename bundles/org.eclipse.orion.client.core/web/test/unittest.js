@@ -83,7 +83,6 @@ UnitTestRenderer.prototype = {
 			dojo.attr(div, "id", item.Name);
 			dojo.create("img", {src: item.result?require.toUrl("images/unit_test/testok.gif"):require.toUrl("images/unit_test/testfail.gif")}, div, "first");
 			dojo.place(document.createTextNode(item.Name + " (" + (item.millis / 1000) + "s)"), div, "last");
-
 			
 			if (!item.result) {
 				var msg = "[FAILURE][" + item.Name + "][" + item.message + "]\n" + ((item.stack !== undefined && item.stack) ? item.stack : "");
