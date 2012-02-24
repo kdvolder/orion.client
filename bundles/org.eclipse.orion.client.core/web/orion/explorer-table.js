@@ -9,11 +9,11 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global define */
+/*global define window */
 /*jslint regexp:false browser:true forin:true*/
 
-define(['require', 'dojo', 'orion/util', 'orion/explorer', 'orion/explorerNavHandler', 'orion/breadcrumbs', 'orion/fileCommands', 'orion/extensionCommands', 'orion/contentTypes', 'dojo/number'],
-		function(require, dojo, mUtil, mExplorer, mNavHandler, mBreadcrumbs, mFileCommands, mExtensionCommands){
+define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explorerNavHandler', 'orion/breadcrumbs', 'orion/fileCommands', 'orion/extensionCommands', 'orion/contentTypes', 'dojo/number', 'dijit/form/DropDownButton'],
+		function(require, dojo, dijit, mUtil, mExplorer, mNavHandler, mBreadcrumbs, mFileCommands, mExtensionCommands){
 
 	/**
 	 * Tree model used by the FileExplorer
@@ -162,7 +162,21 @@ define(['require', 'dojo', 'orion/util', 'orion/explorer', 'orion/explorerNavHan
 				addImageToLink(contentType, link);
 				dojo.place(document.createTextNode(item.Name), link, "last");
 			}
-			this.explorer.registry.getService("orion.page.command").renderCommands(span, "object", item, this.explorer, "tool", false, null, "commandActiveItem", "commandInactiveItem");
+			// see https://bugs.eclipse.org/bugs/show_bug.cgi?id=372182
+			// use a timeout so rendering is non-blocking.  
+			// TOTAL HACK...insert a temporary drop down button to get the layout the same, then remove it when
+			// we have the real menu.
+			var menuButton = new dijit.form.DropDownButton({
+				label: "Actions",
+				showLabel:  false
+			});
+			dojo.addClass(menuButton.domNode, "commandMenu textless");
+			dojo.destroy(menuButton.valueNode); // the valueNode gets picked up by screen readers; since it's not used, we can get rid of it
+			dojo.place(menuButton.domNode, span, "last");
+			window.setTimeout(dojo.hitch(this, function() {
+				menuButton.destroyRecursive();
+				this.commandService.renderCommands(span, "object", item, this.explorer, "tool", false);
+			}), 0);
 			return col;
 		case 1:
 			var dateColumn = document.createElement('td');
