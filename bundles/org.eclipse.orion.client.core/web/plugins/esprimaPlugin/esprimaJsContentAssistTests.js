@@ -750,11 +750,8 @@ tests.testEmpty = function() {};
 		testProposals(results, [
 			["JSON", "JSON (esprima)"],
 			["Math", "Math (esprima)"],
-			["arguments", "arguments (esprima)"],
-			["fun(a, b, c)", "fun(a, b, c) (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
-			["other(aa, ab, ac)", "other(aa, ab, ac) (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
 			["prototype", "prototype (esprima)"],
 			["this", "this (esprima)"],
