@@ -10,17 +10,17 @@
  *     Kris De Volder (VMWare) - initial API and implementation
  *
  *******************************************************************************/ 
-/*global define dojo dijit orion window widgets localStorage*/
+/*global define require dojo dijit orion window widgets localStorage*/
 /*jslint browser:true devel:true*/
 
-define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 'orion/searchClient', 'orion/fileClient', 'gcli/index'], 
-function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalCommands,        mSearchClient,        mFileClient,        gcli,         gclitest) {
+define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 'orion/searchClient', 'orion/fileClient', 'gcli/index', 'console/directory-type', 'console/current-directory'], 
+function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalCommands,        mSearchClient,        mFileClient,        gcli       ) {
 
-	var fileClient;
-	var statusService;
+	var withCurrentTreeNode = require('console/current-directory').withCurrentTreeNode;
+	var withChildren = require('console/current-directory').withChildren;
+	var setCurrentTreeNode = require('console/current-directory').setCurrentTreeNode;
 	
-	//The current path. I.e. the working dir relative to which we will execute commands on the server.
-	var currentTreeNode = null;
+	var statusService;
 	
 	/**
 	 * Counter used to generate unique ids that can be used to asynchronously fill in the result
@@ -77,7 +77,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 		}
 		return false;
 	}
-
+	
 	/**
 	 * Creates a suitable place folder that can be returned as the result of gcli command
 	 * if that command is only producing its result asynchronously.
@@ -99,46 +99,6 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 		};
 	}
 	
-	/**
-	 * Make sure that there is a currentTreeNode and call given callback on the tree node
-	 * as soon as its available.
-	 */
-	function withCurrentTreeNode(doit) {
-		if (currentTreeNode===null) {
-			var location = dojo.hash() || "";
-			fileClient.loadWorkspace(location).then(function (node) {
-				currentTreeNode = node;
-				doit(node);
-			});
-		} else {
-			//Wrapped in a setTimeout to ensure it always executed as later scheduled event.
-			//otherwise the execution order will be different depending on whether currentTreeNode==null
-			setTimeout(function () {
-				doit(currentTreeNode);
-			});
-		}
-	}
-
-	function setCurrentTreeNode(node) {
-		currentTreeNode = node;
-		if (currentTreeNode.Location) {
-			dojo.hash(currentTreeNode.Location);
-		}
-	}
-	
-	/**
-	 * Calls the callback function 'k' with the children of a given node.
-	 * If the children are available the callback function is called immediatrly otherwise 
-	 * the children will be retrieved and the callback function called whenever the children
-	 * become available.
-	 */
-	function withChildren(node, k) {
-		if (node.Children) {
-			k(node.Children);
-		} else if (node.ChildrenLocation) {
-			fileClient.fetchChildren(node.ChildrenLocation).then(k);
-		}
-	}
 
 	////////////////// implementation of the ls command ////////////////////////////////////////////////////////////
 
@@ -209,7 +169,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 				}
 				if (newLocation) {
 					dojo.hash(newLocation);
-					currentTreeNode = null;
+					setCurrentTreeNode(null);
 					result.put('Changed to parent directory');
 				} else {
 					result.put('ERROR: Can not determine parent');
@@ -346,9 +306,6 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 		
 	function execVmcSetTarget(args, context) {
 		var resultNode = context.createPromise();
-//		setTimeout(function () {
-//			resultNode.resolve('Gotcha');
-//		});
 		withCurrentTreeNode(function (node) {
 			if (node.Location) {
 				var location = node.Location;
@@ -497,7 +454,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 			params: [
 					    {
 							name: 'directory',
-							type: 'string',
+							type: 'directory',
 							description: 'directory'
 					    }
 			]
@@ -632,51 +589,25 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 		initNpmCommands();
 		initVmcCommands();
 		k();
-// Code below does NOT work	
-//		var commandProviderRefs = serviceRegistry.getServiceReferences('orion.console.commands');
-//		var deferreds = []; 
-//		for (var i = 0; i < commandProviderRefs.length; i++) {
-//			var ref = commandProviderRefs[i];
-//			var commandProvider = serviceRegistry.getService(ref);
-//			var definer = commandProvider.defineCommands;
-//			if (typeof(definer)==='function') {
-//				deferreds.push(definer());
-//			} else {
-//				console.log('commandProvider has no defineCommands function. Ignoring it!');
-//				console.log(commandProvider);
-//			}
-//		}
-//		new dojo.DeferredList(deferreds).then(function (functions) {
-//			console.log(functions);
-//			k();
-//		});
 	}
-	
+
 	dojo.ready(function() {
 		mBootstrap.startup().then(function(core) {
 		
 			var serviceRegistry = core.serviceRegistry;
 			var preferences = core.preferences;
 			
-//			preferencesCorePreferences = core.preferences;	
-
 			document.body.style.visibility = "visible";
 			dojo.parser.parse();
 
-//			preferenceDialogService = new mDialogs.DialogService(serviceRegistry);
-		
 			// Register services
-//			var dialogService = new mDialogs.DialogService(serviceRegistry);
 			statusService = new mStatus.StatusReportingService(serviceRegistry, "statusPane", "notifications");
 			var commandService = new mCommands.CommandService({serviceRegistry: serviceRegistry});
-//			gitService = new mGitClient.GitService(serviceRegistry);
-	
-//			var siteService = new mSiteService.SiteService(serviceRegistry);
-			fileClient = new mFileClient.FileClient(serviceRegistry);
 			var searcher = new mSearchClient.Searcher({serviceRegistry: serviceRegistry, commandService: commandService, fileService: mFileClient});
 			mGlobalCommands.generateBanner("banner", serviceRegistry, commandService, preferences, searcher);
 
 			statusService.setMessage("Loading...");
+			
 			initCommands(serviceRegistry, function () {
 				gcli.createView();
 			});

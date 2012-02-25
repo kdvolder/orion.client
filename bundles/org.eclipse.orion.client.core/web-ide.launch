@@ -2,6 +2,7 @@
 <launchConfiguration type="org.eclipse.pde.ui.EquinoxLauncher">
 <setAttribute key="additional_plugins">
 <setEntry value="org.eclipse.orion.client.console:0.0.1.qualifier:default:true"/>
+<setEntry value="org.eclipse.orion.server.shell:0.0.1.qualifier:default:true"/>
 <setEntry value="vmare.orion.client.console:0.0.1.qualifier:default:true"/>
 </setAttribute>
 <booleanAttribute key="append.args" value="true"/>
