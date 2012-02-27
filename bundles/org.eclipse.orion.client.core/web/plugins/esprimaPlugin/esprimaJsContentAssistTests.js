@@ -28,7 +28,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 				offset = contents.length;
 			}
 		}		
-		return esprimaContentAssistant.computeProposals(prefix, contents, {start: offset});
+		return esprimaContentAssistant.computeProposals(prefix, contents, {offset: offset});
 	}
 	
 	function testProposal(proposal, text, description) {
@@ -834,6 +834,24 @@ tests.testEmpty = function() {};
 		]);
 	};
 	
+	tests["test globals 1"] = function() {
+		var results = computeContentAssist("/*global faaa */\nfa", "fa");
+		testProposals(results, [
+			["faaa", "faaa (esprima)"]
+		]);
+	};
+	tests["test globals 2"] = function() {
+		var results = computeContentAssist("/*global  \t\n faaa \t\t\n faaa2  */\nfa", "fa");
+		testProposals(results, [
+			["faaa", "faaa (esprima)"],
+			["faaa2", "faaa2 (esprima)"]
+		]);
+	};
+	tests["test globals 3"] = function() {
+		var results = computeContentAssist("/*global  \t\n faaa \t\t\n fass2  */\nvar t = 1;\nt.fa", "fa");
+		testProposals(results, [
+		]);
+	};
 	
 	
 	
@@ -924,6 +942,48 @@ tests.testEmpty = function() {};
 		]);
 	};
 	
+	tests["test broken after dot 5"] = function() {
+		var results = computeContentAssist(
+			"var first = {ooo:9};\n" +
+			"first.\n" +
+			"var jjj;", "",
+	
+			("var first = {ooo:9};\n" +
+			"first.").length);
+
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["ooo", "ooo (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
+	
+	
+	tests["test broken after dot 6"] = function() {
+		var results = computeContentAssist(
+			"var first = {ooo:9};\n" +
+			"first.\n" +
+			"if (x) { }", "",
+	
+			("var first = {ooo:9};\n" +
+			"first.").length);
+
+		testProposals(results, [
+			["hasOwnProperty(property)", "hasOwnProperty(property) (esprima)"],
+			["isPrototypeOf(object)", "isPrototypeOf(object) (esprima)"],
+			["ooo", "ooo (esprima)"],
+			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) (esprima)"],
+			["prototype", "prototype (esprima)"],
+			["toLocaleString()", "toLocaleString() (esprima)"],
+			["toString()", "toString() (esprima)"],
+			["valueOf()", "valueOf() (esprima)"]
+		]);
+	};
 	
 	/*
 	 yet to do:
