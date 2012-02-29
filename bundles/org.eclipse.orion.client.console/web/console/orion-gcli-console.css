@@ -410,3 +410,7 @@ list>*,grid>* {
 	font-size: 13px;
 	background: transparent;
 }
+
+#gcli-display {
+	overflow: hidden;
+}
