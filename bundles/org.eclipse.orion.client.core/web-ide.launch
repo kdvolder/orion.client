@@ -3,7 +3,7 @@
 <setAttribute key="additional_plugins">
 <setEntry value="org.eclipse.orion.client.console:0.0.1.qualifier:default:true"/>
 <setEntry value="org.eclipse.orion.server.shell:0.0.1.qualifier:default:true"/>
-<setEntry value="vmare.orion.client.console:0.0.1.qualifier:default:true"/>
+<setEntry value="vmare.orion.client.console:0.0.1.qualifier:default:false"/>
 </setAttribute>
 <booleanAttribute key="append.args" value="true"/>
 <booleanAttribute key="automaticAdd" value="false"/>
@@ -28,6 +28,7 @@
 <setEntry value="org.eclipse.orion.server.authentication.feature:default"/>
 <setEntry value="org.eclipse.orion.server.feature:default"/>
 <setEntry value="org.eclipse.orion.server.search.feature:default"/>
+<setEntry value="org.eclipse.orion:default"/>
 </setAttribute>
 <booleanAttribute key="show_selected_only" value="false"/>
 <booleanAttribute key="tracing" value="false"/>
