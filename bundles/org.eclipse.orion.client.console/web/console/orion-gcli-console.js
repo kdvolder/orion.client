@@ -28,6 +28,65 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	 */
 	var resultId = 0;
 	
+	
+	/**
+	 * Creates a suitable place folder that can be returned as the result of gcli command
+	 * if that command is only producing its result asynchronously.
+	 * <p>
+	 * Usage: example:
+	 *   var premature = makeResultsNodeTxt();
+	 *   somethingWithCallBack(function (...) {
+	 *      premature.put(...actual result...);
+	 *   }
+	 *   return premature.txt;
+	 */
+	function makeResultNodeTxt() {
+		var divId = 'result'+resultId++;
+		return  { 
+			txt: '<div id='+divId+'>Waiting for result...</div>',
+			put: function (delayedResult) {
+				dojo.place('<p>'+delayedResult+'</p>', divId, 'only');
+			}
+		};
+	}
+	
+	/**
+	 * A generic implementation for executing shell-like commands on the server.
+	 * Returns a glci executer function that sends the command arguments to the
+	 * server.
+	 */
+	function defaultCommandExec(commandPath) {
+		return function  (args, context) {
+			var resultNode = makeResultNodeTxt();
+			withCurrentTreeNode(function (node) {
+				if (node.Location) {
+					var location = node.Location;
+					dojo.xhrGet({
+						url: commandPath, 
+						headers: {
+							"Orion-Version": "1"
+						},
+						content: { 
+							"location":  location,
+							"arguments": JSON.stringify(args) 
+						},
+						handleAs: "text",
+		//				timeout: 15000,
+						load: dojo.hitch(resultNode, resultNode.put),
+						error: function(error, ioArgs) {
+							resultNode.put(error.message || 'ERROR');
+						}
+					});
+				} else {
+					resultNode.put('ERROR: could not determine working directory location');
+				}
+			});
+			return resultNode.txt;
+		};
+	}
+	
+	
+	
 //	function gitStatusExec() {
 //		var resultAsText = JSON.stringify(result);
 //		dojo.place('<p>'+resultAsText+'</p>', divId, "only");
@@ -77,40 +136,29 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 		}
 		return false;
 	}
-	
-	/**
-	 * Creates a suitable place folder that can be returned as the result of gcli command
-	 * if that command is only producing its result asynchronously.
-	 * <p>
-	 * Usage: example:
-	 *   var premature = makeResultsNodeTxt();
-	 *   somethingWithCallBack(function (...) {
-	 *      premature.put(...actual result...);
-	 *   }
-	 *   return premature.txt;
-	 */
-	function makeResultNodeTxt() {
-		var divId = 'result'+resultId++;
-		return  { 
-			txt: '<div id='+divId+'>Waiting for result...</div>',
-			put: function (delayedResult) {
-				dojo.place('<p>'+delayedResult+'</p>', divId, 'only');
-			}
-		};
-	}
-	
 
 	////////////////// implementation of the ls command ////////////////////////////////////////////////////////////
+
+	function editURL(node) {
+		return "/edit/edit.html#"+node.Location;
+	}
 
 	/**
 	 * Helper function to format a single child node in a directory.
 	 */
 	function formatLsChild(node, result) {
+		//http://localhost:8080/edit/edit.html#/file/I/bundles/org.eclipse.orion.client.console/web/console/orion-gcli-console.css	
 		result = result || [];
 		if (node.Name) {
-			result.push(node.Name);
 			if (node.Directory) {
+				result.push(node.Name);
 				result.push('/');
+			} else { 
+				result.push('<a href="');
+				result.push(editURL(node));
+				result.push('">');
+				result.push(node.Name);
+				result.push('</a>');
 			}
 			result.push('<br>');
 		}
@@ -141,6 +189,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	 */
 	function lsExec() {
 		var result = makeResultNodeTxt();
+		setCurrentTreeNode(null); // Forces the data to be refetched from server.
 		withCurrentTreeNode(function (node) {
 			formatLs(node, [], function (buffer) {
 				result.put(buffer.join(''));
@@ -164,7 +213,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 				if (location) {
 					var lastSlash = location.lastIndexOf('/');
 					if (lastSlash>=0) {
-						newLocation = location.slice(0, lastSlash);
+						newLocation = location.slice(0, lastSlash+1);
 					}
 				}
 				if (newLocation) {
@@ -213,96 +262,9 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	
 	/////// implementation of 'vmc get|set-target' commands ////////////////////////////////
 	
-	function execVmcGetTarget(args, context) {
-		var resultNode = makeResultNodeTxt();
-		withCurrentTreeNode(function (node) {
-			if (node.Location) {
-				var location = node.Location;
-				dojo.xhrGet({
-					url: '/shellapi/vmc/get-target' , 
-					headers: {
-						"Orion-Version": "1"
-					},
-					content: { 
-						"location":  location,
-						"arguments": JSON.stringify(args) 
-					},
-					handleAs: "text",
-			//		timeout: 15000,
-					load: function (data) {
-						resultNode.put(data);
-					},
-					error: function(error, ioArgs) {
-						resultNode.put(error.message || 'ERROR');
-					}
-				});
-			} else {
-				resultNode.put('ERROR: could not determine working directory location');
-			}
-		});
-		return resultNode.txt;
-	}
-	
-	
-	function execVmcLogin(args, context) {
-		var resultNode = context.createPromise();
-		withCurrentTreeNode(function (node) {
-			if (node.Location) {
-				var location = node.Location;
-				dojo.xhrGet({
-					url: '/shellapi/vmc/login' , 
-					headers: {
-						"Orion-Version": "1"
-					},
-					content: { 
-						"location":  location,
-						"arguments": JSON.stringify(args) 
-					},
-					handleAs: "text",
-			//		timeout: 15000,
-					load: function (data) {
-						resultNode.resolve(data);
-					},
-					error: function(error, ioArgs) {
-						resultNode.resolve(error.message || 'ERROR');
-					}
-				});
-			} else {
-				resultNode.resolve('ERROR: could not determine working directory location');
-			}
-		});
-		return resultNode;
-	}
-
-	function execVmcApps(args, context) {
-		var resultNode = context.createPromise();
-		withCurrentTreeNode(function (node) {
-			if (node.Location) {
-				var location = node.Location;
-				dojo.xhrGet({
-					url: '/shellapi/vmc/apps' , 
-					headers: {
-						"Orion-Version": "1"
-					},
-					content: { 
-						"location":  location,
-						"arguments": JSON.stringify(args) 
-					},
-					handleAs: "text",
-			//		timeout: 15000,
-					load: function (data) {
-						resultNode.resolve(data);
-					},
-					error: function(error, ioArgs) {
-						resultNode.resolve(error.message || 'ERROR');
-					}
-				});
-			} else {
-				resultNode.resolve('ERROR: could not determine working directory location');
-			}
-		});
-		return resultNode;
-	}
+	var execVmcGetTarget = defaultCommandExec('/shellapi/vmc/get-target');
+	var execVmcLogin = defaultCommandExec('/shellapi/vmc/login');
+	var execVmcApps = defaultCommandExec('/shellapi/vmc/apps');
 		
 	function execVmcSetTarget(args, context) {
 		var resultNode = context.createPromise();
@@ -369,7 +331,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	
 	//TODO: node.js commands should not be in this module, they should be in a plugin or something.
 	//  this will require making it possible for plugins to contribute commands to gcli UI.
-	
+
 	function execNpmInstall(args, context) {
 		var resultNode = makeResultNodeTxt();
 		withCurrentTreeNode(function (node) {
@@ -403,16 +365,18 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 			name: 'npm',
 			description: 'Node package manager'
 		});
-		
+
 		gcli.addCommand({
 			name: 'npm install',
-			description: 'install a package',
-			manual: 'This command installs a package, and any packages that it depends on. It resolves circular dependencies by talking to the npm registry',
+			description: 'install node packages',
+			manual: 'This command installs node packages and any packages that they depend on. It resolves dependencies by talking to the npm registry. ' +
+				'If no packages are specified, then packages to install are determined from the "package.json" file if it can be found.',
 			exec: execNpmInstall,
 			params: [
 			    {
 					name: 'packages',
 					type: { name: 'array', subtype:'string'},
+					defaultValue: null,
 					description: 'package',
 					manual: 
 						'A package to install. Can be given in one of the following formats: \n'+
@@ -468,7 +432,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 		});
 	}
 		
-//		
+//	function initGitCommands() {
 //		gcli.addCommand({
 //			name: 'git',
 //			description: 
@@ -488,6 +452,28 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 //			exec: gitStatusExec
 //		});
 //	}
+
+	function simpleVMCCommand(name) {
+		gcli.addCommand({
+			name: 'vmc '+name,
+			description: name+' a cloudfoundry app',
+			manual: 'A nide manual for vmc '+name+' goes here',
+			params: [
+				{
+					name: 'app-name',
+					type: 'string',
+					description: 'Name of app'
+				}
+			],
+			exec: defaultCommandExec('/shellapi/vmc/' + name)
+		});
+	}
+
+	function simpleVMCCommands(names) {
+		for (var i = 0; i < names.length; i++) {
+			simpleVMCCommand(names[i]);
+		}
+	}
 	
 	function initVmcCommands() {
 		gcli.addCommand({
@@ -582,12 +568,67 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 			exec: execVmcPush
 		});
 		
+		simpleVMCCommands(["start", "stop", "delete", "restart"]);
+		
 	}
+	
+	function initRooCommands() {
+		gcli.addCommand({
+			name: 'roo',
+			description: 'Spring Roo Commands',
+			manual: 'A nice manual for Roo goes here' 
+		});
+		
+		gcli.addCommand({
+			name: 'roo script',
+			description: 'Execute a roo script',
+			manual: 'A nice manual for the Roo script command goes in here',
+			params: [
+				{
+					name: 'script',
+					type: 'string',
+					description: 'script name'
+				}
+			],
+			exec: defaultCommandExec('/shellapi/roo/script')
+		});
+	}
+	
+	function simpleMvnCommand(name) {
+		gcli.addCommand({
+			name: 'mvn '+name,
+			description: name+' project at current directory',
+			manual: 'A nice manual for mvn ' + name +' goes in here',
+			params: [
+			],
+			exec: defaultCommandExec('/shellapi/mvn/'+name)
+		});
+	}
+	
+	function simpleMvnCommands(listOfNames) {
+		for (var i = 0; i < listOfNames.length; i++) {
+			simpleMvnCommand(listOfNames[i]);			
+		}	
+	}
+	
+	function initMvnCommands() {
+		gcli.addCommand({
+			name: 'mvn',
+			description: 'Maven commands',
+			manual: 'A nice manual for Maven goes here' 
+		});
+		
+		simpleMvnCommands([ 'assemble', 'build', 'compile', 'package', 'test' ]);
+	}
+		
+	////////////////////////////////////////////////////////////////////////
 	
 	function initCommands(serviceRegistry, k) {
 		initGenericCommands();
 		initNpmCommands();
 		initVmcCommands();
+//		initRooCommands();
+		initMvnCommands();
 		k();
 	}
 
