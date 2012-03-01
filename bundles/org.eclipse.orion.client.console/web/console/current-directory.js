@@ -9,7 +9,12 @@ define(['dojo', 'orion/bootstrap', 'orion/fileClient'], function (dojo, mBootstr
 
 	//The current path. I.e. the working dir relative to which we will execute commands on the server.
 	var currentTreeNode = null;
-
+	
+	function withWorkspace(k) {
+		fileClient.loadWorkspace('').then(k);
+	}
+	exports.withWorkspace = withWorkspace;
+	
 	/**
 	 * Make sure that there is a currentTreeNode and call given callback on the tree node
 	 * as soon as its available.

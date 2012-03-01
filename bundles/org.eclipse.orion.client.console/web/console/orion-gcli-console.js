@@ -16,6 +16,7 @@
 define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 'orion/searchClient', 'orion/fileClient', 'gcli/index', 'console/directory-type', 'console/current-directory'], 
 function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalCommands,        mSearchClient,        mFileClient,        gcli       ) {
 
+	var withWorkspace = require('console/current-directory').withWorkspace;
 	var withCurrentTreeNode = require('console/current-directory').withCurrentTreeNode;
 	var withChildren = require('console/current-directory').withChildren;
 	var setCurrentTreeNode = require('console/current-directory').setCurrentTreeNode;
@@ -30,8 +31,11 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	
 	
 	/**
-	 * Creates a suitable place folder that can be returned as the result of gcli command
+	 * Creates a suitable placeholder that can be returned as the result of gcli command
 	 * if that command is only producing its result asynchronously.
+	 * <p>
+	 * Note: gcli also has a mechanism for this itself via context.createPromise. It
+	 * may be better to use that mechanism instead!
 	 * <p>
 	 * Usage: example:
 	 *   var premature = makeResultsNodeTxt();
@@ -52,7 +56,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	
 	/**
 	 * A generic implementation for executing shell-like commands on the server.
-	 * Returns a glci executer function that sends the command arguments to the
+	 * Returns a gcli executer function that sends the command arguments to the
 	 * server.
 	 */
 	function defaultCommandExec(commandPath) {
@@ -71,7 +75,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 							"arguments": JSON.stringify(args) 
 						},
 						handleAs: "text",
-		//				timeout: 15000,
+//						timeout: 15000,
 						load: dojo.hitch(resultNode, resultNode.put),
 						error: function(error, ioArgs) {
 							resultNode.put(error.message || 'ERROR');
@@ -140,6 +144,8 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	////////////////// implementation of the ls command ////////////////////////////////////////////////////////////
 
 	function editURL(node) {
+		//TODO: This url is generated in a rather ad-hoc fashion. Orion probably has some service registration
+		// points to determine 'edit' actions based on the resource type. 
 		return "/edit/edit.html#"+node.Location;
 	}
 
@@ -214,9 +220,12 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 					var lastSlash = location.lastIndexOf('/');
 					if (lastSlash>=0) {
 						newLocation = location.slice(0, lastSlash+1);
+						if (newLocation==='/file/') {
+							newLocation = '';
+						}
 					}
 				}
-				if (newLocation) {
+				if (newLocation!==null) {
 					dojo.hash(newLocation);
 					setCurrentTreeNode(null);
 					result.put('Changed to parent directory');
@@ -260,72 +269,46 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 		return result.txt;
 	}
 	
-	/////// implementation of 'vmc get|set-target' commands ////////////////////////////////
+	/////// implementation of 'vmc exec functions commands ////////////////////////////////
 	
-	var execVmcGetTarget = defaultCommandExec('/shellapi/vmc/get-target');
-	var execVmcLogin = defaultCommandExec('/shellapi/vmc/login');
-	var execVmcApps = defaultCommandExec('/shellapi/vmc/apps');
-		
-	function execVmcSetTarget(args, context) {
-		var resultNode = context.createPromise();
-		withCurrentTreeNode(function (node) {
-			if (node.Location) {
-				var location = node.Location;
-				dojo.xhrGet({
-					url: '/shellapi/vmc/set-target' , 
-					headers: {
-						"Orion-Version": "1"
-					},
-					content: { 
-						"location":  location,
-						"arguments": JSON.stringify(args) 
-					},
-					handleAs: "text",
-			//		timeout: 15000,
-					load: function (data) {
-						resultNode.resolve(data);
-					},
-					error: function(error, ioArgs) {
-						resultNode.resolve(error.message || 'ERROR');
+	function vmcCommandExec(command) {
+		return function  (args, context) {
+			var resultNode = makeResultNodeTxt();
+			withWorkspace(function (wsNode) {
+				withCurrentTreeNode(function (node) {
+					if (node.Location) {
+						var location = node.Location;
+						dojo.xhrGet({
+							url: '/shellapi/vmc/'+command, 
+							headers: {
+								"Orion-Version": "1"
+							},
+							content: { 
+								"location":  location,
+								"user.home": wsNode.Location,
+								"arguments": JSON.stringify(args) 
+							},
+							handleAs: "text",
+			//				timeout: 15000,
+							load: dojo.hitch(resultNode, resultNode.put),
+							error: function(error, ioArgs) {
+								resultNode.put(error.message || 'ERROR');
+							}
+						});
+					} else {
+						resultNode.put('ERROR: could not determine working directory location');
 					}
 				});
-			} else {
-				resultNode.resolve('ERROR: could not determine working directory location');
-			}
-		});
-		return resultNode;
+			});
+			return resultNode.txt;
+		};
 	}
 	
-	function execVmcPush(args, context) {
-		var resultNode = context.createPromise();
-		withCurrentTreeNode(function (node) {
-			if (node.Location) {
-				var location = node.Location;
-				dojo.xhrGet({
-					url: '/shellapi/vmc/push' , 
-					headers: {
-						"Orion-Version": "1"
-					},
-					content: { 
-						"location":  location,
-						"arguments": JSON.stringify(args) 
-					},
-					handleAs: "text",
-			//		timeout: 15000,
-					load: function (data) {
-						resultNode.resolve(data);
-					},
-					error: function(error, ioArgs) {
-						resultNode.resolve(error.message || 'ERROR');
-					}
-				});
-			} else {
-				resultNode.resolve('ERROR: could not determine working directory location');
-			}
-		});
-		return resultNode;
-	}
-	
+	var execVmcApps = vmcCommandExec('apps');
+	var execVmcGetTarget = vmcCommandExec('get-target');
+	var execVmcLogin = vmcCommandExec('login');
+	var execVmcSetTarget = vmcCommandExec('set-target');
+	var execVmcPush = vmcCommandExec('push');
 	
 	/////// implementation of 'npm install' command ////////////////////////////////////////
 	
