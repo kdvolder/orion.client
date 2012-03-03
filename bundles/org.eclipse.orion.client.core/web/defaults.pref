@@ -13,6 +13,7 @@
 		"plugins/preferencesPlugin.html":true,
 		"plugins/taskPlugin.html": true,
 		"plugins/csslintPlugin.html": true,
-		"console/gcliConsolePlugin.html": true
+		"console/gcliConsolePlugin.html": true,
+		"vmware/console/vmwareConsolePlugin.html": true
 	}
 }
