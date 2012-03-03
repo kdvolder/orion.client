@@ -828,9 +828,35 @@ tests.testEmpty = function() {};
 		var results = computeContentAssist(
 		"ttt = { rrr : function(a, b, c) { } };\nttt.rr", "rr");
 		testProposals(results, [
-		// FIXADE we are not correctly getting the function args
-//			["rrr(a, b, c)", "rrr(a, b, c) (esprima)"]
-			["rrr", "rrr (esprima)"]
+			["rrr(a, b, c)", "rrr(a, b, c) (esprima)"]
+		]);
+	};
+	tests["test function expression 4"] = function() {
+		var results = computeContentAssist(
+		"var ttt = function(a, b) { };\nvar hhh = ttt;\nhhh", "hhh");
+		testProposals(results, [
+			["hhh(a, b)", "hhh(a, b) (esprima)"]
+		]);
+	};
+	tests["test function expression 4a"] = function() {
+		var results = computeContentAssist(
+		"function ttt(a, b) { };\nvar hhh = ttt;\nhhh", "hhh");
+		testProposals(results, [
+			["hhh(a, b)", "hhh(a, b) (esprima)"]
+		]);
+	};
+	tests["test function expression 5"] = function() {
+		var results = computeContentAssist(
+		"var uuu = {	flart : function (a,b) { } };\nhhh = uuu.flart;\nhhh", "hhh");
+		testProposals(results, [
+			["hhh(a, b)", "hhh(a, b) (esprima)"]
+		]);
+	};
+	tests["test function expression 6"] = function() {
+		var results = computeContentAssist(
+		"var uuu = {	flart : function (a,b) { } };\nhhh = uuu.flart;\nhhh.app", "app");
+		testProposals(results, [
+			["apply(func, [args])", "apply(func, [args]) (esprima)"]
 		]);
 	};
 	
