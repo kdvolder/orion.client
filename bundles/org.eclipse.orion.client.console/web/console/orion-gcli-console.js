@@ -7,8 +7,10 @@
  * License v1.0 (http://www.eclipse.org/org/documents/edl-v10.html). 
  *
  * Contributors:
- *     Kris De Volder (VMWare) - initial API and implementation
- *
+ *     Contributors: IBM Corporation - initial API and implementation 
+ *                      (copied: see explorer-table.js)
+ *     Kris De Volder (VMWare) - Copied from explorer-table.js and modified to  
+ *                               implement console page.
  *******************************************************************************/ 
 /*global define require dojo dijit orion window widgets localStorage*/
 /*jslint browser:true devel:true*/
@@ -20,132 +22,17 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	var withCurrentTreeNode = require('console/current-directory').withCurrentTreeNode;
 	var withChildren = require('console/current-directory').withChildren;
 	var setCurrentTreeNode = require('console/current-directory').setCurrentTreeNode;
+	var getParentLocation = require('console/current-directory').getParentLocation;
 	
 	var statusService;
 	
-	/**
-	 * Counter used to generate unique ids that can be used to asynchronously fill in the result
-	 * of a command into the dom.
-	 */
-	var resultId = 0;
-	
-	
-	/**
-	 * Creates a suitable placeholder that can be returned as the result of gcli command
-	 * if that command is only producing its result asynchronously.
-	 * <p>
-	 * Note: gcli also has a mechanism for this itself via context.createPromise. It
-	 * may be better to use that mechanism instead!
-	 * <p>
-	 * Usage: example:
-	 *   var premature = makeResultsNodeTxt();
-	 *   somethingWithCallBack(function (...) {
-	 *      premature.put(...actual result...);
-	 *   }
-	 *   return premature.txt;
-	 */
-	function makeResultNodeTxt() {
-		var divId = 'result'+resultId++;
-		return  { 
-			txt: '<div id='+divId+'>Waiting for result...</div>',
-			put: function (delayedResult) {
-				dojo.place('<p>'+delayedResult+'</p>', divId, 'only');
-			}
-		};
-	}
-	
-	/**
-	 * A generic implementation for executing shell-like commands on the server.
-	 * Returns a gcli executer function that sends the command arguments to the
-	 * server.
-	 */
-	function defaultCommandExec(commandPath) {
-		return function  (args, context) {
-			var resultNode = makeResultNodeTxt();
-			withCurrentTreeNode(function (node) {
-				if (node.Location) {
-					var location = node.Location;
-					dojo.xhrGet({
-						url: commandPath, 
-						headers: {
-							"Orion-Version": "1"
-						},
-						content: { 
-							"location":  location,
-							"arguments": JSON.stringify(args) 
-						},
-						handleAs: "text",
-//						timeout: 15000,
-						load: dojo.hitch(resultNode, resultNode.put),
-						error: function(error, ioArgs) {
-							resultNode.put(error.message || 'ERROR');
-						}
-					});
-				} else {
-					resultNode.put('ERROR: could not determine working directory location');
-				}
-			});
-			return resultNode.txt;
-		};
-	}
-	
-	
-	
-//	function gitStatusExec() {
-//		var resultAsText = JSON.stringify(result);
-//		dojo.place('<p>'+resultAsText+'</p>', divId, "only");
-//
-//		//TODO: How do we get this URL? Probably something to do with dojo.hash. So we essentially keep the value
-//		//of pwd in the url.
-//		var url = "/gitapi/status/file/I/"; 
-//		
-//		var divId = 'result'+(resultId++);
-//
-//		function show(result, cls) {
-//			if (typeof(result)!=='string') {
-//				//TODO: Need something better here to render the result.
-//				result = JSON.stringify(result);
-//			}
-//			dojo.place('<p class='+cls+'>'+resultAsText+'</p>', divId, "only");
-//		}
-//		
-//		function onLoad(result, request) {
-//			show(result, 'ok');
-////			var node = dojo.byId(divId);
-//			console.log("I'm here");
-//			var resultAsText = JSON.stringify(result);
-////			var resultNode = dojo.create("pre");
-////			resultNode.innerHtml = escape(resultAsText);
-//			
-//			dojo.place('<p>'+resultAsText+'</p>', divId, "only");
-//		};
-//		function onError(error) {
-//			console.log("I'm here");
-//		};
-//		
-//		gitService.getGitStatus(url, onLoad, onError);
-//		return '<div id='+divId+'>Waiting for response...</div>';
-//	}
-
-
-	////////////////////// Utility functions /////////////////////////////////////////////////
-
-	/**
-	 * Returns true if string is a string that ends with the string suffix.
-	 */
-	function endsWith(string, suffix) {
-		if (typeof(string)==='string' && typeof(suffix)==='string') {
-			var loc = string.lastIndexOf(suffix);
-			return (loc + suffix.length) === string.length;
-		}
-		return false;
-	}
-
 	////////////////// implementation of the ls command ////////////////////////////////////////////////////////////
 
 	function editURL(node) {
-		//TODO: This url is generated in a rather ad-hoc fashion. Orion probably has some service registration
-		// points to determine 'edit' actions based on the resource type. 
+		//TODO: We should do this the right way. Orion probably has some 
+		// service registration points to determine 'edit' actions based on the resource type. 
+		// The only (bad) reason for this hacky implementation is that I do not yet know how to do 
+		// it correctly.
 		return "/edit/edit.html#"+node.Location;
 	}
 
@@ -153,7 +40,6 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	 * Helper function to format a single child node in a directory.
 	 */
 	function formatLsChild(node, result) {
-		//http://localhost:8080/edit/edit.html#/file/I/bundles/org.eclipse.orion.client.console/web/console/orion-gcli-console.css	
 		result = result || [];
 		if (node.Name) {
 			if (node.Directory) {
@@ -163,7 +49,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 				result.push('<a href="');
 				result.push(editURL(node));
 				result.push('">');
-				result.push(node.Name);
+				result.push(node.Name); //TODO: html escape sequences?
 				result.push('</a>');
 			}
 			result.push('<br>');
@@ -172,13 +58,13 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	}
 	
 	/**
-	 * Helper function to format the result of ls. Accepts a current fileClient node and
+	 * Helper function to format the result of ls. Accepts a current file or workspace node and
 	 * formats its children.
 	 * <p>
 	 * Optionally accepts an array 'result' to which the resulting Strings should be pushed.
 	 * <p>
 	 * To avoid massive String copying the result is returned as an array of
-	 * Strings rather than one massive String. Client should call join('') on the returned result.
+	 * Strings rather than one massive String. Caller should join('') the returned result.
 	 */
 	function formatLs(node, result, k) {
 		result = result || [];
@@ -193,44 +79,31 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	/**
 	 * Execution function for the ls gcli command
 	 */
-	function lsExec() {
-		var result = makeResultNodeTxt();
-		setCurrentTreeNode(null); // Forces the data to be refetched from server.
+	function lsExec(args, context) {
+		var result = context.createPromise();
+		setCurrentTreeNode(null); // Flushes current node cache.
 		withCurrentTreeNode(function (node) {
 			formatLs(node, [], function (buffer) {
-				result.put(buffer.join(''));
+				result.resolve(buffer.join(''));
 			});
 		});
-		return result.txt;
+		return result;
 	}
 	
 	////////// implementaton of the 'cd' command ///////////////////////////////////////////////////
 	
-	function cdExec(args) {
+	function cdExec(args, context) {
 		var targetDirName = args.directory;
-		var result = makeResultNodeTxt();
-		var newLocation = null;
+		var result = context.createPromise();
 		withCurrentTreeNode(function (node) {
 			if (targetDirName==='..') {
-				var location = dojo.hash();
-				if (endsWith(location,'/')) {
-					location = location.slice(0, location.length-1);
-				}
-				if (location) {
-					var lastSlash = location.lastIndexOf('/');
-					if (lastSlash>=0) {
-						newLocation = location.slice(0, lastSlash+1);
-						if (newLocation==='/file/') {
-							newLocation = '';
-						}
-					}
-				}
+				var newLocation = getParentLocation(node);
 				if (newLocation!==null) {
 					dojo.hash(newLocation);
 					setCurrentTreeNode(null);
-					result.put('Changed to parent directory');
+					result.resolve('Changed to parent directory');
 				} else {
-					result.put('ERROR: Can not determine parent');
+					result.resolve('ERROR: Can not determine parent');
 				}
 			} else {
 				withChildren(node, function (children) {
@@ -241,151 +114,39 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 							if (child.Directory) {
 								found = true;
 								setCurrentTreeNode(child);
-								result.put('Working directory changed successfully');
+								result.resolve('Working directory changed successfully');
 							} else {
-								result.put('ERROR: '+targetDirName+' is not a directory');
+								result.resolve('ERROR: '+targetDirName+' is not a directory');
 							}
 						}
 					}
 					if (!found) {
-						result.put('ERROR: '+targetDirName+' not found.');
+						result.resolve('ERROR: '+targetDirName+' not found.');
 					}
 				});
 			}
 		});
-		return result.txt;
+		return result;
 	}
 	
 	//////// implementation of the 'pwd' command ///////////////////////////////////////////
 	
-	function pwdExec() {
+	function pwdExec(args, context) {
 		//TODO: this implementation doesn't print the full path, only the name of the current
 		//  directory node.
-		var result = makeResultNodeTxt();
+		var result = context.createPromise();
 		withCurrentTreeNode(function (node) {
 			var buffer = formatLsChild(node);
-			result.put(buffer.join(''));
+			result.resolve(buffer.join(''));
 		});
-		return result.txt;
+		return result;
 	}
 	
-	/////// implementation of 'vmc exec functions commands ////////////////////////////////
-	
-	function vmcCommandExec(command) {
-		return function  (args, context) {
-			var resultNode = makeResultNodeTxt();
-			withWorkspace(function (wsNode) {
-				withCurrentTreeNode(function (node) {
-					if (node.Location) {
-						var location = node.Location;
-						dojo.xhrGet({
-							url: '/shellapi/vmc/'+command, 
-							headers: {
-								"Orion-Version": "1"
-							},
-							content: { 
-								"location":  location,
-								"user.home": wsNode.Location,
-								"arguments": JSON.stringify(args) 
-							},
-							handleAs: "text",
-			//				timeout: 15000,
-							load: dojo.hitch(resultNode, resultNode.put),
-							error: function(error, ioArgs) {
-								resultNode.put(error.message || 'ERROR');
-							}
-						});
-					} else {
-						resultNode.put('ERROR: could not determine working directory location');
-					}
-				});
-			});
-			return resultNode.txt;
-		};
-	}
-	
-	var execVmcApps = vmcCommandExec('apps');
-	var execVmcGetTarget = vmcCommandExec('get-target');
-	var execVmcLogin = vmcCommandExec('login');
-	var execVmcSetTarget = vmcCommandExec('set-target');
-	var execVmcPush = vmcCommandExec('push');
-	
-	/////// implementation of 'npm install' command ////////////////////////////////////////
-	
-	//TODO: node.js commands should not be in this module, they should be in a plugin or something.
-	//  this will require making it possible for plugins to contribute commands to gcli UI.
-
-	function execNpmInstall(args, context) {
-		var resultNode = makeResultNodeTxt();
-		withCurrentTreeNode(function (node) {
-			if (node.Location) {
-				var location = node.Location;
-				dojo.xhrGet({
-					url: '/shellapi/npm/install' , 
-					headers: {
-						"Orion-Version": "1"
-					},
-					content: { 
-						"location":  location,
-						"arguments": JSON.stringify(args) 
-					},
-					handleAs: "text",
-	//				timeout: 15000,
-					load: dojo.hitch(resultNode, resultNode.put),
-					error: function(error, ioArgs) {
-						resultNode.put(error.message || 'ERROR');
-					}
-				});
-			} else {
-				resultNode.put('ERROR: could not determine working directory location');
-			}
-		});
-		return resultNode.txt;
-	}
-	
-	function initNpmCommands() {
-		gcli.addCommand({
-			name: 'npm',
-			description: 'Node package manager'
-		});
-
-		gcli.addCommand({
-			name: 'npm install',
-			description: 'install node packages',
-			manual: 'This command installs node packages and any packages that they depend on. It resolves dependencies by talking to the npm registry. ' +
-				'If no packages are specified, then packages to install are determined from the "package.json" file if it can be found.',
-			exec: execNpmInstall,
-			params: [
-			    {
-					name: 'packages',
-					type: { name: 'array', subtype:'string'},
-					defaultValue: null,
-					description: 'package',
-					manual: 
-						'A package to install. Can be given in one of the following formats: \n'+
-						'<tarball file>\n' +
-						'<tarball url>\n' +
-						'<name>@<tag>\n' +
-						'<name>@<version>\n' +
-						'<name>@<version_range>'
-			    },
-			    {
-					group: 'Options',
-					params: [
-						{
-							name: 'force', 
-							type: 'boolean',
-							description: 'force',
-							manual: 'Force npm to fecth remote resources even ' +
-								'if a local copy exists on disk'
-		//					defaultValue: false
-						}
-					]
-			    }
-			]
-		});
-	}
-	
+	/**
+	 * Add generally useful commands related to file/dir navigation.
+	 * These commands are directly contributed to gcli, not via the 'orion.console.command'
+	 * extension point.
+	 */
 	function initGenericCommands() {
 		gcli.addCommand({
 			name: 'ls',
@@ -414,207 +175,86 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 			returnType: 'string'
 		});
 	}
+	
+	function render(text) {
+		//TODO: Dummy implementation for now (most of our commands return html strings).
+		return text; 
 		
-//	function initGitCommands() {
-//		gcli.addCommand({
-//			name: 'git',
-//			description: 
-//				'Git is a fast, scalable, distributed revision control system with an unusually rich command set ' +
-//				'that provides both high-level operations and full access to internals.'
+//		return dojo.create("pre", {
+//			innerHTML: text, //TODO: Do we need escape sequences inside the pre element? 
+//			className: 'console-command-output'
 //		});
-//		gcli.addCommand({
-//			name: 'git status',
-//			description: 'Show the working tree status',
-//			manual: 'Displays paths that have differences between the index file and the ' +
-//			        'current HEAD commit, paths that have differences between the working ' +
-//			        'tree and the index file, and paths in the working tree that are not ' +
-//					'tracked by git (and are not ignored by gitignore(5)). The first are ' +
-//					'what you would commit by running git commit; the second and third are ' +
-//					'what you could commit by running git add before running git commit.',
-//			returnType: 'string',
-//			exec: gitStatusExec
-//		});
-//	}
-
-	function simpleVMCCommand(name) {
-		gcli.addCommand({
-			name: 'vmc '+name,
-			description: name+' a cloudfoundry app',
-			manual: 'A nide manual for vmc '+name+' goes here',
-			params: [
-				{
-					name: 'app-name',
-					type: 'string',
-					description: 'Name of app'
-				}
-			],
-			exec: defaultCommandExec('/shellapi/vmc/' + name)
+	}
+	
+	/**
+	 * This function creates a JSON object that contains bits of context information an
+	 * external command may need access to to execute.
+	 */
+	function createPluginContext(gcliContext, k) {
+		withWorkspace(function (wsNode) {
+			withCurrentTreeNode(function (pwdNode) {
+				return k({
+					location: pwdNode.Location,
+					workspaceLocation: wsNode.Location
+				});
+			});
 		});
 	}
-
-	function simpleVMCCommands(names) {
-		for (var i = 0; i < names.length; i++) {
-			simpleVMCCommand(names[i]);
+	
+	/**
+	 * Creates a gcli exec function wrapping an exec function contributed by
+	 * a 'orion.console.command' service implementation.
+	 */
+	function contributedExecFunc(service) {
+		if (typeof(service.exec)==='function') {
+			//TODO: we may support different styles of exec functions based on 
+			// properties set in the service. For now we just have the one
+			// type that executes asynchronously and renders the result as 'pre' text.
+			return function (args, context) {
+				var promise = context.createPromise();
+				createPluginContext(context, function (jsonContext) {
+					service.exec(args, jsonContext).then(function (result) {
+						promise.resolve(render(result));
+					});
+				});
+				return promise;
+			};
+		}
+		return undefined; 
+		//retruns undefined if we can't create an exec function (typically because the 
+		//service doesn't provide one and is just a parent node in the command hierarchy).
+	}
+	
+	/**
+	 * Wrap command implementations contributed via 'orion.console.command' extension
+	 * point, and register them with gcli.
+	 */
+	function initContributedCommands(serviceRegistry) {
+		var allReferences = serviceRegistry.getServiceReferences("orion.console.command");
+		for (var i = 0; i < allReferences.length; ++i) {
+			var ref = allReferences[i];
+			var service = serviceRegistry.getService(ref);
+			if (service) {
+				gcli.addCommand({
+					name: ref.getProperty("name"),
+					description: ref.getProperty("description"),
+					manual: ref.getProperty("manual"),
+					params: ref.getProperty("params"),
+					exec: contributedExecFunc(service)
+				});
+			}
 		}
 	}
 	
-	function initVmcCommands() {
-		gcli.addCommand({
-			name: 'vmc',
-			description: 'Cloudfoundry Commandline Client',
-			manual: 'A nice manual for VMC goes in here'
-		});
-
-		gcli.addCommand({
-			name: 'vmc apps',
-			description: 'Reports apps installed on target',
-			manual: 'A nice manual for VMC goes in here',
-			params: [],
-			exec: execVmcApps
-		});
-		
-		gcli.addCommand({
-			name: 'vmc get-target',
-			description: 'Reports current target or sets a new target',
-			manual: 'A nice manual for VMC goes in here',
-			params: [],
-			exec: execVmcGetTarget
-		});
-		
-		gcli.addCommand({
-			name: 'vmc set-target',
-			description: 'Reports current target or sets a new target',
-			manual: 'A nice manual for VMC goes in here',
-			params: [
-					    {
-							name: 'target',
-							type: 'string',
-							description: 'Server target'
-					    }
-			],
-			exec: execVmcSetTarget
-		});
-		
-		gcli.addCommand({
-			name: 'vmc login',
-			description: 'Login to currenlty selected target',
-			manual: 'Login to currenlty selected target',
-			params: [
-					    {
-							name: 'email',
-							type: 'string',
-							description: "User's email address"
-					    },
-					    {
-							name: 'passwd',
-							type: 'string',
-							description: 'Password'
-						}
-			],
-			exec: execVmcLogin
-		});
-		
-		gcli.addCommand({
-			name: 'vmc push',
-			description: 'Deploy app to cloudfoundry',
-			manual: 'Deploy app to cloudfoundry',
-			params: [
-					    {
-							name: 'appname',
-							type: 'string',
-							description: "Appname"
-					    },
-					    {
-							name: 'url',
-							type: 'string',
-							description: 'Deployment URL',
-							defaultValue: null
-						},
-						{
-							name: 'instances',
-							type: 'number',
-							description: 'number of instances',
-							defaultValue: 1
-						},
-						{
-							name: 'mem',
-							type: 'number',
-							description: 'Memory (Mb)',
-							defaultValue: 512
-						},
-						{	
-							name: 'no-start',
-							type: 'boolean',
-							description: 'Do NOT start the app'
-						}
-			],
-			exec: execVmcPush
-		});
-		
-		simpleVMCCommands(["start", "stop", "delete", "restart"]);
-		
-	}
-	
-	function initRooCommands() {
-		gcli.addCommand({
-			name: 'roo',
-			description: 'Spring Roo Commands',
-			manual: 'A nice manual for Roo goes here' 
-		});
-		
-		gcli.addCommand({
-			name: 'roo script',
-			description: 'Execute a roo script',
-			manual: 'A nice manual for the Roo script command goes in here',
-			params: [
-				{
-					name: 'script',
-					type: 'string',
-					description: 'script name'
-				}
-			],
-			exec: defaultCommandExec('/shellapi/roo/script')
-		});
-	}
-	
-	function simpleMvnCommand(name) {
-		gcli.addCommand({
-			name: 'mvn '+name,
-			description: name+' project at current directory',
-			manual: 'A nice manual for mvn ' + name +' goes in here',
-			params: [
-			],
-			exec: defaultCommandExec('/shellapi/mvn/'+name)
-		});
-	}
-	
-	function simpleMvnCommands(listOfNames) {
-		for (var i = 0; i < listOfNames.length; i++) {
-			simpleMvnCommand(listOfNames[i]);			
-		}	
-	}
-	
-	function initMvnCommands() {
-		gcli.addCommand({
-			name: 'mvn',
-			description: 'Maven commands',
-			manual: 'A nice manual for Maven goes here' 
-		});
-		
-		simpleMvnCommands([ 'assemble', 'build', 'compile', 'package', 'test' ]);
-	}
-		
 	////////////////////////////////////////////////////////////////////////
 	
-	function initCommands(serviceRegistry, k) {
+	function initCommands(serviceRegistry) {
 		initGenericCommands();
-		initNpmCommands();
-		initVmcCommands();
-//		initRooCommands();
-		initMvnCommands();
-		k();
+		initContributedCommands(serviceRegistry);
 	}
 
+	//TODO: Do we really need to wait for both dojo.ready and mBootstrap.startup?
+	// Maybe one of them already implies the other?
 	dojo.ready(function() {
 		mBootstrap.startup().then(function(core) {
 		
@@ -632,9 +272,8 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 
 			statusService.setMessage("Loading...");
 			
-			initCommands(serviceRegistry, function () {
-				gcli.createView();
-			});
+			initCommands(serviceRegistry);
+			gcli.createView();
 		});
 	});
 });

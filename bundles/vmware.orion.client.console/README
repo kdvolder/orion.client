@@ -1,0 +1,3 @@
+This bundle contains bits of orion console functionality that are not of general use. 
+I.e. commands like 'vmc', 'npm' etc. These commands implementations do not belong with 
+the generic bits that should not or not yet be contributed back to eclipse.org.
