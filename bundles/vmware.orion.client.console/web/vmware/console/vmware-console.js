@@ -19,7 +19,7 @@
  
 	/////// implementation of 'vmc exec functions commands ////////////////////////////////
 	
-	function vmcCommandExec(command) {
+	function defaultCommandExec(commandPath) {
 		return function (args, context) {
 			var promise = new dojo.Deferred();
 			var location = context.location;
@@ -31,7 +31,7 @@
 				return 'ERROR: could not determine working directory location';
 			}
 			dojo.xhrGet({
-				url: '/shellapi/vmc/'+command, 
+				url: '/shellapi/'+commandPath, 
 				headers: {
 					"Orion-Version": "1"
 				},
@@ -53,6 +53,10 @@
 		};
 	}
 	
+	function vmcCommandExec(commandName) {
+		return defaultCommandExec('vmc/'+commandName);
+	}
+	
 	var execVmcApps = vmcCommandExec('apps');
 	var execVmcGetTarget = vmcCommandExec('get-target');
 	var execVmcLogin = vmcCommandExec('login');
@@ -63,77 +67,49 @@
 	
 	//TODO: node.js commands should not be in this module, they should be in a plugin or something.
 	//  this will require making it possible for plugins to contribute commands to gcli UI.
-
-//	function execNpmInstall(args, context) {
-//		var resultNode = context.createPromise();
-//		withCurrentTreeNode(function (node) {
-//			if (node.Location) {
-//				var location = node.Location;
-//				dojo.xhrGet({
-//					url: '/shellapi/npm/install' , 
-//					headers: {
-//						"Orion-Version": "1"
-//					},
-//					content: { 
-//						"location":  location,
-//						"arguments": JSON.stringify(args) 
-//					},
-//					handleAs: "text",
-//	//				timeout: 15000,
-//					load: dojo.hitch(resultNode, resultNode.resolve),
-//					error: function(error, ioArgs) {
-//						resultNode.resolve(error.message || 'ERROR');
-//					}
-//				});
-//			} else {
-//				resultNode.resolve('ERROR: could not determine working directory location');
-//			}
-//		});
-//		return resultNode;
-//	}
 	
-//	function initNpmCommands() {
-//		gcli.addCommand({
-//			name: 'npm',
-//			description: 'Node package manager'
-//		});
-//
-//		gcli.addCommand({
-//			name: 'npm install',
-//			description: 'install node packages',
-//			manual: 'This command installs node packages and any packages that they depend on. It resolves dependencies by talking to the npm registry. ' +
-//				'If no packages are specified, then packages to install are determined from the "package.json" file if it can be found.',
-//			exec: execNpmInstall,
-//			params: [
-//			    {
-//					name: 'packages',
-//					type: { name: 'array', subtype:'string'},
-//					defaultValue: null,
-//					description: 'package',
-//					manual: 
-//						'A package to install. Can be given in one of the following formats: \n'+
-//						'<tarball file>\n' +
-//						'<tarball url>\n' +
-//						'<name>@<tag>\n' +
-//						'<name>@<version>\n' +
-//						'<name>@<version_range>'
-//			    },
-//			    {
-//					group: 'Options',
-//					params: [
-//						{
-//							name: 'force', 
-//							type: 'boolean',
-//							description: 'force',
-//							manual: 'Force npm to fecth remote resources even ' +
-//								'if a local copy exists on disk'
-//		//					defaultValue: false
-//						}
-//					]
-//			    }
-//			]
-//		});
-//	}
+	function initNpmCommands(gcli) {
+		gcli.addCommand({
+			name: 'npm',
+			description: 'Node package manager'
+		});
+
+		gcli.addCommand({
+			name: 'npm install',
+			description: 'install node packages',
+			manual: 'This command installs node packages and any packages that they depend on. It resolves dependencies by talking to the npm registry. ' +
+				'If no packages are specified, then packages to install are determined from the "package.json" file if it can be found.',
+			exec: defaultCommandExec('npm/install'),
+			params: [
+			    {
+					name: 'packages',
+					type: { name: 'array', subtype:'string'},
+					defaultValue: null,
+					description: 'package',
+					manual: 
+						'A package to install. Can be given in one of the following formats: \n'+
+						'<tarball file>\n' +
+						'<tarball url>\n' +
+						'<name>@<tag>\n' +
+						'<name>@<version>\n' +
+						'<name>@<version_range>'
+			    },
+			    {
+					group: 'Options',
+					params: [
+						{
+							name: 'force', 
+							type: 'boolean',
+							description: 'force',
+							manual: 'Force npm to fecth remote resources even ' +
+								'if a local copy exists on disk'
+		//					defaultValue: false
+						}
+					]
+			    }
+			]
+		});
+	}
 	
 	function simpleVMCCommand(gcli, name) {
 		gcli.addCommand({
@@ -275,37 +251,39 @@
 //		});
 //	}
 //	
-//	function simpleMvnCommand(name) {
-//		gcli.addCommand({
-//			name: 'mvn '+name,
-//			description: name+' project at current directory',
-//			manual: 'A nice manual for mvn ' + name +' goes in here',
-//			params: [
-//			],
-//			exec: defaultCommandExec('/shellapi/mvn/'+name)
-//		});
-//	}
-//	
-//	function simpleMvnCommands(listOfNames) {
-//		for (var i = 0; i < listOfNames.length; i++) {
-//			simpleMvnCommand(listOfNames[i]);			
-//		}	
-//	}
-//	
-//	function initMvnCommands() {
-//		gcli.addCommand({
-//			name: 'mvn',
-//			description: 'Maven commands',
-//			manual: 'A nice manual for Maven goes here' 
-//		});
-//		
-//		simpleMvnCommands([ 'assemble', 'build', 'compile', 'package', 'test' ]);
-//	}
+	function simpleMvnCommand(gcli, name) {
+		gcli.addCommand({
+			name: 'mvn '+name,
+			description: name+' project at current directory',
+			manual: 'A nice manual for mvn ' + name +' goes in here',
+			params: [
+			],
+			exec: defaultCommandExec('mvn/'+name)
+		});
+	}
+	
+	function simpleMvnCommands(gcli, listOfNames) {
+		for (var i = 0; i < listOfNames.length; i++) {
+			simpleMvnCommand(gcli, listOfNames[i]);			
+		}	
+	}
+	
+	function initMvnCommands(gcli) {
+		gcli.addCommand({
+			name: 'mvn',
+			description: 'Maven commands',
+			manual: 'A nice manual for Maven goes here' 
+		});
+		
+		simpleMvnCommands(gcli, [ 'assemble', 'build', 'compile', 'package', 'test' ]);
+	}
 		
 	////////////////////////////////////////////////////////////////////////
 	
 	function init(gcli) {
 		initVmcCommands(gcli);
+		initMvnCommands(gcli);
+		initNpmCommands(gcli);
 	}	
 
 	return {init: init};
