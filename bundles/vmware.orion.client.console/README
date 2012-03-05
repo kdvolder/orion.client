@@ -1,3 +1,7 @@
 This bundle contains bits of orion console functionality that are not of general use. 
 I.e. commands like 'vmc', 'npm' etc. These commands implementations do not belong with 
 the generic bits that should not or not yet be contributed back to eclipse.org.
+
+The state of how these commands are implemented should be considered 'experimental'. 
+The commands essentially just get executed as the 'orion user' via ProcessBuilder 
+with little to no consideration for security issues.

@@ -123,7 +123,7 @@
 					description: 'Name of app'
 				}
 			],
-			exec: vmcCommandExec('/shellapi/vmc/' + name)
+			exec: vmcCommandExec(name)
 		});
 	}
 
