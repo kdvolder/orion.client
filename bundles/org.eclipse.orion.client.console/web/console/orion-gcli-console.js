@@ -177,13 +177,10 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	}
 	
 	function render(text) {
-		//TODO: Dummy implementation for now (most of our commands return html strings).
-		return text; 
-		
-//		return dojo.create("pre", {
-//			innerHTML: text, //TODO: Do we need escape sequences inside the pre element? 
-//			className: 'console-command-output'
-//		});
+		var node = dojo.create("pre", {className: 'console-command-output'});
+		// setting textContent we don't need to worry about escaping stuff.
+		node.textContent = text;  
+		return node; 
 	}
 	
 	/**
