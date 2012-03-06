@@ -12,6 +12,11 @@
 		"plugins/pageLinksPlugin.html":true,
 		"plugins/preferencesPlugin.html":true,
 		"plugins/taskPlugin.html": true,
-		"plugins/csslintPlugin.html": true
+		"plugins/csslintPlugin.html": true,
+		"console/gcliConsolePlugin.html": true
+//To enable 'vmware commands' by default: uncomment the line below.
+//This also requires that you have the client and server side plugins
+//installed that implement these commands:
+//		"vmware/console/vmwareConsolePlugin.html": true
 	}
 }
