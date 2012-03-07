@@ -6,6 +6,7 @@
 	<script type="text/javascript" src="../orion/plugin.js"></script>
 	<script type="text/javascript" src="../../org.dojotoolkit/dojo/dojo.js.uncompressed.js"></script>
 	<script>
+		/*global eclipse window dojo */
 		window.onload = function() {
 			var provider = new eclipse.PluginProvider();
 			
@@ -17,7 +18,7 @@
 			}
 			
 			var temp = document.createElement('a');
-			temp.href = "../task"
+			temp.href = "../task";
 			var base = makeParentRelative(temp.href);
 			
 			// testing that command service handles image-less actions properly
@@ -30,7 +31,7 @@
 						},
 						content: options,
 						handleAs: "json",
-						timeout: options.Longpolling == true? 70000: 15000
+						timeout: options.Longpolling === true? 70000: 15000
 					});
 				},
 				getOperation: function(taskLocation){

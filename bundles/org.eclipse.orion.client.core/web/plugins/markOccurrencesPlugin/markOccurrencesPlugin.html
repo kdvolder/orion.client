@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="copyright" content="Copyright (c) VMware Corporation and others 2012.">
+<title>Esprima Content Assist</title>
+<script type="text/javascript" src="http://orion.eclipse.org/orion/plugin.js"></script>
+<script type="text/javascript" src="http://orion.eclipse.org/requirejs/require.js"></script>
+<script type="text/javascript" src="markOccurrences.js"></script>
+<script>
+/*global eclipse require console */
+function isIdentifierPart(char) {
+	return (/\d|\w|\$|_/).exec(char) !== null;
+}
+function isIdentifierStart(char) {
+	return (/\w|\$|_/).exec(char) !== null;
+}
+function isIdentifier(word) {
+	if (!word || word.length === 0) {
+		return false;
+	}
+	if (!isIdentifierStart(word.charAt(0))) {
+		return false;
+	}
+	for (var i = 1; i < word.length; i++) {
+		if (!isIdentifierPart(word.charAt(0))) {
+			return false;
+		}
+	}
+	return true;
+}
+function findCurrentWord(start, end, buffer) {
+	while (start > 0 && isIdentifierPart(buffer.charAt(start))) { start --; }
+	start++;
+	while (end < buffer.length && isIdentifierPart(buffer.charAt(end))) { end ++; }
+	var word = buffer.substring(start, end);
+	if (isIdentifier(word)) {
+		return word;
+	} else {
+		return null;
+	}
+}
+
+//function createRegex(current) {
+//	return new RegExp("[^\\d|\\w|\\$|_]" + current + "[^\\d|\\w|\\$|_]");
+//}
+
+
+function findLocations(buffer, toFind) {
+	if (!toFind) {
+		return [];
+	}
+	var lastIndex = -1, result = [];
+	while (true) {
+		lastIndex = buffer.indexOf(toFind, lastIndex +1);
+		
+		if (lastIndex === -1) {
+			break;
+		}
+		
+		// must check the boundary of the word before choosing it
+		var prevChar = buffer.charAt(lastIndex-1);
+		var nextChar = buffer.charAt(lastIndex+toFind.length);
+		if (!isIdentifierPart(prevChar) && !isIdentifierPart(nextChar)) {
+			result.push(lastIndex);
+		}
+	}
+	return result;
+}
+
+var provider = new eclipse.PluginProvider();
+var serviceProvider = provider.registerServiceProvider("orion.edit.model",
+  {
+  
+	_buffer : null,
+	onModelChanging: function(e) {
+		this._buffer = e.text;
+	},
+	onSelection: function(e) {
+		if (this._buffer) {
+			var current = findCurrentWord(e.newValue.start, e.newValue.end, this._buffer);
+			var locations = findLocations(this._buffer, current);
+			console.log("Current selection: " + current + ". All locations: " + locations);
+		}
+	}
+  },
+  {
+	types: ["Selection", "ModelChanging"],
+	contentType: ["text.javascript"]
+  });
+provider.connect();
+</script>
+</head>
+<body>
+<p>A plugin that highlights all occurrences of the selected word in the current editor.</p>
+</body>
+</html>
