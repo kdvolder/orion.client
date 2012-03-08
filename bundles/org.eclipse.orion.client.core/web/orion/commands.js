@@ -117,6 +117,13 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/PageUtil', 'dijit/Menu'
 			this.inherited(arguments);
 			this.polling = true;
 			this.pollForMissingTarget();
+			
+			// Override the dijit default ARIA role of alert, which causes undesirable behaviour.
+			window.setTimeout(function() {
+				if(dijit._masterTT) {
+					dojo.removeAttr(dijit._masterTT.containerNode, "role");
+				}
+			}, this.showDelay + 1);
 		},
 		
 		pollForMissingTarget: function() {
@@ -650,11 +657,18 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/PageUtil', 'dijit/Menu'
 								dropDown: newMenu
 						        });
 							dojo.addClass(menuButton.domNode, "commandMenu");
+							var menuParent = parent;
+							if (parent.nodeName.toLowerCase() === "ul") {
+								menuParent = dojo.create("li", {}, parent);
+							} else {
+								dojo.addClass(menuButton.domNode, "commandMargins");
+							}
+							dojo.removeAttr(menuButton.titleNode, "title"); // there is no need for a native browser tooltip
 							dojo.destroy(menuButton.valueNode); // the valueNode gets picked up by screen readers; since it's not used, we can get rid of it
 							if (group.title === "*") {
 								dojo.addClass(menuButton.domNode, "textless");
 								new CommandTooltip({
-									connectId: [menuButton.domNode],
+									connectId: [menuButton.focusNode],
 									label: "Actions menu",
 									position: ["above", "left", "right", "below"], // otherwise defaults to right and obscures adjacent commands
 									commandParent: parent,
@@ -662,7 +676,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/PageUtil', 'dijit/Menu'
 								});
 							}
 							_setupActivateVisuals(menuButton.domNode, menuButton.focusNode);
-							dojo.place(menuButton.domNode, parent, "last");
+							dojo.place(menuButton.domNode, menuParent, "last");
 							// we'll need to identify a menu with the dom id of its original parent
 							newMenu.eclipseScopeId = parent.eclipseScopeId || parent.id;
 							// render the children asynchronously
@@ -953,6 +967,11 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/PageUtil', 'dijit/Menu'
 					commandService: context.commandService
 				});
 			}
+			if (parent.nodeName.toLowerCase() === "ul") {
+				parent = dojo.create("li", {}, parent);
+			} else {
+				dojo.addClass(element, "commandMargins");
+			}
 			dojo.place(element, parent, "last");
 		},
 	
@@ -998,6 +1017,11 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/PageUtil', 'dijit/Menu'
 			}
 			context.domParent = parent;
 			context.domNode = element;
+			if (parent.nodeName.toLowerCase() === "ul") {
+				parent = dojo.create("li", {}, parent);
+			} else {
+				dojo.addClass(element, "commandMargins");
+			}
 			dojo.place(element, parent, "last");
 		},
 		_addMenuItem: function(parent, context) {
@@ -1353,7 +1377,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/PageUtil', 'dijit/Menu'
 		 * by that name.
 		 *
 		 * @param {String} name the name of the parameter
-		 * @returns {CommandParameter} the parameter with the given name
+		 * @returns {orion.command.CommandParameter} the parameter with the given name
 		*/
 		parameterNamed: function(name) {
 			return this.parameterTable[name];
