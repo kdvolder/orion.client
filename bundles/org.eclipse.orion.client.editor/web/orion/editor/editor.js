@@ -328,6 +328,12 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/textview
 		getAnnotationModel : function() {
 			return this._annotationModel;
 		},
+		
+		addAnnotationType : function(type) {
+			this._annotationStyler.addAnnotationType(type);
+			this._overviewRuler.addAnnotationType(type);
+			this._annotationRuler.addAnnotationType(type);
+		},
 
 		/**
 		 * Helper for finding occurrences of str in the editor contents.

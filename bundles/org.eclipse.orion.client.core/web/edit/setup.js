@@ -17,12 +17,12 @@ define(['require', 'dojo', 'orion/selection', 'orion/status', 'orion/progress', 
         'orion/problems', 'orion/editor/contentAssist', 'orion/editorCommands', 'orion/editor/editorFeatures', 'orion/editor/editor', 'orion/syntaxchecker',
         'orion/breadcrumbs', 'orion/textview/textView', 'orion/textview/textModel', 
         'orion/textview/projectionTextModel', 'orion/textview/keyBinding','orion/searchAndReplace/textSearcher','orion/searchAndReplace/orionTextSearchAdaptor',
-        'orion/edit/dispatcher', 'orion/contentTypes', 'orion/PageUtil', 'orion/highlight',
+        'orion/edit/dispatcher', 'orion/contentTypes', 'orion/PageUtil', 'orion/highlight', 'orion/textview/annotationservice',
         'dojo/parser', 'dojo/hash', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane', 'orion/widgets/eWebBorderContainer' ], 
 		function(require, dojo, mSelection, mStatus, mProgress, mDialogs, mCommands, mUtil, mFavorites,
 				mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
 				mSyntaxchecker, mBreadcrumbs, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mSearcher,
-				mSearchAdaptor, mDispatcher, mContentTypes, PageUtil, Highlight) {
+				mSearchAdaptor, mDispatcher, mContentTypes, PageUtil, Highlight, mAnnotationService) {
 	
 var exports = exports || {};
 	
@@ -105,6 +105,12 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 				} else {
 					if (!editor.getTextView()) {
 						editor.installTextView();
+						
+						// Create the annotation service.  Must wait until after text view is installed so that the
+						// annotation model is available
+						var annotationService = new mAnnotationService.AnnotationService(serviceRegistry, editor);
+						serviceRegistry.registerService("orion.edit.annotations", annotationService);
+
 					}
 					var fullPathName = fileURI;
 					var progressTimeout = setTimeout(function() {

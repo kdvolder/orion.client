@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="copyright" content="Copyright (c) VMware Corporation and others 2012.">
+<title>Esprima Content Assist</title>
+<script type="text/javascript" src="http://orion.eclipse.org/orion/plugin.js"></script>
+<script type="text/javascript" src="http://orion.eclipse.org/requirejs/require.js"></script>
+<script type="text/javascript" src="markOccurrences.js"></script>
+<script>
+/*global eclipse require console */
+require(["markOccurrences"], function(markOccurrencesPlugin) {
+	var provider = new eclipse.PluginProvider();
+	provider.registerServiceProvider("orion.edit.model", markOccurrencesPlugin.markOccurrences,
+		{
+			types: ["Selection", "ModelChanging"],
+			contentType: ["text.javascript"]
+		});
+		
+	var serviceProvider = 
+		provider.registerServiceProvider("orion.edit.annotations", 
+		markOccurrencesPlugin.annotationProvider, { });
+	
+	markOccurrencesPlugin.annotationProvider.setServiceProvider(serviceProvider);
+	
+	provider.connect();
+});
+</script>
+</head>
+<body>
+<p>A plugin that highlights all occurrences of the selected word in the current editor.</p>
+</body>
+</html>

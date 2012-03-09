@@ -4891,7 +4891,8 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 					var e = {
 						type: "Selection",
 						oldValue: {start:oldSelection.start, end:oldSelection.end},
-						newValue: {start:selection.start, end:selection.end}
+						newValue: {start:selection.start, end:selection.end},
+						text: this._model.getText()
 					};
 					this.onSelection(e);
 				}
