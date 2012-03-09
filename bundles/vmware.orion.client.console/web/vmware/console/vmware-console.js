@@ -57,7 +57,6 @@
 		return defaultCommandExec('vmc/'+commandName);
 	}
 	
-	var execVmcApps = vmcCommandExec('apps');
 	var execVmcGetTarget = vmcCommandExec('get-target');
 	var execVmcLogin = vmcCommandExec('login');
 	var execVmcSetTarget = vmcCommandExec('set-target');
@@ -101,13 +100,75 @@
 							name: 'force', 
 							type: 'boolean',
 							description: 'force',
-							manual: 'Force npm to fecth remote resources even ' +
+							manual: 'Force npm to fetch remote resources even ' +
 								'if a local copy exists on disk'
 		//					defaultValue: false
 						}
 					]
 			    }
 			]
+		});
+		gcli.addCommand({
+			name: 'npm config',
+			description: 'Manage npm configuration options',
+			manual: 'Manage npm configuration options'
+		});
+		gcli.addCommand({
+			name: 'npm config set',
+			description: 'Set npm config option',
+			manual: 'Set npm configuration option as a key, value pair. If value is not provided it defaults to "true"',
+			params: [
+				{
+					name: 'key',
+					type: 'string',
+					description: 'key'					
+				},
+				{
+					name: 'value',
+					type: 'string',
+					description: 'value',
+					defaultValue: 'true'
+				}
+			],
+			exec: defaultCommandExec('npm/config/set')
+		});
+		gcli.addCommand({
+			name: 'npm config get',
+			description: 'Get npm config option',
+			manual: 'Get npm configuration option value for a given key.',
+			params: [
+				{
+					name: 'key',
+					type: 'string',
+					description: 'key'
+				}
+			],
+			exec: defaultCommandExec('npm/config/get')
+		});
+		gcli.addCommand({
+			name: 'npm config delete',
+			description: 'Delete npm config key-value pair',
+			manual: 'Delete npm config key-value pair.',
+			params: [
+				{
+					name: 'key',
+					type: 'string',
+					description: 'key'					
+				}
+			],
+			exec: defaultCommandExec('npm/config/delete')
+		});
+		gcli.addCommand({
+			name: 'npm config list',
+			description: 'Show all the config settings.',
+			params: [ 
+				{
+					name: 'long',
+					description: 'long',
+					type: 'boolean'
+				}
+			],
+			exec: defaultCommandExec('npm/config/list')
 		});
 	}
 	
@@ -145,7 +206,7 @@
 			description: 'Reports apps installed on target',
 			manual: 'A nice manual for VMC goes in here',
 			params: [],
-			exec: execVmcApps
+			exec: vmcCommandExec('apps')
 		});
 		
 		gcli.addCommand({
