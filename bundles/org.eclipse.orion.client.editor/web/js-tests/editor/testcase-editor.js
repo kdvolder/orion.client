@@ -10,15 +10,15 @@
  ******************************************************************************/
 
 /*jslint */
-/*global define*/
+/*global define require*/
 
-define(["orion/assert", "orion/editor/editor"],
-		function(assert, mEditor) {
+define(["orion/assert", "shim/es5-bind"],
+		function(assert) {
 	var tests = {};
 
 	// ************************************************************************************************
 	// Test supporting util methods
-	var bind = mEditor.util.bind;
+	var bind = require("shim/es5-bind").bind;
 
 	// Test our implementation of "bind"
 	tests["test bind - 'this'"] = function() {

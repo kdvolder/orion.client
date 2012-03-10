@@ -392,25 +392,23 @@ list>*,grid>* {
 .plugin-links {
 	padding-right: 13px;
 }
-
 #gcli-row-complete {
-	position: absolute;
-	top: 2px;
-	left: 0;
-	width: 100%;
-	height: 20px;
-	font-family: "Lucida Console", Monaco, monospace;
-	font-size: 13px;
-	z-index: -1000;
+       position: absolute;
+       top: 2px;
+       left: 0;
+       width: 100%;
+       height: 20px;
+       font-family: "Courier New", "Lucida Console", monospace;
+       font-size: 13px;
+       z-index: -1000;
 }
 #gcli-input {
-	width: 100%;
-	padding-left: 1em;
-	font-family: "Lucida Console", Monaco, monospace;
-	font-size: 13px;
-	background: transparent;
+       width: 100%;
+       padding-left: 1em;
+       font-family: "Courier New","Lucida Console",monospace;
+       font-size: 13px;
+       background: transparent;
 }
-
 #gcli-display {
 	overflow: hidden;
 }
