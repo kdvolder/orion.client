@@ -10,21 +10,20 @@
  *     Kris De Volder (VMWare) - initial API and implementation
  *******************************************************************************/
 /*global define require setTimeout*/
-define(['gcli/types', 'gcli/types/basic', 'gcli/ui/field', 'gcli/argument', 'gcli/util', 'dojo', 'gcli/cli', 
-'gcli/ui/menu', 'console/current-directory'], function() {
+define(['gcli/types', 'gcli/types/basic', 'gcli/ui/fields/basic', 'gcli/ui/fields', 'gcli/argument', 
+		'gcli/util', 'dojo', 'gcli/cli', 'console/current-directory', 'gcli/ui/fields/menu'], function() {
 
 	var dojo = require('dojo');
 	var registerType = require('gcli/types').registerType;
 	var StringType = require('gcli/types/basic').StringType;
 	var Conversion = require('gcli/types').Conversion;
 	var Status = require('gcli/types').Status;
-	var Field = require('gcli/ui/field').Field;
+	var Field = require('gcli/ui/fields').Field;
+	var addField = require('gcli/ui/fields').addField;
 	var Argument = require('gcli/argument').Argument;
-	var addField = require('gcli/ui/field').addField;
-	var dom = require('gcli/util').dom;
+	var createElement = require('gcli/util').createElement;
 	var createEvent = require('gcli/util').createEvent;
-//	var Assignment = require('gcli/cli').Assignment;
-	var Menu = require('gcli/ui/menu').Menu;
+	var Menu = require('gcli/ui/fields/menu').Menu;
 	var withCurrentChildren = require('console/current-directory').withCurrentChildren;
 	
 	var cache = {};
@@ -197,9 +196,9 @@ define(['gcli/types', 'gcli/types/basic', 'gcli/ui/field', 'gcli/argument', 'gcl
 			this.onInputChange = this.onInputChange.bind(this);
 			this.arg = new Argument();
 			
-			this.element = dom.createElement(this.document, 'div');
+			this.element = createElement(this.document, 'div');
 			
-			this.input = dom.createElement(this.document, 'input');
+			this.input = createElement(this.document, 'input');
 			this.input.type = 'text';
 			this.input.addEventListener('keyup', this.onInputChange, false);
 			this.input.classList.add('gcli-field');
