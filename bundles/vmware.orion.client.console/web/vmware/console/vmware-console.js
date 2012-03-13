@@ -57,9 +57,7 @@
 		return defaultCommandExec('vmc/'+commandName);
 	}
 	
-	var execVmcGetTarget = vmcCommandExec('get-target');
 	var execVmcLogin = vmcCommandExec('login');
-	var execVmcSetTarget = vmcCommandExec('set-target');
 	var execVmcPush = vmcCommandExec('push');
 	
 	/////// implementation of 'npm install' command ////////////////////////////////////////
@@ -210,25 +208,18 @@
 		});
 		
 		gcli.addCommand({
-			name: 'vmc get-target',
-			description: 'Reports current target or sets a new target',
-			manual: 'A nice manual for VMC goes in here',
-			params: [],
-			exec: execVmcGetTarget
-		});
-		
-		gcli.addCommand({
-			name: 'vmc set-target',
+			name: 'vmc target',
 			description: 'Reports current target or sets a new target',
 			manual: 'A nice manual for VMC goes in here',
 			params: [
 					    {
 							name: 'target',
 							type: 'string',
-							description: 'Server target'
+							description: 'Server target',
+							defaultValue: null
 					    }
 			],
-			exec: execVmcSetTarget
+			exec: vmcCommandExec('target')
 		});
 		
 		gcli.addCommand({
@@ -287,7 +278,7 @@
 			exec: execVmcPush
 		});
 		
-		simpleVMCCommands(gcli, ["start", "stop", "delete", "restart"]);
+		simpleVMCCommands(gcli, ["start", "stop", "delete", "restart", "update"]);
 	}
 	
 //	function initRooCommands() {
