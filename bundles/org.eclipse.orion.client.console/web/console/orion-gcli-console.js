@@ -15,7 +15,9 @@
 /*global define require dojo dijit orion window widgets localStorage*/
 /*jslint browser:true devel:true*/
 
-define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 'orion/searchClient', 'orion/fileClient', 'gcli/index', 'console/directory-type', 'console/current-directory'], 
+define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 
+	'orion/searchClient', 'orion/fileClient', 'gcli/index', 'console/directory-type', 
+	'console/current-directory', 'shim/es5-bind'], 
 function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalCommands,        mSearchClient,        mFileClient,        gcli       ) {
 
 	var withWorkspace = require('console/current-directory').withWorkspace;
