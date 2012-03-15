@@ -38,11 +38,11 @@ define("markOccurrences", [], function() {
 	};
 
 
-	function isIdentifierPart(char) {
-		return (/\d|\w|\$|_/).exec(char) !== null;
+	function isIdentifierStart(char) {
+		return (/[\$a-zA-Z_]/).exec(char) !== null;
 	}
 
-	function isIdentifierStart(char) {
+	function isIdentifierPart(char) {
 		return (/\w|\$|_/).exec(char) !== null;
 	}
 
@@ -54,7 +54,7 @@ define("markOccurrences", [], function() {
 			return false;
 		}
 		for (var i = 1; i < word.length; i++) {
-			if (!isIdentifierPart(word.charAt(0))) {
+			if (!isIdentifierPart(word.charAt(i))) {
 				return false;
 			}
 		}
@@ -126,6 +126,13 @@ define("markOccurrences", [], function() {
 					_annotationProvider.pushAnnotations(ranges);
 				}
 			}
+		},
+		
+		// expose this object for the tests only
+		_testObj : {
+			findLocations : findLocations,
+			findCurrentWord : findCurrentWord,
+			isIdentifier : isIdentifier
 		},
 		
 		annotationProvider : _annotationProvider
