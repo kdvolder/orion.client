@@ -18,21 +18,21 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	//////////////////////////////////////////////////////////
 	var esprimaContentAssistant = new mEsprimaPlugin.EsprimaJavaScriptContentAssistProvider();
 	
-	function computeContentAssist(contents, prefix, offset) {
+	function computeContentAssist(buffer, prefix, offset) {
 		if (!prefix) {
 			prefix = "";
 		}
 		if (!offset) {
-			offset = contents.indexOf("/**/");
+			offset = buffer.indexOf("/**/");
 			if (offset < 0) {
-				offset = contents.length;
+				offset = buffer.length;
 			}
 		}		
-		return esprimaContentAssistant.computeProposals(prefix, contents, {offset: offset});
+		return esprimaContentAssistant.computeProposals(buffer, offset, {prefix : prefix});
 	}
 	
-	function testProposal(proposal, text, description) {
-		assert.equal(proposal.proposal, text, "Invalid proposal text");
+	function testProposal(proposal, text, description, prefix) {
+		assert.equal(prefix + proposal.proposal, text, "Invalid proposal text");
 		if (description) {
 			assert.equal(proposal.description, description, "Invalid proposal description");
 		}
@@ -54,7 +54,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		return text;
 	}
 	
-	function testProposals(actualProposals, expectedProposals) {
+	function testProposals(prefix, actualProposals, expectedProposals) {
 //		console.log("Proposals:");
 //		console.log(actualProposals);
 		
@@ -62,7 +62,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			"Wrong number of proposals.  Expected:\n" + stringifyExpected(expectedProposals) +"\nActual:\n" + stringifyActual(actualProposals));
 			
 		for (var i = 0; i < actualProposals.length; i++) {
-			testProposal(actualProposals[i], expectedProposals[i][0], expectedProposals[i][1]);
+			testProposal(actualProposals[i], expectedProposals[i][0], expectedProposals[i][1], prefix);
 		}
 	}
 
@@ -149,7 +149,7 @@ tests.testEmpty = function() {};
 	// non-inferencing content assist
 	tests["test Empty File Content Assist"] = function() {
 		var results = computeContentAssist("");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -164,7 +164,7 @@ tests.testEmpty = function() {};
 	};
 	tests["test Single Var Content Assist"] = function() {
 		var results = computeContentAssist("var zzz = 9;\n");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -180,7 +180,7 @@ tests.testEmpty = function() {};
 	};
 	tests["test Single Var Content Assist 2"] = function() {
 		var results = computeContentAssist("var zzz;\n");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -196,7 +196,7 @@ tests.testEmpty = function() {};
 	};
 	tests["test multi var content assist 1"] = function() {
 		var results = computeContentAssist("var zzz;\nvar xxx, yyy;\n");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -214,14 +214,14 @@ tests.testEmpty = function() {};
 	};
 	tests["test multi var content assist 2"] = function() {
 		var results = computeContentAssist("var zzz;\nvar zxxx, xxx, yyy;\nz","z");
-		testProposals(results, [
+		testProposals("z", results, [
 			["zxxx", "zxxx : Object (esprima)"],
 			["zzz", "zzz : Object (esprima)"]
 		]);
 	};
 	tests["test single function content assist"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\n");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
@@ -237,7 +237,7 @@ tests.testEmpty = function() {};
 	};
 	tests["test multi function content assist 1"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {}\n");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
@@ -256,7 +256,7 @@ tests.testEmpty = function() {};
 		// only the outer foo is available
 		var results = computeContentAssist(
 				"var foo;\nfunction other(a, b, c) {\nfunction inner() { var foo2; }\nf/**/}", "f");
-		testProposals(results, [
+		testProposals("f", results, [
 			["foo", "foo : Object (esprima)"]
 		]);
 	};
@@ -264,19 +264,19 @@ tests.testEmpty = function() {};
 		// the inner assignment should not affect the value of foo
 		var results = computeContentAssist("var foo;\n" +
 				"var foo = 1;\nfunction other(a, b, c) {\nfunction inner() { foo2 = \"\"; }\nfoo.toF/**/}", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
 	tests["test multi function content assist 2"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {}\nf", "f");
-		testProposals(results, [
+		testProposals("f", results, [
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"]
 		]);
 	};
 	tests["test in function 1"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {/**/}", "");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -297,7 +297,7 @@ tests.testEmpty = function() {};
 	};
 	tests["test in function 2"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {\n/**/nuthin}", "");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -318,13 +318,13 @@ tests.testEmpty = function() {};
 	};
 	tests["test in function 3"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {f/**/}", "f");
-		testProposals(results, [
+		testProposals("f", results, [
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"]
 		]);
 	};
 	tests["test in function 4"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(aa, ab, c) {a/**/}", "a");
-		testProposals(results, [
+		testProposals("a", results, [
 			["aa", "aa : Object (esprima)"],
 			["ab", "ab : Object (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"]
@@ -333,7 +333,7 @@ tests.testEmpty = function() {};
 	tests["test in function 5"] = function() {
 		// should not see 'aaa' since that is declared later
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(aa, ab, c) {var abb;\na/**/\nvar aaa}", "a");
-		testProposals(results, [
+		testProposals("a", results, [
 			["aa", "aa : Object (esprima)"],
 			["ab", "ab : Object (esprima)"],
 			["abb", "abb : Object (esprima)"],
@@ -346,7 +346,7 @@ tests.testEmpty = function() {};
 		"function fun(a, b, c) {\n" +
 		"function other(aa, ab, c) {\n"+
 		"var abb;\na/**/\nvar aaa\n}\n}", "a");
-		testProposals(results, [
+		testProposals("a", results, [
 			["a", "a : Object (esprima)"],
 			["aa", "aa : Object (esprima)"],
 			["ab", "ab : Object (esprima)"],
@@ -362,7 +362,7 @@ tests.testEmpty = function() {};
 		"function fun(a, b, c) {/**/\n" +
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n}\n}");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -386,7 +386,7 @@ tests.testEmpty = function() {};
 		"function fun(a, b, c) {\n" +
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n} /**/\n}");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -410,13 +410,13 @@ tests.testEmpty = function() {};
 	// all inferencing based content assist tests here
 	tests["test Object inferencing with Variable"] = function() {
 		var results = computeContentAssist("var t = {}\nt.h", "h");
-		testProposals(results, [
+		testProposals("h", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"]
 		]);
 	};
 	tests["test Object Literal inferencing"] = function() {
 		var results = computeContentAssist("var t = { hhh : 1, hh2 : 8}\nt.h", "h");
-		testProposals(results, [
+		testProposals("h", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["hh2", "hh2 : Number (esprima)"],
 			["hhh", "hhh : Number (esprima)"]
@@ -424,20 +424,20 @@ tests.testEmpty = function() {};
 	};
 	tests["test Simple String inferencing"] = function() {
 		var results = computeContentAssist("''.char", "char");
-		testProposals(results, [
+		testProposals("char", results, [
 			["charAt(index)", "charAt(index) : String (esprima)"],
 			["charCodeAt(index)", "charCodeAt(index) : Number (esprima)"]
 		]);
 	};
 	tests["test Simple Date inferencing"] = function() {
 		var results = computeContentAssist("new Date().setD", "setD");
-		testProposals(results, [
+		testProposals("setD", results, [
 			["setDay(dayOfWeek)", "setDay(dayOfWeek) : Number (esprima)"]
 		]);
 	};
 	tests["test Number inferencing with Variable"] = function() {
 		var results = computeContentAssist("var t = 1\nt.to", "to");
-		testProposals(results, [
+		testProposals("to", results, [
 			["toExponential(digits)", "toExponential(digits) : Number (esprima)"],
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"],
 			["toLocaleString()", "toLocaleString() : String (esprima)"],
@@ -448,7 +448,7 @@ tests.testEmpty = function() {};
 	
 	tests["test Data flow Object Literal inferencing"] = function() {
 		var results = computeContentAssist("var s = { hhh : 1, hh2 : 8}\nvar t = s;\nt.h", "h");
-		testProposals(results, [
+		testProposals("h", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["hh2", "hh2 : Number (esprima)"],
 			["hhh", "hhh : Number (esprima)"]
@@ -456,39 +456,39 @@ tests.testEmpty = function() {};
 	};
 	tests["test Data flow inferencing 1"] = function() {
 		var results = computeContentAssist("var ttt = 9\nttt.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
 	tests["test Data flow inferencing 2"] = function() {
 		var results = computeContentAssist("ttt = 9\nttt.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
 	tests["test Data flow inferencing 3"] = function() {
 		var results = computeContentAssist("var ttt = \"\"\nttt = 9\nttt.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
 	tests["test Data flow inferencing 4"] = function() {
 		var results = computeContentAssist("var name = toString(property.key.value);\nname.co", "co");
-		testProposals(results, [
+		testProposals("co", results, [
 			["concat(array)", "concat(array) : String (esprima)"]
 		]);
 	};
 	
 	tests["test Simple this"] = function() {
 		var results = computeContentAssist("var ssss = 4;\nthis.ss", "ss");
-		testProposals(results, [
+		testProposals("ss", results, [
 			["ssss", "ssss : Number (esprima)"]
 		]);
 	};
 	
 	tests["test Object Literal inside"] = function() {
 		var results = computeContentAssist("var x = { the : 1, far : this.th/**/ };", "th");
-		testProposals(results, [
+		testProposals("th", results, [
 			// type is 'Object' here, not number, since inside the object literal, we don't 
 			// know the types of literal fields
 			["the", "the : Object (esprima)"]
@@ -496,42 +496,42 @@ tests.testEmpty = function() {};
 	};
 	tests["test Object Literal outside"] = function() {
 		var results = computeContentAssist("var x = { the : 1, far : 2 };\nx.th", "th");
-		testProposals(results, [
+		testProposals("th", results, [
 			["the", "the : Number (esprima)"]
 		]);
 	};
 	tests["test Object Literal none"] = function() {
 		var results = computeContentAssist("var x = { the : 1, far : 2 };\nthis.th", "th");
-		testProposals(results, [
+		testProposals("th", results, [
 		]);
 	};
 	tests["test Object Literal outside 2"] = function() {
 		var results = computeContentAssist("var x = { the : 1, far : 2 };\nvar who = x.th", "th");
-		testProposals(results, [
+		testProposals("th", results, [
 			["the", "the : Number (esprima)"]
 		]);
 	};
 	tests["test Object Literal outside 3"] = function() {
 		var results = computeContentAssist("var x = { the : 1, far : 2 };\nwho(x.th/**/)", "th");
-		testProposals(results, [
+		testProposals("th", results, [
 			["the", "the : Number (esprima)"]
 		]);
 	};
 	tests["test Object Literal outside 4"] = function() {
 		var results = computeContentAssist("var x = { the : 1, far : 2 };\nwho(yyy, x.th/**/)", "th");
-		testProposals(results, [
+		testProposals("th", results, [
 			["the", "the : Number (esprima)"]
 		]);
 	};
 	tests["test this reference 1"] = function() {
 		var results = computeContentAssist("var xxxx;\nthis.x", "x");
-		testProposals(results, [
+		testProposals("x", results, [
 			["xxxx", "xxxx : Object (esprima)"]
 		]);
 	};
 	tests["test binary expression 1"] = function() {
 		var results = computeContentAssist("(1+3).toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
@@ -539,53 +539,53 @@ tests.testEmpty = function() {};
 	// not working since for loop is not storing slocs of var ii
 	tests["test for loop 1"] = function() {
 		var results = computeContentAssist("for (var ii=0;i/**/<8;ii++) { ii }", "i");
-		testProposals(results, [
+		testProposals("i", results, [
 			["ii", "ii : Number (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"]
 		]);
 	};
 	tests["test for loop 2"] = function() {
 		var results = computeContentAssist("for (var ii=0;ii<8;i/**/++) { ii }", "i");
-		testProposals(results, [
+		testProposals("i", results, [
 			["ii", "ii : Number (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"]
 		]);
 	};
 	tests["test for loop 3"] = function() {
 		var results = computeContentAssist("for (var ii=0;ii<8;ii++) { i/**/ }", "i");
-		testProposals(results, [
+		testProposals("i", results, [
 			["ii", "ii : Number (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"]
 		]);
 	};
 	tests["test while loop 1"] = function() {
 		var results = computeContentAssist("var iii;\nwhile(ii/**/ === null) {\n}", "ii");
-		testProposals(results, [
+		testProposals("ii", results, [
 			["iii", "iii : Object (esprima)"]
 		]);
 	};
 	tests["test while loop 2"] = function() {
 		var results = computeContentAssist("var iii;\nwhile(this.ii/**/ === null) {\n}", "ii");
-		testProposals(results, [
+		testProposals("ii", results, [
 			["iii", "iii : Object (esprima)"]
 		]);
 	};
 	tests["test while loop 3"] = function() {
 		var results = computeContentAssist("var iii;\nwhile(iii === null) {this.ii/**/\n}", "ii");
-		testProposals(results, [
+		testProposals("ii", results, [
 			["iii", "iii : Object (esprima)"]
 		]);
 	};
 	tests["test catch clause 1"] = function() {
 		var results = computeContentAssist("try { } catch (eee) {e/**/  }", "e");
-		testProposals(results, [
+		testProposals("e", results, [
 			["eee", "eee : Error (esprima)"]
 		]);
 	};
 	tests["test catch clause 2"] = function() {
 		// the type of the catch variable is Error
 		var results = computeContentAssist("try { } catch (eee) {\neee.me/**/  }", "me");
-		testProposals(results, [
+		testProposals("me", results, [
 			["message", "message : String (esprima)"]
 		]);
 	};
@@ -594,7 +594,7 @@ tests.testEmpty = function() {};
 	tests["test get global var"] = function() {
 		// should infer that we are referring to the globally defined xxx, not the param
 		var results = computeContentAssist("var xxx = 9;\nfunction fff(xxx) { this.xxx.toF/**/}", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
@@ -602,43 +602,43 @@ tests.testEmpty = function() {};
 	tests["test get local var"] = function() {
 		// should infer that we are referring to the locally defined xxx, not the global
 		var results = computeContentAssist("var xxx = 9;\nfunction fff(xxx) { xxx.toF/**/}", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 		]);
 	};
 
 	tests["test Math 1"] = function() {
 		var results = computeContentAssist("Mat", "Mat");
-		testProposals(results, [
+		testProposals("Mat", results, [
 			["Math", "Math : Math (esprima)"]
 		]);
 	};
 	tests["test Math 2"] = function() {
 		var results = computeContentAssist("this.Mat", "Mat");
-		testProposals(results, [
+		testProposals("Mat", results, [
 			["Math", "Math : Math (esprima)"]
 		]);
 	};
 	tests["test Math 3"] = function() {
 		// Math not available when this isn't the global this
 		var results = computeContentAssist("var ff = { f: this.Mat/**/ }", "Mat");
-		testProposals(results, [
+		testProposals("Mat", results, [
 		]);
 	};
 	tests["test Math 4"] = function() {
 		var results = computeContentAssist("this.Math.E", "E");
-		testProposals(results, [
+		testProposals("E", results, [
 			["E", "E : Number (esprima)"]
 		]);
 	};
 	tests["test JSON 4"] = function() {
 		var results = computeContentAssist("this.JSON.st", "st");
-		testProposals(results, [
+		testProposals("st", results, [
 			["stringify(obj)", "stringify(obj) : String (esprima)"]
 		]);
 	};
 	tests["test multi-dot inferencing 1"] = function() {
 		var results = computeContentAssist("var a = \"\";\na.charAt().charAt().charAt().ch", "ch");
-		testProposals(results, [
+		testProposals("ch", results, [
 			["charAt(index)", "charAt(index) : String (esprima)"],
 			["charCodeAt(index)", "charCodeAt(index) : Number (esprima)"]
 		]);
@@ -646,28 +646,28 @@ tests.testEmpty = function() {};
 	tests["test multi-dot inferencing 2"] = function() {
 		var results = computeContentAssist(
 		"var zz = {};\nzz.zz = zz;\nzz.zz.zz.z", "z");
-		testProposals(results, [
+		testProposals("z", results, [
 			["zz", "zz : { zz } (esprima)"]
 		]);
 	};
 	tests["test multi-dot inferencing 3"] = function() {
 		var results = computeContentAssist(
 		"var x = { yy : { } };\nx.yy.zz = 1;\nx.yy.z", "z");
-		testProposals(results, [
+		testProposals("z", results, [
 			["zz", "zz : Number (esprima)"]
 		]);
 	};
 	tests["test multi-dot inferencing 4"] = function() {
 		var results = computeContentAssist(
 		"var x = { yy : { } };\nx.yy.zz = 1;\nx.yy.zz.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
 	tests["test constructor 1"] = function() {
 		var results = computeContentAssist(
 		"function Fun() {\n	this.xxx = 9;\n	this.uuu = this.x/**/;}", "x");
-		testProposals(results, [
+		testProposals("x", results, [
 			["xxx", "xxx : Number (esprima)"]
 		]);
 	};
@@ -676,7 +676,7 @@ tests.testEmpty = function() {};
 		"function Fun() {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
 		"var y = new Fun();\n" +	
 		"y.x", "x");
-		testProposals(results, [
+		testProposals("x", results, [
 			["xxx", "xxx : Number (esprima)"]
 		]);
 	};
@@ -685,7 +685,7 @@ tests.testEmpty = function() {};
 		"function Fun() {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
 		"var y = new Fun();\n" +
 		"y.xxx.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
@@ -694,7 +694,7 @@ tests.testEmpty = function() {};
 		"function Fun() {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
 		"var y = new Fun();\n" +
 		"y.uuu.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
@@ -704,7 +704,7 @@ tests.testEmpty = function() {};
 		"var Fun = function () {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
 		"var y = new Fun();\n" +
 		"y.uuu.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
@@ -712,7 +712,7 @@ tests.testEmpty = function() {};
 	tests["test Function args 1"] = function() {
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(/**/)");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -730,7 +730,7 @@ tests.testEmpty = function() {};
 	tests["test Function args 2"] = function() {
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(ttt, /**/)");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -748,7 +748,7 @@ tests.testEmpty = function() {};
 	tests["test Function args 3"] = function() {
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(ttt, /**/, uuu)");
-		testProposals(results, [
+		testProposals("", results, [
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -780,7 +780,7 @@ tests.testEmpty = function() {};
 		"function Fun() {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
 		"var y = new Fun();\n" +
 		"y.uuu.toF/**/}", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
@@ -790,7 +790,7 @@ tests.testEmpty = function() {};
 		var results = computeContentAssist(
 		"var ttt = { xxx : { yyy : { zzz : 1} } };\n" +
 		"ttt.xxx.y", "y");
-		testProposals(results, [
+		testProposals("y", results, [
 			["yyy", "yyy : { zzz } (esprima)"]
 		]);
 	};
@@ -798,7 +798,7 @@ tests.testEmpty = function() {};
 		var results = computeContentAssist(
 		"var ttt = { xxx : { yyy : { zzz : 1} } };\n" +
 		"ttt.xxx.yyy.z", "z");
-		testProposals(results, [
+		testProposals("z", results, [
 			["zzz", "zzz : Number (esprima)"]
 		]);
 	};
@@ -806,7 +806,7 @@ tests.testEmpty = function() {};
 		var results = computeContentAssist(
 		"var ttt = { xxx : { yyy : { zzz : 1} } };\n" +
 		"ttt.xxx.yyy.zzz.toF", "toF");
-		testProposals(results, [
+		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
@@ -814,69 +814,69 @@ tests.testEmpty = function() {};
 	tests["test function expression 1"] = function() {
 		var results = computeContentAssist(
 		"var ttt = function(a, b, c) { };\ntt", "tt");
-		testProposals(results, [
+		testProposals("tt", results, [
 			["ttt(a, b, c)", "ttt(a, b, c) : Object (esprima)"]
 		]);
 	};
 	tests["test function expression 2"] = function() {
 		var results = computeContentAssist(
 		"ttt = function(a, b, c) { };\ntt", "tt");
-		testProposals(results, [
+		testProposals("tt", results, [
 			["ttt(a, b, c)", "ttt(a, b, c) : Object (esprima)"]
 		]);
 	};
 	tests["test function expression 3"] = function() {
 		var results = computeContentAssist(
 		"ttt = { rrr : function(a, b, c) { } };\nttt.rr", "rr");
-		testProposals(results, [
+		testProposals("rr", results, [
 			["rrr(a, b, c)", "rrr(a, b, c) : Object (esprima)"]
 		]);
 	};
 	tests["test function expression 4"] = function() {
 		var results = computeContentAssist(
 		"var ttt = function(a, b) { };\nvar hhh = ttt;\nhhh", "hhh");
-		testProposals(results, [
+		testProposals("hhh", results, [
 			["hhh(a, b)", "hhh(a, b) : Object (esprima)"]
 		]);
 	};
 	tests["test function expression 4a"] = function() {
 		var results = computeContentAssist(
 		"function ttt(a, b) { };\nvar hhh = ttt;\nhhh", "hhh");
-		testProposals(results, [
+		testProposals("hhh", results, [
 			["hhh(a, b)", "hhh(a, b) : Object (esprima)"]
 		]);
 	};
 	tests["test function expression 5"] = function() {
 		var results = computeContentAssist(
 		"var uuu = {	flart : function (a,b) { } };\nhhh = uuu.flart;\nhhh", "hhh");
-		testProposals(results, [
+		testProposals("hhh", results, [
 			["hhh(a, b)", "hhh(a, b) : Object (esprima)"]
 		]);
 	};
 	tests["test function expression 6"] = function() {
 		var results = computeContentAssist(
 		"var uuu = {	flart : function (a,b) { } };\nhhh = uuu.flart;\nhhh.app", "app");
-		testProposals(results, [
+		testProposals("app", results, [
 			["apply(func, [args])", "apply(func, [args]) : Object (esprima)"]
 		]);
 	};
 	
 	tests["test globals 1"] = function() {
 		var results = computeContentAssist("/*global faaa */\nfa", "fa");
-		testProposals(results, [
+		testProposals("fa", results, [
 			["faaa", "faaa : Object (esprima)"]
 		]);
 	};
 	tests["test globals 2"] = function() {
 		var results = computeContentAssist("/*global  \t\n faaa \t\t\n faaa2  */\nfa", "fa");
-		testProposals(results, [
+		testProposals("fa", results, [
 			["faaa", "faaa : Object (esprima)"],
 			["faaa2", "faaa2 : Object (esprima)"]
 		]);
 	};
 	tests["test globals 3"] = function() {
 		var results = computeContentAssist("/*global  \t\n faaa \t\t\n fass2  */\nvar t = 1;\nt.fa", "fa");
-		testProposals(results, [
+		testProposals("fa", results, [
 		]);
 	};
 	
@@ -885,31 +885,31 @@ tests.testEmpty = function() {};
 	////////////////////////////
 	tests["test complexx name 1"] = function() {
 		var results = computeContentAssist("function Ttt() { }\nvar ttt = new Ttt();\ntt", "tt");
-		testProposals(results, [
+		testProposals("tt", results, [
 			["ttt", "ttt : Ttt (esprima)"]
 		]);
 	};
 	tests["test complexx name 2"] = function() {
 		var results = computeContentAssist("var Ttt = function() { };\nvar ttt = new Ttt();\ntt", "tt");
-		testProposals(results, [
+		testProposals("tt", results, [
 			["ttt", "ttt : Ttt (esprima)"]
 		]);
 	};
 	tests["test complexx name 3"] = function() {
 		var results = computeContentAssist("var ttt = { };\ntt", "tt");
-		testProposals(results, [
+		testProposals("tt", results, [
 			["ttt", "ttt : { } (esprima)"]
 		]);
 	};
 	tests["test complexx name 4"] = function() {
 		var results = computeContentAssist("var ttt = { aa: 1, bb: 2 };\ntt", "tt");
-		testProposals(results, [
+		testProposals("tt", results, [
 			["ttt", "ttt : { aa bb } (esprima)"]
 		]);
 	};
 	tests["test complexx name 5"] = function() {
 		var results = computeContentAssist("var ttt = { aa: 1, bb: 2 };\nttt.cc = 9;\ntt", "tt");
-		testProposals(results, [
+		testProposals("tt", results, [
 			["ttt", "ttt : { aa bb cc } (esprima)"]
 		]);
 	};
@@ -920,7 +920,7 @@ tests.testEmpty = function() {};
 
 	tests["test broken after dot 1"] = function() {
 		var results = computeContentAssist("var ttt = { ooo:8};\nttt.", "");
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Number (esprima)"],
@@ -934,7 +934,7 @@ tests.testEmpty = function() {};
 	
 	tests["test broken after dot 2"] = function() {
 		var results = computeContentAssist("var ttt = { ooo:8};\nif (ttt.) { ttt }", "", "var ttt = { ooo:8};\nif (ttt.".length);
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Number (esprima)"],
@@ -947,7 +947,7 @@ tests.testEmpty = function() {};
 	};
 	tests["test broken after dot 3"] = function() {
 		var results = computeContentAssist("var ttt = { ooo:this.};", "", "var ttt = { ooo:this.".length);
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Object (esprima)"],
@@ -961,7 +961,7 @@ tests.testEmpty = function() {};
 	// same as above, except use /**/
 	tests["test broken after dot 3a"] = function() {
 		var results = computeContentAssist("var ttt = { ooo:this./**/};", "");
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Object (esprima)"],
@@ -975,7 +975,7 @@ tests.testEmpty = function() {};
 
 	tests["test broken after dot 4"] = function() {
 		var results = computeContentAssist("var ttt = { ooo:8};\nfunction ff() { \nttt.}", "", "var ttt = { ooo:8};\nfunction ff() { \nttt.".length);
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Number (esprima)"],
@@ -989,7 +989,7 @@ tests.testEmpty = function() {};
 	// same as above, except use /**/
 	tests["test broken after dot 4a"] = function() {
 		var results = computeContentAssist("var ttt = { ooo:8};\nfunction ff() { \nttt./**/}", "");
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Number (esprima)"],
@@ -1010,7 +1010,7 @@ tests.testEmpty = function() {};
 			("var first = {ooo:9};\n" +
 			"first.").length);
 
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Number (esprima)"],
@@ -1032,7 +1032,7 @@ tests.testEmpty = function() {};
 			("var first = {ooo:9};\n" +
 			"first.").length);
 
-		testProposals(results, [
+		testProposals("", results, [
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["ooo", "ooo : Number (esprima)"],
