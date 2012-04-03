@@ -4,6 +4,7 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 	<script type="text/javascript" src="../orion/plugin.js"></script>
 	<script>
+		/*global window eclipse */
 		window.onload = function() {
 			var provider = new eclipse.PluginProvider();
 			provider.registerServiceProvider("orion.navigate.command", {
@@ -14,7 +15,7 @@
 				name: "Run as Unit Test",
 				id: "eclipse.runUnitTest",
 				tooltip: "Run as Unit Test",
-				validationProperties: {"Name":"*.html"},
+				validationProperties: {"Name":"*[Tt]est*.html"},
 				href: true,
 				forceSingleItem: true
 			});
