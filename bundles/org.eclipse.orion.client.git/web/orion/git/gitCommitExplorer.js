@@ -11,8 +11,8 @@
 
 /*global define console document */
 
-define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/compare/diff-provider', 'orion/compare/compare-container', 'orion/breadcrumbs', 'orion/git/gitCommands'], 
-		function(dojo, mExplorer, mUtil, mGlobalCommands, mDiffProvider , mCompareContainer, mBreadcrumbs, mGitCommands) {
+define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/compare/diff-provider', 'orion/compare/compare-container', 'orion/breadcrumbs', 'orion/git/gitCommands'], 
+		function(messages, dojo, mExplorer, mUtil, mGlobalCommands, mDiffProvider , mCompareContainer, mBreadcrumbs, mGitCommands) {
 	var exports = {};
 
 	exports.GitCommitExplorer = (function() {
@@ -64,7 +64,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 			var that = this;
 			var progressService = this.registry.getService("orion.page.message");
 
-			progressService.setProgressMessage("Loading...");
+			progressService.setProgressMessage(messages["Loading..."]);
 			this.registry.getService("orion.git.provider").getGitClone(location).then(
 				function(resp){					
 					if (resp.Children.length === 0) {
@@ -112,11 +112,11 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 				item.Parents[0].Location = repository.Location;
 				item.Parents[0].ChildrenLocation = repository.Location;
 				item.Parents[1] = {};
-				item.Parents[1].Name = "Repositories";
-				pageTitle = commit.Name + " on " + repository.Name + " - Git";
+				item.Parents[1].Name = messages["Repositories"];
+				pageTitle = mUtil.formatMessage(messages["0 on 1 - Git"], commit.Name, repository.Name);
 			} else {
 				item.Name = "";
-				pageTitle = "Git";
+				pageTitle = messages["Git"];
 			}
 			
 			document.title = pageTitle;
@@ -143,15 +143,15 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 			
 			var titleWrapper = dojo.create( "div", {"class":"auxpaneHeading sectionWrapper toolComposite", "id":"commitSectionHeader"}, tableNode );
 			
-			dojo.create( "span", { "class":"git-decor-icon gitImageSprite git-sprite-modification" }, titleWrapper );
-			dojo.create( "div", { id: "commitSectionTitle", "class":"layoutLeft", innerHTML: (commit ? "Commit Details" :  "No Commits") }, titleWrapper );
+			dojo.create( "span", { "class":"sectionIcon gitImageSprite git-sprite-modification" }, titleWrapper );
+			dojo.create( "div", { id: "commitSectionTitle", "class":"layoutLeft", innerHTML: (commit ? messages["Commit Details"] :  messages["No Commits"]) }, titleWrapper );
 			dojo.create( "div", { id: "commitSectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 
 			if (!commit)
 				return;
 			
 			var content =	
-				'<div class="git-table">' +
+				'<div class="sectionTable">' +
 					'<div class="plugin-settings">' +
 						'<list id="commitNode" class="plugin-settings-list"></list>' +
 					'</div>' +
@@ -161,7 +161,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 
 		    var list = dojo.byId( "commitNode" );		
 			
-		    var extensionListItem = dojo.create( "div", { "class":"git-list-item" }, list );
+		    var extensionListItem = dojo.create( "div", { "class":"sectionTableItem" }, list );
 			var horizontalBox = dojo.create( "div", null, extensionListItem );
 			var detailsView = dojo.create( "div", null, horizontalBox );
 			
@@ -178,16 +178,17 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 				dojo.create( "div", {"style":"padding-top:15px"}, detailsView );
 			}
 						
-			dojo.create( "span", { "class":"gitSecondaryDescription", innerHTML: "commit: " + commit.Name}, detailsView );
+			dojo.create( "span", { "class":"gitSecondaryDescription", innerHTML: mUtil.formatMessage(messages["commit: 0"], commit.Name)}, detailsView );
 			
 			if (commit.Parents && commit.Parents.length > 0){
 				dojo.create( "div", null, detailsView );
 				
 				var parentMessage = dojo.create( "span", { "class":"gitSecondaryDescription"}, detailsView );
 				
-				dojo.place(document.createTextNode("parent: "), parentMessage);
-				link = dojo.create("a", {className: "pnavlinkonpage", href: "/git/git-commit.html#" + commit.Parents[0].Location + "?page=1&pageSize=1"}, parentMessage);
+				var temp = dojo.create("span");
+				link = dojo.create("a", {className: "pnavlinkonpage", href: "/git/git-commit.html#" + commit.Parents[0].Location + "?page=1&pageSize=1"}, temp);
 				dojo.place(document.createTextNode(commit.Parents[0].Name), link);
+				parentMessage.innerHTML = mUtil.formatMessage(messages["parent: 0"], temp.innerHTML);
 			}
 			
 			dojo.create( "div", {"style":"padding-top:15px"}, detailsView );
@@ -203,12 +204,11 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 			}
 			
 			dojo.create( "span", { "class":"gitSecondaryDescription", 
-				innerHTML: "authored by " + commit.AuthorName + " (" + commit.AuthorEmail
-				+ ") on " + dojo.date.locale.format(new Date(commit.Time), {formatLength: "short"})}, detailsView );
+				innerHTML: mUtil.formatMessage(messages["authored by 0 (1) on 2"], commit.AuthorName, commit.AuthorEmail, dojo.date.locale.format(new Date(commit.Time), {formatLength: "short"}))}, detailsView );
 			
 			dojo.create( "div", null, detailsView );
 			dojo.create( "span", { "class":"gitSecondaryDescription", 
-				innerHTML: "committed by " + commit.CommitterName  + " (" + commit.CommitterEmail + ")"}, detailsView );
+				innerHTML: mUtil.formatMessage(messages["committed by 0 (1)"],  commit.CommitterName, commit.CommitterEmail)}, detailsView );
 		};
 		
 		GitCommitExplorer.prototype._splitCommitMessage = function(commitMessage){
@@ -243,11 +243,11 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 
 			var titleWrapper = dojo.create( "div", {"class":"auxpaneHeading sectionWrapper toolComposite", "id":"diffSectionHeader"}, tableNode );
 			
-			dojo.create( "div", { id: "diffSectionTitle", "class":"layoutLeft", innerHTML: "Diffs" }, titleWrapper );
+			dojo.create( "div", { id: "diffSectionTitle", "class":"layoutLeft", innerHTML: messages["Diffs"] }, titleWrapper );
 			dojo.create( "div", { id: "diffSectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 						
 			var content =
-				'<div class="git-table">' +
+				'<div class="sectionTable">' +
 					'<div class="plugin-settings">' +
 						'<list id="diffNode" class="plugin-settings-list"></list>' +
 					'</div>' +
@@ -264,7 +264,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 			
 			// add diff details
 			
-			var diffDetailsItem = dojo.create( "div", { "class":"git-list-item" }, dojo.byId("diffNode") );
+			var diffDetailsItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("diffNode") );
 			var diffDetailsHorizontalBox = dojo.create( "div", null, diffDetailsItem );
 
 			var detailsView = dojo.create( "div", {"style":"float:left"}, diffDetailsHorizontalBox );
@@ -274,12 +274,12 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 			}	
 			dojo.create( "span", { "class":"gitMainDescription", innerHTML: diffPath + " (" + diff.ChangeType + ") " }, detailsView );
 
-			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"git-action-area"}, diffDetailsHorizontalBox );
+			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox );
 			this.commandService.renderCommands(this.actionScopeId, actionsArea, diff, this, "tool", false);	
 			
 			// add inline compare view
 			
-			var diffItem = dojo.create( "div", { "class":"git-list-item" }, dojo.byId("diffNode") );
+			var diffItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("diffNode") );
 			var diffHorizontalBox = dojo.create( "div", null, diffItem );
 			
 			dojo.create( "div", { "id":"diffArea_" + index, "style":"height:420px;border:1px solid lightgray;"}, diffHorizontalBox );
@@ -307,8 +307,8 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 
 			var titleWrapper = dojo.create( "div", {"class":"auxpaneHeading sectionWrapper toolComposite", "id":"tagSectionHeader"}, tableNode );
 			
-			dojo.create( "span", { "class":"git-decor-icon gitImageSprite git-sprite-tag" }, titleWrapper );
-			dojo.create( "div", { id: "tagSectionTitle", "class":"layoutLeft", innerHTML: ((tags && tags.length > 0) ? "Tags:" : "No Tags") }, titleWrapper );
+			dojo.create( "span", { "class":"sectionIcon gitImageSprite git-sprite-tag" }, titleWrapper );
+			dojo.create( "div", { id: "tagSectionTitle", "class":"layoutLeft", innerHTML: ((tags && tags.length > 0) ? messages["Tags:"] : messages["No Tags"]) }, titleWrapper );
 			dojo.create( "div", { id: "tagSectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 
 			var parentId = "tagSectionHeader";
@@ -331,7 +331,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 				return;
 			
 			var content =
-				'<div class="git-table">' +
+				'<div class="sectionTable">' +
 					'<div class="plugin-settings">' +
 						'<list id="tagNode" class="plugin-settings-list"></list>' +
 					'</div>' +
@@ -345,7 +345,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 		};
 
 		GitCommitExplorer.prototype.renderTag = function(tag){
-			var extensionListItem = dojo.create( "div", { "class":"git-list-item" }, dojo.byId("tagNode") );
+			var extensionListItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("tagNode") );
 			var horizontalBox = dojo.create( "div", null, extensionListItem );
 
 			var detailsView = dojo.create( "div", {"class":"stretch"}, horizontalBox );
@@ -353,7 +353,7 @@ define(['dojo', 'orion/explorer', 'orion/util', 'orion/globalCommands', 'orion/c
 
 			dojo.create( "div", null, horizontalBox );
 
-			var actionsArea = dojo.create( "div", {"id":"tagActionsArea", "class":"git-action-area"}, horizontalBox );
+			var actionsArea = dojo.create( "div", {"id":"tagActionsArea", "class":"sectionTableItemActions"}, horizontalBox );
 			this.commandService.renderCommands(this.actionScopeId, actionsArea, tag, this, "tool", false);	
 		};
 

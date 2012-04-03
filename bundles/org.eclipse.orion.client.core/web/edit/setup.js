@@ -16,13 +16,13 @@ define(['require', 'dojo', 'orion/selection', 'orion/status', 'orion/progress', 
         'orion/commands', 'orion/util', 'orion/favorites', 'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/globalCommands', 'orion/outliner',
         'orion/problems', 'orion/editor/contentAssist', 'orion/editorCommands', 'orion/editor/editorFeatures', 'orion/editor/editor', 'orion/syntaxchecker',
         'orion/breadcrumbs', 'orion/textview/textView', 'orion/textview/textModel', 
-        'orion/textview/projectionTextModel', 'orion/textview/keyBinding','orion/searchAndReplace/textSearcher','orion/searchAndReplace/orionTextSearchAdaptor',
+        'orion/textview/projectionTextModel', 'orion/textview/keyBinding','orion/searchAndReplace/textSearcher',
         'orion/edit/dispatcher', 'orion/contentTypes', 'orion/PageUtil', 'orion/highlight',
         'dojo/parser', 'dojo/hash', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane', 'orion/widgets/eWebBorderContainer' ], 
 		function(require, dojo, mSelection, mStatus, mProgress, mDialogs, mCommands, mUtil, mFavorites,
 				mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
 				mSyntaxchecker, mBreadcrumbs, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mSearcher,
-				mSearchAdaptor, mDispatcher, mContentTypes, PageUtil, Highlight) {
+				mDispatcher, mContentTypes, PageUtil, Highlight) {
 	
 var exports = exports || {};
 	
@@ -296,7 +296,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 	var keyBindingFactory = function(editor, keyModeStack, undoStack, contentAssist) {
 		
 		// Create keybindings for generic editing, no dependency on the service model
-		var genericBindings = new mEditorFeatures.TextActions(editor, undoStack , new mSearcher.TextSearcher(commandService, undoStack, new mSearchAdaptor.OrionTextSearchAdaptor()));
+		var genericBindings = new mEditorFeatures.TextActions(editor, undoStack , new mSearcher.TextSearcher(editor, commandService, undoStack));
 		keyModeStack.push(genericBindings);
 		
 		// Linked Mode
@@ -372,38 +372,39 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 	};
 	
 	// Content Assist
-	var contentAssistFactory = null;
-	if (!isReadOnly) {
-		contentAssistFactory = function(editor) {
-			var contentAssist = new mContentAssist.ContentAssist(editor, "contentassist");
-			contentAssist.addEventListener("show", function(event) {
-				// Filter the providers to be used by content assist
-				var fileContentType = inputManager.getContentType();
-				var fileName = editor.getTitle();
-				var serviceReferences = serviceRegistry.getServiceReferences("orion.edit.contentAssist");
-				var providers = [];
-				for (var i=0; i < serviceReferences.length; i++) {
-					var serviceReference = serviceReferences[i],
-					    contentTypeIds = serviceReference.getProperty("contentType"),
-					    pattern = serviceReference.getProperty("pattern"); // backwards compatibility
-					if ((contentTypeIds && contentTypeService.isSomeExtensionOf(fileContentType, contentTypeIds)) || 
-							(pattern && new RegExp(pattern).test(fileName))) {
-						providers.push(serviceRegistry.getService(serviceReference));
+	var contentAssistFactory = isReadOnly ? null
+		: {
+			createContentAssistMode: function(editor) {
+				var contentAssist = new mContentAssist.ContentAssist(editor.getTextView());
+				contentAssist.addEventListener("Activating", function(event) {
+					// Content assist is about to be activated; set its providers.
+					var fileContentType = inputManager.getContentType();
+					var fileName = editor.getTitle();
+					var serviceReferences = serviceRegistry.getServiceReferences("orion.edit.contentAssist");
+					var providers = [];
+					for (var i=0; i < serviceReferences.length; i++) {
+						var serviceReference = serviceReferences[i],
+						    contentTypeIds = serviceReference.getProperty("contentType"),
+						    pattern = serviceReference.getProperty("pattern"); // backwards compatibility
+						if ((contentTypeIds && contentTypeService.isSomeExtensionOf(fileContentType, contentTypeIds)) || 
+								(pattern && new RegExp(pattern).test(fileName))) {
+							providers.push(serviceRegistry.getService(serviceReference));
+						}
 					}
-				}
-				contentAssist.setProviders(providers);
-			});
-			return contentAssist;
+					contentAssist.setProviders(providers);
+				});
+				var widget = new mContentAssist.ContentAssistWidget(contentAssist, "contentassist");
+				return new mContentAssist.ContentAssistMode(contentAssist, widget);
+			}
 		};
-	}
 
-	var statusReporter =  function(message, type) {
+	var statusReporter =  function(message, type, isAccessible) {
 		if (type === "progress") {
 			statusReportingService.setProgressMessage(message);
 		} else if (type === "error") {
 			statusReportingService.setErrorMessage(message);
 		} else {
-			statusReportingService.setMessage(message);
+			statusReportingService.setMessage(message, null, isAccessible);
 		}
 	};
 	var annotationFactory = new mEditorFeatures.AnnotationFactory();

@@ -12,7 +12,7 @@
  *		Mihai Sucan (Mozilla Foundation) - fix for Bug#334583 Bug#348471 Bug#349485 Bug#350595 Bug#360726 Bug#361180 Bug#362835 Bug#362428 Bug#362286 Bug#354270 Bug#361474 Bug#363945 Bug#366312 Bug#370584
  ******************************************************************************/
 
-/*global window document navigator setTimeout clearTimeout setInterval clearInterval XMLHttpRequest define DOMException */
+/*global window document navigator setTimeout clearTimeout setInterval clearInterval define */
 
 define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/keyBinding', 'orion/textview/eventTarget'], function(mTextModel, mKeyBinding, mEventTarget) {
 
@@ -49,6 +49,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 	var isW3CEvents = typeof window.document.documentElement.addEventListener === "function";
 	var isRangeRects = (!isIE || isIE >= 9) && typeof window.document.createRange().getBoundingClientRect === "function";
 	var platformDelimiter = isWindows ? "\r\n" : "\n";
+	var scrollButtonHeight = isPad ? 0 : 17;
 	
 	/** 
 	 * Constructs a new Selection object.
@@ -157,14 +158,30 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 	
 	TextView.prototype = /** @lends orion.textview.TextView.prototype */ {
 		/**
-		 * Adds a ruler to the text view.
+		 * Adds a ruler to the text view at the specified position.
+		 * <p>
+		 * The position is relative to the ruler location.
+		 * </p>
 		 *
 		 * @param {orion.textview.Ruler} ruler the ruler.
+		 * @param {Number} [index=length] the ruler index.
 		 */
-		addRuler: function (ruler) {
-			this._rulers.push(ruler);
+		addRuler: function (ruler, index) {
 			ruler.setView(this);
-			this._createRuler(ruler);
+			var rulers = this._rulers;
+			if (index !== undefined) {
+				var i, sideIndex;
+				for (i = 0, sideIndex=0; i < rulers.length && sideIndex < index; i++) {
+					if (ruler.getLocation() === rulers[i].getLocation()) {
+						sideIndex++;
+					}
+				}
+				rulers.splice(sideIndex, 0, ruler);
+				index = sideIndex;
+			} else {
+				rulers.push(ruler);
+			}
+			this._createRuler(ruler, index);
 			this._updatePage();
 		},
 		computeSize: function() {
@@ -208,7 +225,6 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 		 * <ul>
 		 *   <li>"document" - relative to document, the origin is the top-left corner of first line</li>
 		 *   <li>"page" - relative to html page that contains the text view</li>
-		 *   <li>"view" - relative to text view, the origin is the top-left corner of the view container</li>
 		 * </ul>
 		 * </p>
 		 * <p>All methods in the view that take or return a position are in the document coordinate space.</p>
@@ -723,12 +739,12 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			return false;
 		},
 		/**
-		* Returns if the view is loaded.
+		* Returns if the view is destroyed.
 		* <p>
-		* @returns {Boolean} <code>true</code> if the view is loaded.
+		* @returns {Boolean} <code>true</code> if the view is destroyed.
 		*/
-		isLoaded: function () {
-			return !!this._clientDiv;
+		isDestroyed: function () {
+			return !this._clientDiv;
 		},
 		/** 
 		 * @class This is the event sent when the user right clicks or otherwise invokes the context menu of the view. 
@@ -1152,6 +1168,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			}
 		},
 		resize: function() {
+			if (!this._clientDiv) { return; }
 			this._handleResize(null);
 		},
 		/**
@@ -1482,6 +1499,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			return this._showCaret(true);
 		},
 		update: function(styleChanged, sync) {
+			if (!this._clientDiv) { return; }
 			if (styleChanged) {
 				this._updateStyle();
 			}
@@ -1729,7 +1747,12 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 		_handleFocus: function (e) {
 			if (!e) { e = window.event; }
 			this._hasFocus = true;
-			this._updateDOMSelection();
+			if (isPad && this._lastTouchOffset !== undefined) {
+				this.setCaretOffset(this._lastTouchOffset, true);
+				this._lastTouchOffset = undefined;
+			} else {
+				this._updateDOMSelection();
+			}
 			if (isFirefox || isIE) {
 				if (this._selDiv1) {
 					var color = this._hightlightRGB;
@@ -2257,12 +2280,12 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			}
 			var ruler = element ? element._ruler : null;
 			if (lineIndex === undefined && ruler && ruler.getOverview() === "document") {
-				var buttonHeight = isPad ? 0 : 17;
 				var clientHeight = this._getClientHeight ();
 				var lineCount = this._model.getLineCount ();
 				var viewPad = this._getViewPadding();
-				var trackHeight = clientHeight + viewPad.top + viewPad.bottom - 2 * buttonHeight;
-				lineIndex = Math.floor((e.clientY - buttonHeight) * lineCount / trackHeight);
+				var viewRect = this._viewDiv.getBoundingClientRect();
+				var trackHeight = clientHeight + viewPad.top + viewPad.bottom - 2 * scrollButtonHeight;
+				lineIndex = Math.floor(((e.clientY - viewRect.top) - scrollButtonHeight) * lineCount / trackHeight);
 				if (!(0 <= lineIndex && lineIndex < lineCount)) {
 					lineIndex = undefined;
 				}
@@ -2356,8 +2379,9 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			var touches = e.touches;
 			if (touches.length === 1) {
 				var touch = touches[0];
-				this._touchStartX = touch.pageX;
-				this._touchStartY = touch.pageY;
+				this._touchStartX = touch.clientX;
+				this._touchStartY = touch.clientY;
+				this._lastTouchOffset = this._getXToOffset(this._getYToLine(touch.clientY), touch.clientX);
 				this._touchStartTime = e.timeStamp;
 				this._touching = true;
 			}
@@ -2366,10 +2390,10 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			var touches = e.touches;
 			if (touches.length === 1) {
 				var touch = touches[0];
-				this._touchCurrentX = touch.pageX;
-				this._touchCurrentY = touch.pageY;
-				var interval = 100;
-				if (!this._touchScrollTimer && (e.timeStamp - this._touchStartTime) < (interval*2)) {
+				this._touchCurrentX = touch.clientX;
+				this._touchCurrentY = touch.clientY;
+				var interval = 10;
+				if (!this._touchScrollTimer && (e.timeStamp - this._touchStartTime) < (interval*20)) {
 					this._vScrollDiv.style.display = "block";
 					this._hScrollDiv.style.display = "block";
 					var self = this;
@@ -2392,8 +2416,8 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 							} else {
 								deltaX = self._touchSpeedX * interval;
 								deltaY = self._touchSpeedY * interval;
-								self._touchSpeedX *= 0.9;
-								self._touchSpeedY *= 0.9;
+								self._touchSpeedX *= 0.95;
+								self._touchSpeedY *= 0.95;
 							}
 						}
 						self._scrollView(deltaX, deltaY);
@@ -3355,7 +3379,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			}
 			return child;
 		},
-		_createRuler: function(ruler) {
+		_createRuler: function(ruler, index) {
 			if (!this._clientDiv) { return; }
 			var side = ruler.getLocation();
 			var rulerParent = side === "left" ? this._leftDiv : this._rightDiv;
@@ -3364,7 +3388,8 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			div.rulerChanged = true;
 			div.style.position = "relative";
 			var row = rulerParent.firstChild.rows[0];
-			var index = row.cells.length;
+			var length = row.cells.length;
+			var index = index === undefined || index < 0 || index > length ? length : index;
 			var cell = row.insertCell(index);
 			cell.vAlign = "top";
 			cell.appendChild(div);
@@ -3379,6 +3404,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			rootDiv.tabIndex = -1;
 			rootDiv.style.position = "absolute";
 			rootDiv.style.overflow = "hidden";
+			rootDiv.setAttribute("role", "application");
 			parent.appendChild(rootDiv);
 			
 			var leftDiv = document.createElement("DIV");
@@ -3390,6 +3416,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			leftDiv.style.WebkitUserSelect = "none";
 			leftDiv.style.position = "absolute";
 			leftDiv.style.cursor = "default";
+			leftDiv.setAttribute("aria-hidden", "true");
 			var table = document.createElement("TABLE");
 			leftDiv.appendChild(table);
 			table.cellPadding = "0px";
@@ -3408,7 +3435,6 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			viewDiv.style.borderWidth = "0px";
 			viewDiv.style.margin = "0px";
 			viewDiv.style.outline = "none";
-			viewDiv.setAttribute("role", "application");
 			rootDiv.appendChild(viewDiv);
 			
 			var rightDiv = document.createElement("DIV");
@@ -3420,6 +3446,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			rightDiv.style.WebkitUserSelect = "none";
 			rightDiv.style.position = "absolute";
 			rightDiv.style.cursor = "default";
+			rightDiv.setAttribute("aria-hidden", "true");
 			table = document.createElement("TABLE");
 			rightDiv.appendChild(table);
 			table.cellPadding = "0px";
@@ -3472,6 +3499,8 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			clientDiv.style.padding = "0px";
 			clientDiv.style.outline = "none";
 			clientDiv.style.zIndex = "1";
+			clientDiv.style.WebkitUserSelect = "text";
+			clientDiv.setAttribute("spellcheck", "false");
 			if (isPad) {
 				clientDiv.style.WebkitTapHighlightColor = "transparent";
 			}
@@ -3584,7 +3613,6 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			this._selDiv1 = null;
 			this._selDiv2 = null;
 			this._selDiv3 = null;
-			this._insertedSelRule = false;
 			this._clipboardDiv = null;
 			this._rootDiv = null;
 			this._scrollDiv = null;
@@ -3595,6 +3623,9 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			this._overlayDiv = null;
 			this._leftDiv = null;
 			this._rightDiv = null;
+			this._vScrollDiv = null;
+			this._hScrollDiv = null;
+			this._insertedSelRule = false;
 		},
 		_doAutoScroll: function (direction, x, y) {
 			this._autoScrollDir = direction;
@@ -4367,6 +4398,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			if (isIE) {
 				handlers.push({target: leftDiv, type: "selectstart", handler: function() {return false;}});
 			}
+			handlers.push({target: leftDiv, type: isFirefox ? "DOMMouseScroll" : "mousewheel", handler: function(e) { return self._handleMouseWheel(e); }});
 			handlers.push({target: leftDiv, type: "click", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: leftDiv, type: "dblclick", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: leftDiv, type: "mousemove", handler: function(e) { self._handleRulerEvent(e); }});
@@ -4375,6 +4407,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 			if (isIE) {
 				handlers.push({target: rightDiv, type: "selectstart", handler: function() {return false;}});
 			}
+			handlers.push({target: rightDiv, type: isFirefox ? "DOMMouseScroll" : "mousewheel", handler: function(e) { return self._handleMouseWheel(e); }});
 			handlers.push({target: rightDiv, type: "click", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: rightDiv, type: "dblclick", handler: function(e) { self._handleRulerEvent(e); }});
 			handlers.push({target: rightDiv, type: "mousemove", handler: function(e) { self._handleRulerEvent(e); }});
@@ -5582,11 +5615,10 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 					}
 					if (frag.firstChild) { div.insertBefore(frag, child); }
 				} else {
-					var buttonHeight = isPad ? 0 : 17;
 					var clientHeight = this._getClientHeight ();
 					var lineCount = this._model.getLineCount ();
 					var contentHeight = lineHeight * lineCount;
-					var trackHeight = clientHeight + viewPad.top + viewPad.bottom - 2 * buttonHeight;
+					var trackHeight = clientHeight + viewPad.top + viewPad.bottom - 2 * scrollButtonHeight;
 					var divHeight;
 					if (contentHeight < trackHeight) {
 						divHeight = lineHeight;
@@ -5608,7 +5640,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 							annotation = annotations[prop];
 							this._applyStyle(annotation.style, lineDiv);
 							lineDiv.style.position = "absolute";
-							lineDiv.style.top = buttonHeight + lineHeight + Math.floor(lineIndex * divHeight) + "px";
+							lineDiv.style.top = scrollButtonHeight + lineHeight + Math.floor(lineIndex * divHeight) + "px";
 							if (annotation.html) {
 								lineDiv.innerHTML = annotation.html;
 							}
@@ -5620,7 +5652,7 @@ define("orion/textview/textView", ['orion/textview/textModel', 'orion/textview/k
 					} else if (div._oldTrackHeight !== trackHeight) {
 						lineDiv = div.firstChild ? div.firstChild.nextSibling : null;
 						while (lineDiv) {
-							lineDiv.style.top = buttonHeight + lineHeight + Math.floor(lineDiv.lineIndex * divHeight) + "px";
+							lineDiv.style.top = scrollButtonHeight + lineHeight + Math.floor(lineDiv.lineIndex * divHeight) + "px";
 							lineDiv = lineDiv.nextSibling;
 						}
 					}

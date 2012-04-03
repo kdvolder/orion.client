@@ -25,20 +25,22 @@ define(['require'],
 	var topHTMLFragment =
 	//Top row:  Logo + discovery links + user
 	'<div id="staticBanner" class="layoutBlock topRowBanner">' +
-		'<a id="home" class="layoutLeft logo" href="' + require.toUrl("index.html") + '"><img src="' + require.toUrl("images/orion-small-lightondark.gif") + '" alt="Orion Logo"/></a>' +
+		'<a id="home" class="layoutLeft logo" href="' + require.toUrl("index.html") + '" aria-label="Orion Home"><img src="' + require.toUrl("images/orion-small-lightondark.gif") + '" alt="Orion Logo"/></a>' +
 		'<div id="primaryNav" class="layoutLeft primaryNav"></div>' +
-		'<div id="userMenu" class="layoutRight textless"></div>' +
-		'<div id="userInfo" class="layoutRight primaryNav"></div>' +
-		'<div class="layoutRight primaryNav">|</div>' +
+		'<div class="layoutRight">' +
+			'<div class="layoutLeft primaryNav">|</div>' +
+			'<div id="userInfo" class="layoutLeft primaryNav"></div>' +
+			'<div id="userMenu" class="spacingLeft layoutLeft textless"></div>' +
+		'</div>' +
 	'</div>' +
 	//Title area
 	'<div id="titleArea" class="layoutBlock titleArea">' +
 		'<div id="pageTitle" class="layoutLeft pageTitle"></div>' +
-		'<input type="search" id="search" placeholder="Search" title="Type a keyword or wild card to search in root" class="layoutRight searchbox">' +
-		'<div id="relatedLinks" class="layoutRight pageNav"></div>' +
-		'<div id="extras" class="layoutRight pageNav">' +
-			'<div id="globalActions" class="pageNav"></div>' +
-			'<span id="pageFavorite" tabindex="0" role="button" aria-label="Add this page to the favorites list" class="imageSprite core-sprite-favorite_sml"></span>' +
+		'<div class="layoutRight pageNav">' +
+			'<div id="globalActions" class="spacingLeft layoutLeft"></div>' +
+			'<span id="pageFavorite" tabindex="0" role="button" aria-label="Add this page to the favorites list" class="spacingLeft layoutLeft imageSprite core-sprite-favorite_sml"></span>' +
+			'<div id="relatedLinks" class="spacingLeft layoutLeft"></div>' +
+			'<input type="search" id="search" placeholder="Search" title="Type a keyword or wild card to search in root" class="layoutLeft spacingLeft searchbox">' +
 		'</div>' +
 		'<div id="dimension" class="clear dimension"></div>' +
 		'<div id="location" class="clear currentLocation"></div>' +
@@ -66,7 +68,7 @@ define(['require'],
 		'<ul class="layoutLeft commandList pageActions" id="pageActions"></ul>' +
 		'<ul class="layoutLeft commandList pageActions" id="selectionTools"></ul>' +
 		'<img class="layoutRight progressPane" src="'+ require.toUrl("images/none.png") +'" id="progressPane"></img>' +
-		'<div class="layoutRight status" id="statusPane"></div>' +
+		'<div class="layoutRight status" id="statusPane" role="status" aria-live="off"></div>' +
 		'<ul class="layoutRight commandList pageActions" id="pageNavigationActions"></ul>' +
 		'<div id="notificationArea" class="layoutLeft layoutBlock slideContainer">' +
 				'<div class="layoutLeft" id="notifications" aria-live="assertive" aria-atomic="true"></div>' +

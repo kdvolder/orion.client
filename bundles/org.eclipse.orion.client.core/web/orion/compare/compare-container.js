@@ -566,15 +566,20 @@ exports.TwoWayCompareContainer = (function() {
 			return view;
 		};
 			
-		var contentAssistFactory = function(editor) {
-			return new mContentAssist.ContentAssist(editor, "contentassist");
+		var contentAssistFactory = {
+			createContentAssistMode: function(editor) {
+				var contentAssist = new mContentAssist.ContentAssist(editor.getTextView());
+				var widget = new mContentAssist.ContentAssistWidget(contentAssist, "contentassist");
+				return new mContentAssist.ContentAssistMode(contentAssist, widget);
+			}
 		};
 			
 		var keyBindingFactory = function(editor, keyModeStack, undoStack, contentAssist) {
 			// Create keybindings for generic editing
-			if(readOnly)
+			if(readOnly){//In readonly mode we need to somehow initialize the pageAction
+				that._commandService.addCommandGroup("pageActions", "orion.editorActions.unlabeled", 200);
 				return;
-			
+			}
 			var commandGenerator = new mEditorCommands.EditorCommandFactory(that._registry, that._commandService,that._fileClient , that._inputManager, "pageActions");
 			commandGenerator.generateEditorCommands(editor);
 			var genericBindings = new mEditorFeatures.TextActions(editor, undoStack);

@@ -74,6 +74,14 @@ a:hover {
 	margin: 0;
 }
 
+.spacingLeft {
+	margin-left: 5px;
+}
+
+.spacingRight {
+	margin-right: 5px;
+}
+
 .clear {
 	clear: both;
 }
@@ -140,8 +148,6 @@ a:hover {
 .pageNav {
 	color: #808080;
 	font-size: 8pt;
-	margin-right: 6px;
-	margin-left: 6px;
 }
 
 .pageActions {
@@ -652,6 +658,7 @@ a:hover {
 	max-width: 650px;
 	border: 1px solid #bfbfbf;
 	padding: 4px;
+	z-index: 10;
 }
 
 .keyAssistFloat {
@@ -839,4 +846,44 @@ a:hover {
 
 #test-tree {
 	margin: 8px;
+}
+
+.uploadContainer{
+	padding:20px;
+	font-weight:bold;
+}
+
+.dottedOutline{
+	border: #DDD 4px dashed;
+	border-radius: 2px;
+	padding:50px;
+	height:300px;
+	width: 300px;
+}
+
+.floatingSection{
+	color: #DDD;
+}
+
+.uploadInstruction{
+	font-size: 18pt;
+	color: #CCC;
+	padding: 0 0 100px;
+	text-align:center;
+}
+
+.tipInstruction{
+	font-size: 12pt;
+	color: #CCC;
+	padding: 0 0 100px;
+	text-align:center;
+}
+
+.uploadBrowser{
+	left:50px;
+}
+
+
+.targetSelector{
+
 }

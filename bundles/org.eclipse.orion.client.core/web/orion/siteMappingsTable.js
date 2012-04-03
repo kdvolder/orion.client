@@ -70,7 +70,7 @@ mSiteMappingsTable.Renderer = (function() {
 			}
 		},
 		getCellElement: function(/**Number*/ col_no, /**Object*/ item, /**HTMLTableRowElement*/ tableRow) {
-			var col, input;
+			var col, input, handler;
 			switch(col_no) {
 				case 0:
 					return this.getIsValidCell(col_no, item, tableRow);
@@ -79,9 +79,11 @@ mSiteMappingsTable.Renderer = (function() {
 					input = dojo.create("input");
 					dojo.addClass(input, "pathInput");
 					input.value = item.FriendlyPath;
-					input.onchange = dojo.hitch(this, function(event) {
+					handler = dojo.hitch(this, function(event) {
 							this.options.onchange(item, "FriendlyPath", event.target.value, event);
 						});
+					input.onchange = handler;
+					input.onkeyup = handler;
 					dojo.place(input, col);
 					return col;
 				case 2: // Mount at
@@ -89,9 +91,11 @@ mSiteMappingsTable.Renderer = (function() {
 					input = dojo.create("input");
 					dojo.addClass(input, "serverPathInput");
 					input.value = item.Source;
-					input.onchange = dojo.hitch(this, function(event) {
+					handler =  dojo.hitch(this, function(event) {
 							this.options.onchange(item, "Source", event.target.value, event);
 						});
+					input.onchange = handler;
+					input.onkeyup = handler;
 					dojo.place(input, col);
 					return col;
 				case 3: // Actions
@@ -139,27 +143,31 @@ mSiteMappingsTable.Renderer = (function() {
  * @name orion.sites.MappingsTable
  */
 mSiteMappingsTable.MappingsTable = (function() {
-	function MappingsTable(serviceRegistry, siteService, selection, parentId, siteConfiguration, /**dojo.Deferred*/ projectsPromise) {
-		this.registry = serviceRegistry;
-		this.commandService = serviceRegistry.getService("orion.page.command");
+	function MappingsTable(options) {
+		this.registry = options.serviceRegistry;
+		this.commandService = this.registry.getService("orion.page.command");
 		this.registerCommands();
-		this.siteService = siteService;
-		this.parentId = parentId;
-		this.selection = selection;
+		this.siteService = options.siteService;
+		this.parentId = options.parentId;
+		this.selection = options.selection;
 		this.renderer = new mSiteMappingsTable.Renderer({
 				checkbox: false, /*TODO make true when we have selection-based commands*/
 				onchange: dojo.hitch(this, this.fieldChanged),
-				siteService: siteService,
+				siteService: options.siteService,
 				actionScopeId: "siteMappingCommand"
 			}, this);
 		this.myTree = null;
-		this.siteConfiguration = siteConfiguration;
-		this.projectsPromise = projectsPromise;
+		this.projectsPromise = options.projects;
+		this._setSiteConfiguration(options.siteConfiguration);
 		this.setDirty(false);
 	}
 	MappingsTable.prototype = new mExplorer.Explorer();
 	mixin(MappingsTable.prototype, /** @lends orion.sites.MappingsTable.prototype */ {
-		startup: function() {
+		_setSiteConfiguration: function(site) {
+			this.siteConfiguration = site;
+			this.refresh();
+		},
+		refresh: function() {
 			var fetchItems = dojo.hitch(this, function() {
 				var d = new dojo.Deferred();
 				d.callback(this.siteConfiguration.Mappings);
@@ -172,11 +180,69 @@ mSiteMappingsTable.MappingsTable = (function() {
 					return this.createMappingObject(mapping.Source, mapping.Target);
 				}));
 				// Build visuals
+				this.saveFocus();
 				this.createTree(this.parentId, new mSiteMappingsTable.Model(null, fetchItems, this.siteConfiguration.Mappings));
+				setTimeout(dojo.hitch(this, this.restoreFocus), 0);
 			}));
+		},
+		saveFocus: function() {
+			var focus = document.activeElement;
+			if (focus && focus.tagName === "INPUT") {
+				var cell, row;
+				for (var elem = focus.parentNode; elem; elem = elem.parentNode) {
+					if (elem.tagName === "TD") {
+						cell = elem;
+					}
+					if (dojo.hasClass(elem, "treeTableRow")) {
+						row = elem;
+						break;
+					}
+				}
+				if (row && cell) {
+					var rows = dojo.query(".treeTableRow", this.parentId);
+					for (var i=0; i < rows.length; i++) {
+						if (rows[i] === row) {
+							this.focusedRow = i;
+							this.focusedCell = dojo.query("td", row).indexOf(cell);
+							break;
+						}
+					}
+				} else {
+					this.focusedRow = -1;
+					this.focusedCell = -1;
+				}
+			}
+		},
+		restoreFocus: function() {
+			if (this.focusedRow !== -1 && this.focusedCell !== -1) {
+				var rows = dojo.query(".treeTableRow", this.parentId);
+				var row = rows[this.focusedRow];
+				if (row) {
+					var cell = dojo.query("td", row)[this.focusedCell];
+					if (cell) {
+						var input = dojo.query("input", cell)[0];
+						if (input && input.focus) {
+							input.focus();
+						}
+					}
+				}
+			}
+			this.focusedRow = -1;
+			this.focusedCell = -1;
 		},
 		render: function() {
 			this.changedItem(this.siteConfiguration.Mappings, this.siteConfiguration.Mappings);
+		},
+		// Render the row of a single item, without rendering its siblings.
+		renderItemRow: function(item, fieldName) {
+			if (fieldName === "FriendlyPath") {
+				// Just update the "is valid" column
+				var rowNode = dojo.byId(this.myTree._treeModel.getId(item));
+				var oldCell = dojo.query(".isValidCell", rowNode)[0];
+				var col_no = dojo.query("td", rowNode).indexOf(oldCell);
+				var cell = this.renderer.getIsValidCell(col_no, item, rowNode);
+				dojo.place(cell, oldCell, "replace");
+			}
 		},
 		registerCommands: function() {
 			var deleteMappingCommand = new mCommands.Command({
@@ -317,7 +383,7 @@ mSiteMappingsTable.MappingsTable = (function() {
 				if (fieldName === "FriendlyPath") {
 					this.propagate(newValue, item);
 				}
-				this.render();
+				this.renderItemRow(item, fieldName);
 				this.setDirty(true);
 			}
 		},

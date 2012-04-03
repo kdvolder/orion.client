@@ -13,9 +13,9 @@
 /*browser:true*/
 
 define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands', 'orion/parameterCollectors', 
-	'orion/extensionCommands', 'orion/util', 'orion/textview/keyBinding', 'orion/favorites',
+	'orion/extensionCommands', 'orion/util', 'orion/textview/keyBinding', 'orion/favorites', 'orion/URITemplate', 'orion/PageUtil',
 	'dijit/Menu', 'dijit/MenuItem', 'dijit/form/DropDownButton', 'orion/widgets/OpenResourceDialog', 'orion/widgets/LoginDialog', 'orion/widgets/UserMenu'], 
-        function(require, dojo, dijit, commonHTML, mCommands, mParameterCollectors, mExtensionCommands, mUtil, mKeyBinding, mFavorites){
+        function(require, dojo, dijit, commonHTML, mCommands, mParameterCollectors, mExtensionCommands, mUtil, mKeyBinding, mFavorites, URITemplate, PageUtil){
 
 	/**
 	 * This class contains static utility methods. It is not intended to be instantiated.
@@ -78,8 +78,9 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 				id: "logins",
 				dropDown: userMenu,
 				label: "Options", 
-				showLabel: false,
+				showLabel: false
 			});
+			dojo.addClass(menuButton.domNode, "commandMenu");
 			dojo.place(menuButton.domNode, userMenuPlaceholder, "only");
 			if(menuButton.valueNode) {
 		        dojo.destroy(menuButton.valueNode);
@@ -90,7 +91,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			new mCommands.CommandTooltip({
 				connectId: [menuButton.focusNode],
 				label: "Options",
-				position: ["above", "left", "right", "below"], // otherwise defaults to right and obscures adjacent commands
+				position: ["above", "left", "right", "below"] // otherwise defaults to right and obscures adjacent commands
 			});
 		}
 		
@@ -244,6 +245,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 				label: "Related pages",
 				dropDown: linksMenu
 			});
+			dojo.addClass(menuButton.domNode, "commandMenu");
 			dojo.place(menuButton.domNode, domNode, "only");
 			mUtil.forceLayout(domNode);
 		}	
@@ -330,6 +332,7 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 				label: "Related pages",
 				dropDown: menu
 			});
+			dojo.addClass(menuButton.domNode, "commandMenu");
 			dojo.place(menuButton.domNode, related, "only");
 		}	
 		mUtil.forceLayout(related);
@@ -371,6 +374,9 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 		// this needs to come from somewhere but I'm not going to do a separate get for it
 		
 		var text;
+		
+		var target = "_self";
+		
 		var parent = dojo.byId(parentId);
 		if (!parent) {
 			throw "could not find banner parent, id was " + parentId;
@@ -409,6 +415,11 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 			//     required attribute: href - the URL for the navigation link
 			//     optional attribute: image - a URL to an icon representing the link (currently not used, may use in future)
 			var navLinks= serviceRegistry.getServiceReferences("orion.page.link");
+			var params = PageUtil.matchResourceParameters(window.location.href);
+			var nonHash = window.location.href.split('#')[0];
+			// TODO: should not be necessary, see bug https://bugs.eclipse.org/bugs/show_bug.cgi?id=373450
+			var hostName = nonHash.substring(0, nonHash.length - window.location.pathname.length);
+			var locationObject = {OrionHome: hostName, Location: params.resource};
 			for (var i=0; i<navLinks.length; i++) {
 				var info = {};
 				var propertyNames = navLinks[i].getPropertyNames();
@@ -416,7 +427,9 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 					info[propertyNames[j]] = navLinks[i].getProperty(propertyNames[j]);
 				}
 				if (info.href && info.name) {
-					var link = dojo.create("a", {href: info.href}, primaryNav, "last");
+					var uriTemplate = new URITemplate(info.href);
+					var expandedHref = window.decodeURIComponent(uriTemplate.expand(locationObject));
+					var link = dojo.create("a", {href: expandedHref, target: target, 'class':'targetSelector'}, primaryNav, "last");
 					text = document.createTextNode(info.name);
 					dojo.place(text, link, "only");
 				}
@@ -696,6 +709,36 @@ define(['require', 'dojo', 'dijit', 'orion/commonHTMLFragments', 'orion/commands
 		dojo.subscribe("/dojo/hashchange", commandService, function() {
 			commandService.processURL(window.location.href);
 		});
+		
+		function setTarget(target){
+			target = target;
+			
+			dojo.query(".targetSelector").forEach(function(node, index, arr){
+    			node.target = target;
+  			});	
+		}
+		
+		function readTargetPreference(){
+		
+			prefsService.getPreferences('/settings', 2).then( function(prefs){	
+					
+				var storage = JSON.parse( prefs.get("General") );
+				
+				if(storage){
+					var target = prefsService.getSetting( storage, "Navigation", "Links" );
+					
+					if( target === "Open in new tab" ){
+						target = "_blank";
+					}else{
+						target = "_self";
+					}
+					
+					setTarget( target );
+				}
+			});
+		}
+		
+		readTargetPreference();
 	}
 	
 	//return the module exports
