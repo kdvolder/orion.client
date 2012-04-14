@@ -706,10 +706,27 @@ define("esprimaJsContentAssist", [], function() {
 		return parsedProgram;
 	}
 	
+	function addGlobals(root, env) {
+		if (root.comments) {
+			for (var i = 0; i < root.comments.length; i++) {
+				if (root.comments[i].type === "Block" && root.comments[i].value.substring(0, "global".length) === "global") {
+					var globals = root.comments[i].value;
+					var splits = globals.split(/\s+/);
+					for (var j = 1; j < splits.length; j++) {
+						if (splits[j].length > 0) {
+							env.addOrSetVariable(splits[j]);
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+
 	function removePrefix(prefix, string) {
 		return string.substring(prefix.length);
 	}
-	
+
 	function addGlobals(root, env) {
 		if (root.comments) {
 			for (var i = 0; i < root.comments.length; i++) {
@@ -734,11 +751,10 @@ define("esprimaJsContentAssist", [], function() {
 	 */
 	EsprimaJavaScriptContentAssistProvider.prototype = {
 		computeProposals: function(buffer, offset, context) {
-			var prefix = context.prefix;
 			try {
 				var root = parse(buffer);
 				// note that if selection has length > 0, then just ignore everything past the start
-				var completionKind = shouldVisit(root, offset, prefix, buffer);
+				var completionKind = shouldVisit(root, offset, context.prefix, buffer);
 				if (completionKind) {
 					var environment = {
 						/** Each element is the type of the current scope, which is a key into the types array */
@@ -756,9 +772,9 @@ define("esprimaJsContentAssist", [], function() {
 						/** 
 						 * the location of the start of the area that will be replaced 
 						 */
-						replaceStart : offset - prefix.length, 
+						replaceStart : offset - context.prefix.length, 
 						/** the prefix of the invocation */
-						prefix : prefix, 
+						prefix : context.prefix, 
 						/** the entire contents being completed on */
 						contents : buffer,
 						newName: function() {
