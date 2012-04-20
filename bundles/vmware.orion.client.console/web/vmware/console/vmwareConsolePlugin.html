@@ -11,7 +11,7 @@
 		      packages: [{ name: 'dojo', location: 'org.dojotoolkit/dojo', main: 'lib/main-browser', lib: '.' },
 						 { name: 'dijit', location: 'org.dojotoolkit/dijit', main: 'lib/main',lib: '.' },
 						 { name: 'dojox', location: 'org.dojotoolkit/dojox', main: 'lib/main', lib: '.' } ],
-		      paths: { text: 'requirejs/text', i18n: 'requirejs/i18n' }
+		      paths: { text: 'requirejs/text', i18n: 'requirejs/i18n', domReady: 'requirejs/domReady' }
 	});
 		
 	require(['dojo', 'vmware/console/vmware-console'], function () {

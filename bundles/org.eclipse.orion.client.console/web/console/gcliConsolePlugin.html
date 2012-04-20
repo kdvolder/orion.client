@@ -19,7 +19,7 @@
 		provider.registerServiceProvider("orion.page.link", serviceImpl, {
 			name: "Console",
 			id: "orion.gcli",
-			href: qualifyURL("orion-gcli-console.html#")
+			uriTemplate: "{OrionHome}/console/orion-gcli-console.html"
 		});
 		provider.connect();
 	};
