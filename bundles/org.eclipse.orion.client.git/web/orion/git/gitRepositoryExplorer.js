@@ -9,7 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global define console document */
+/*global define dijit console document Image */
 
 define(['require', 'dojo', 'orion/explorer', 'orion/util', 'orion/PageUtil', 'orion/globalCommands', 'orion/breadcrumbs', 'orion/git/gitCommands', 'orion/git/widgets/CommitTooltipDialog'], 
 		function(require, dojo, mExplorer, mUtil, PageUtil, mGlobalCommands, mBreadcrumbs, mGitCommands) {
@@ -78,9 +78,9 @@ exports.GitRepositoryExplorer = (function() {
 	
 	GitRepositoryExplorer.prototype.displayRepository = function(location){
 		var that = this;
+		this.loadingDeferred = new dojo.Deferred();
 		var progressService = this.registry.getService("orion.page.message");
-
-		progressService.setProgressMessage("Loading...");
+		progressService.showWhile(this.loadingDeferred, "Loading...");
 		this.registry.getService("orion.git.provider").getGitClone(location).then(
 			function(resp){
 				
@@ -209,8 +209,10 @@ exports.GitRepositoryExplorer = (function() {
 	
 	GitRepositoryExplorer.prototype.decorateRepositories = function(repositories, mode, deferred){
 		var that = this;
-		if (deferred == null)
+		if (deferred == null){
 			deferred = new dojo.Deferred();
+			dojo.style(dojo.byId("repositorySectionProgress"), "visibility", "");
+		}
 		
 		if (repositories.length > 0) {
 			this.registry.getService("orion.core.file").loadWorkspace(repositories[0].ContentLocation + "?parts=meta").then(
@@ -254,13 +256,13 @@ exports.GitRepositoryExplorer = (function() {
 									var tracksRemoteBranch = (currentBranch.RemoteLocation.length == 1 && currentBranch.RemoteLocation[0].Children.length === 1);
 									
 									if (tracksRemoteBranch && currentBranch.RemoteLocation[0].Children[0].CommitLocation){
-										that.registry.getService("orion.git.provider").getLog(currentBranch.RemoteLocation[0].Children[0].CommitLocation + "?page=1&pageSize=20", "HEAD", "",
+										that.registry.getService("orion.git.provider").getLog(currentBranch.RemoteLocation[0].Children[0].CommitLocation + "?page=1&pageSize=20", "HEAD").then(
 											function(resp){
 												repositories[0].CommitsToPush = resp.Children.length;
 											}
 										);
 									} else {
-										that.registry.getService("orion.git.provider").doGitLog(currentBranch.CommitLocation + "?page=1&pageSize=20", 
+										that.registry.getService("orion.git.provider").doGitLog(currentBranch.CommitLocation + "?page=1&pageSize=20").then( 
 											function(resp){	
 												repositories[0].CommitsToPush = resp.Children.length;
 											}
@@ -291,6 +293,7 @@ exports.GitRepositoryExplorer = (function() {
 		
 		dojo.create( "span", { "class":"sectionIcon gitImageSprite git-sprite-repository" }, titleWrapper );
 		dojo.create( "div", { id: "repositorySectionTitle", "class":"layoutLeft", innerHTML: (mode === "full" ? "Repositories" : "Repository") }, titleWrapper );
+		dojo.create( "div", { id: "repositorySectionProgress", "class": "sectionProgress layoutLeft", innerHTML: "..."}, titleWrapper );
 		dojo.create( "div", { id: "repositorySectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 				
 		if (!repositories || repositories.length === 0){
@@ -299,7 +302,7 @@ exports.GitRepositoryExplorer = (function() {
 		}
 		
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="repositorySectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="repositoryNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -309,9 +312,11 @@ exports.GitRepositoryExplorer = (function() {
 		
 		this.decorateRepositories(repositories, mode).then(
 			function(){
+				dojo.style(dojo.byId("repositorySectionProgress"), "visibility", "hidden");
 				for(var i=0; i<repositories.length;i++){
 					that.renderRepository(repositories[i], i, repositories.length, mode, links);
 				}
+				that.loadingDeferred.callback();
 			}
 		);
 	};
@@ -370,10 +375,11 @@ exports.GitRepositoryExplorer = (function() {
 		var titleWrapper = dojo.create( "div", {"class":"auxpaneHeading sectionWrapper toolComposite", "id":"workingDirectorySectionHeader"}, tableNode );
 		
 		dojo.create( "div", { id: "workingDirectorySectionTitle", "class":"layoutLeft", innerHTML: "Working Directory" }, titleWrapper );
+		dojo.create( "div", { id: "workingDirectorySectionProgress", "class": "sectionProgress layoutLeft", innerHTML: "..."}, titleWrapper );
 		dojo.create( "div", { id: "workingDirectorySectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 		
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="workingDirectorySectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="workingDirectoryNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -392,6 +398,7 @@ exports.GitRepositoryExplorer = (function() {
 	};
 		
 	GitRepositoryExplorer.prototype.renderStatus = function(repository, status){
+		dojo.style(dojo.byId("workingDirectorySectionProgress"), "visibility", "hidden");
 		var extensionListItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("workingDirectoryNode") );
 		var horizontalBox = dojo.create( "div", null, extensionListItem );
 		
@@ -464,7 +471,7 @@ exports.GitRepositoryExplorer = (function() {
 		dojo.place( slideout, titleWrapper );
 		
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="branchSectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="branchNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -540,7 +547,7 @@ exports.GitRepositoryExplorer = (function() {
 		dojo.create( "div", { id: "remoteBranchSectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 		
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="remoteBranchSectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="remoteBranchNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -634,7 +641,7 @@ exports.GitRepositoryExplorer = (function() {
 		dojo.place( slideout, titleWrapper );
 
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="commitSectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="commitNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -679,7 +686,7 @@ exports.GitRepositoryExplorer = (function() {
 				};
 				
 				if (tracksRemoteBranch && currentBranch.RemoteLocation[0].Children[0].CommitLocation){
-					that.registry.getService("orion.git.provider").getLog(currentBranch.RemoteLocation[0].Children[0].CommitLocation + "?page=1&pageSize=20", "HEAD", "",
+					that.registry.getService("orion.git.provider").getLog(currentBranch.RemoteLocation[0].Children[0].CommitLocation + "?page=1&pageSize=20", "HEAD").then(
 						function(resp){
 							dojo.style(dojo.byId("commitSectionProgress"), "visibility", "hidden");
 							
@@ -689,7 +696,7 @@ exports.GitRepositoryExplorer = (function() {
 								that.renderCommit(resp.Children[i], true, i);
 							}
 							
-							that.registry.getService("orion.git.provider").getLog(currentBranch.CommitLocation + "?page=1&pageSize=20", currentBranch.RemoteLocation[0].Children[0].Id, "", 
+							that.registry.getService("orion.git.provider").getLog(currentBranch.CommitLocation + "?page=1&pageSize=20", currentBranch.RemoteLocation[0].Children[0].Id).then( 
 								function(resp){	
 									for (var i=0; i<resp.Children.length; i++){
 										that.renderCommit(resp.Children[i], false, i + commitsCount);
@@ -704,7 +711,7 @@ exports.GitRepositoryExplorer = (function() {
 						}
 					);
 				} else {
-					that.registry.getService("orion.git.provider").doGitLog(currentBranch.CommitLocation + "?page=1&pageSize=20", 
+					that.registry.getService("orion.git.provider").doGitLog(currentBranch.CommitLocation + "?page=1&pageSize=20").then( 
 						function(resp){	
 							dojo.style(dojo.byId("commitSectionProgress"), "visibility", "hidden");
 						
@@ -838,7 +845,7 @@ exports.GitRepositoryExplorer = (function() {
 		dojo.create( "div", { id: "viewAllTagSectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="tagSectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="tagNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -971,7 +978,7 @@ exports.GitRepositoryExplorer = (function() {
 		this.commandService.renderCommands("remoteSectionActionsArea", dojo.byId("remoteSectionActionsArea"), repository, this, "button");
 		
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="remoteSectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="remoteNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -1027,6 +1034,7 @@ exports.GitRepositoryExplorer = (function() {
 		var titleWrapper = dojo.create( "div", {"class":"auxpaneHeading sectionWrapper toolComposite", "id":"configSectionHeader"}, tableNode );
 		
 		dojo.create( "div", { id: "configSectionTitle", "class":"layoutLeft", innerHTML: "Configuration" + (mode === "full" ? "" : " (user.*)") }, titleWrapper );
+		dojo.create( "div", { id: "configSectionProgress", "class": "sectionProgress layoutLeft", innerHTML: "..."}, titleWrapper );
 		dojo.create( "div", { id: "configSectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 		dojo.create( "div", { id: "viewAllConfigSectionActionsArea", "class":"layoutRight sectionActions"}, titleWrapper );
 
@@ -1046,7 +1054,7 @@ exports.GitRepositoryExplorer = (function() {
 		
 		
 		var content =	
-			'<div class="sectionTable">' +
+			'<div class="sectionTable" role="region" aria-labelledby="configSectionTitle">' +
 				'<div class="plugin-settings">' +
 					'<list id="configNode" class="plugin-settings-list"></list>' +
 				'</div>' +
@@ -1056,6 +1064,7 @@ exports.GitRepositoryExplorer = (function() {
 				
 		this.registry.getService("orion.git.provider").getGitCloneConfig(configLocation).then(
 			function(resp){
+				dojo.style(dojo.byId("configSectionProgress"), "visibility", "hidden");
 				var configurationEntries = resp.Children;
 				
 				if (mode !== "full" && configurationEntries.length !== 0){

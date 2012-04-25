@@ -1179,12 +1179,16 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 				var options = {
 					readonly: true,
 					hasConflicts: false,
-					baseFileName: fileItem.location,
-					newFileName: fileItem.location,
-					baseFileType: fType,
-					newFileType: fType,
-					baseFileContent: fileItem.contents.join(that.model._lineDelimiter),
-					newFileContent: that._currentReplacedContents.join(that.model._lineDelimiter)
+					baseFile: {
+						Name: fileItem.location,
+						Type: fType,
+						Content: fileItem.contents.join(that.model._lineDelimiter)
+					},
+					newFile: {
+						Name: fileItem.location,
+						Type: fType,
+						Content: that._currentReplacedContents.join(that.model._lineDelimiter)
+					}
 				};
 				if(!that.twoWayCompareContainer){
 					that.uiFactoryCompare = new mCompareFeatures.TwoWayCompareUIFactory({
@@ -1195,7 +1199,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 						showLineStatus: false
 					});
 					that.uiFactoryCompare.buildUI();
-					that.twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(that.registry, that.uiFactoryCompare, options);
+					that.twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(that.registry, uiFactory.getCompareDivID(), that.uiFactoryCompare, options);
 					that.twoWayCompareContainer.startup();
 				} else {
 					dojo.empty(that.uiFactoryCompare.getTitleDivId(true));
@@ -1561,7 +1565,7 @@ define(['require', 'dojo', 'dijit','orion/explorer', 'orion/explorerNavHandler',
 			return;
 		}
 		var qParams = mSearchUtils.copyQueryParams(this.model.queryObj);
-		qParams.sort = byName ? "Name asc" : "Path asc";
+		qParams.sort = byName ? "NameLower asc" : "Path asc";
 		qParams.start = 0;
 		var href =  mSearchUtils.generateSearchHref(qParams);
 		window.location.href = href;

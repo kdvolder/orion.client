@@ -90,19 +90,19 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		this.target = target;
 		
 		dojo.query(".targetSelector").forEach(function(node, index, arr){
-    		node.target = target;
-  		});
+			node.target = target;
+		});
 	};
 	
 	FileRenderer.prototype.getCellElement = function(col_no, item, tableRow){
 		function isImage(contentType) {
 			switch (contentType && contentType.id) {
-				case "image.jpeg":
-				case "image.png":
-				case "image.gif":
-				case "image.ico":
-				case "image.tiff":
-				case "image.svg":
+				case "image/jpeg":
+				case "image/png":
+				case "image/gif":
+				case "image/ico":
+				case "image/tiff":
+				case "image/svg":
 					return true;
 			}
 			return false;
@@ -110,12 +110,12 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		
 		function addImageToLink(contentType, link) {
 			switch (contentType && contentType.id) {
-				case "image.jpeg":
-				case "image.png":
-				case "image.gif":
-				case "image.ico":
-				case "image.tiff":
-				case "image.svg":
+				case "image/jpeg":
+				case "image/png":
+				case "image/gif":
+				case "image/ico":
+				case "image/tiff":
+				case "image/svg":
 					var thumbnail = dojo.create("img", {src: item.Location}, link, "last");
 					dojo.addClass(thumbnail, "thumbnail");
 					break;
@@ -246,7 +246,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 	FileExplorer.prototype = new mExplorer.Explorer();
 	
 	// we have changed an item on the server at the specified parent node
-	FileExplorer.prototype.changedItem = function(parent) {
+	FileExplorer.prototype.changedItem = function(parent, forceExpand) {
 		var self = this;
 		this.fileClient.fetchChildren(parent.ChildrenLocation).then(function(children) {
 			mUtil.processNavigatorParent(parent, children);
@@ -254,8 +254,13 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 			if(self.navHandler){
 				self.navHandler.refreshModel(self.model);
 			}
-			dojo.hitch(self.myTree, self.myTree.refreshAndExpand)(parent, children);
+			dojo.hitch(self.myTree, self.myTree.refresh)(parent, children, forceExpand);
 		});
+	};
+	
+	FileExplorer.prototype.isExpanded = function(item) {
+		var rowId = this.model.getId(item);
+		return this.renderer.tableTree.isExpanded(rowId);
 	};
 		
 	FileExplorer.prototype.getNameNode = function(item) {
@@ -266,7 +271,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		}
 	};
 		
-	//This is an optional function for explorerNavHandler. It changes the href of the window.locatino to navigate to the parent page.
+	//This is an optional function for explorerNavHandler. It changes the href of the window.location to navigate to the parent page.
 	//The explorerNavHandler hooked up by the explorer will check if this optional function exist and call it when left arrow key hits on a top level item that is aleady collapsed.
 	FileExplorer.prototype.scopeUp = function(){
 		if(this.treeRoot && this.treeRoot.Parents){
@@ -284,19 +289,24 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 		var renderer = this.renderer;
 	
 		this.preferences.getPreferences('/settings', 2).then( function(prefs){	
-				
-			var storage = JSON.parse( prefs.get("General") );
+		
+			var data = prefs.get("General");
 			
-			if(storage){
-				var target = preferences.getSetting( storage, "Navigation", "Links" );
+			if( data !== undefined ){
+					
+				var storage = JSON.parse( data );
 				
-				if( target === "Open in new tab" ){
-					target = "_blank";
-				}else{
-					target = "_self";
+				if(storage){
+					var target = preferences.getSetting( storage, "Navigation", "Links" );
+					
+					if( target === "Open in new tab" ){
+						target = "_blank";
+					}else{
+						target = "_self";
+					}
+					
+					renderer.setTarget( target );
 				}
-				
-				renderer.setTarget( target );
 			}
 		});
 	};
@@ -357,7 +367,6 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/explorer', 'orion/explo
 					for (var i in loadedWorkspace) {
 						this.treeRoot[i] = loadedWorkspace[i];
 					}
-					mUtil.rememberSuccessfulTraversal(this.treeRoot, this.registry);
 					mUtil.processNavigatorParent(this.treeRoot, loadedWorkspace.Children);	
 					//If current location is not the root, set the search location in the searcher
 					this.searcher.setLocationByMetaData(this.treeRoot);

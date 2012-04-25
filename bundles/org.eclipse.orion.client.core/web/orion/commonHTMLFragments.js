@@ -1,6 +1,6 @@
 /*******************************************************************************
  * @license
- * Copyright (c) 2011 IBM Corporation and others.
+ * Copyright (c) 2011, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials are made 
  * available under the terms of the Eclipse Public License v1.0 
  * (http://www.eclipse.org/legal/epl-v10.html), and the Eclipse Distribution 
@@ -23,34 +23,37 @@ define(['require'],
 
 	// BEGIN TOP BANNER FRAGMENT
 	var topHTMLFragment =
-	//Top row:  Logo + discovery links + user
-	'<div id="staticBanner" class="layoutBlock topRowBanner">' +
-		'<a id="home" class="layoutLeft logo" href="' + require.toUrl("index.html") + '" aria-label="Orion Home"><img src="' + require.toUrl("images/orion-small-lightondark.gif") + '" alt="Orion Logo"/></a>' +
-		'<div id="primaryNav" class="layoutLeft primaryNav"></div>' +
-		'<div class="layoutRight">' +
-			'<div class="layoutLeft primaryNav">|</div>' +
-			'<div id="userInfo" class="layoutLeft primaryNav"></div>' +
-			'<div id="userMenu" class="spacingLeft layoutLeft textless"></div>' +
+	
+	'<header role="banner">' +
+		//Top row:  Logo + discovery links + user
+		'<div id="staticBanner" class="layoutBlock topRowBanner">' +
+			'<a id="home" class="layoutLeft logo" href="' + require.toUrl("index.html") + '" aria-label="Orion Home"><img src="' + require.toUrl("images/orion-small-lightondark.gif") + '" alt="Orion Logo"/></a>' +
+			'<nav id="primaryNav" class="layoutLeft primaryNav" role="navigation"></nav>' +
+			'<div class="layoutRight">' +
+				'<div class="layoutLeft primaryNav">|</div>' +
+				'<div id="userInfo" class="layoutLeft primaryNav"></div>' +
+				'<div id="userMenu" class="spacingLeft layoutLeft textless"></div>' +
+			'</div>' +
 		'</div>' +
-	'</div>' +
-	//Title area
-	'<div id="titleArea" class="layoutBlock titleArea">' +
-		'<div id="pageTitle" class="layoutLeft pageTitle"></div>' +
-		'<div class="layoutRight pageNav">' +
-			'<div id="globalActions" class="spacingLeft layoutLeft"></div>' +
-			'<span id="pageFavorite" tabindex="0" role="button" aria-label="Add this page to the favorites list" class="spacingLeft layoutLeft imageSprite core-sprite-favorite_sml"></span>' +
-			'<div id="relatedLinks" class="spacingLeft layoutLeft"></div>' +
-			'<input type="search" id="search" placeholder="Search" title="Type a keyword or wild card to search in root" class="layoutLeft spacingLeft searchbox">' +
+		//Title area
+		'<div id="titleArea" class="layoutBlock titleArea">' +
+			'<div id="pageTitle" class="layoutLeft pageTitle"></div>' +
+			'<div class="layoutRight pageNav">' +
+				'<div id="globalActions" class="spacingLeft layoutLeft"></div>' +
+				'<span id="pageFavorite" tabindex="0" role="button" aria-label="Add this page to the favorites list" class="spacingLeft layoutLeft imageSprite core-sprite-favorite_sml"></span>' +
+				'<div id="relatedLinks" class="spacingLeft layoutLeft"></div>' +
+				'<input type="search" id="search" placeholder="Search" title="Type a keyword or wild card to search in root" class="layoutLeft spacingLeft searchbox" role="search">' +
+			'</div>' +
+			'<div id="dimension" class="clear dimension"></div>' +
+			'<div id="location" class="clear currentLocation"></div>' +
 		'</div>' +
-		'<div id="dimension" class="clear dimension"></div>' +
-		'<div id="location" class="clear currentLocation"></div>' +
-	'</div>';
+	'</header>';
 	// END TOP BANNER FRAGMENT
 	
 	// BEGIN BOTTOM BANNER FRAGMENT
 	// styling of the surrounding div (text-align, etc) is in ide.css "footer"
 	var bottomHTMLFragment = 
-		'<div class="layoutBlock">' +
+		'<footer class="layoutBlock" role="contentinfo">' +
 			'<div class="footerBlock">' +
 				'Orion is in Beta. Please try it out but BEWARE your data may be lost.' +
 			'</div>' +
@@ -61,13 +64,13 @@ define(['require'],
 				'<a href="http://www.eclipse.org/legal/termsofuse.php" target="_blank">Terms of Use</a> | '+ 
 				'<a href="http://www.eclipse.org/legal/copyright.php" target="_blank">Copyright Agent</a>'+
 			'</div>' +
-		'</div>';
+		'</footer>';
 	// END BOTTOM BANNER FRAGMENT
 
 	var toolbarHTMLFragment = 
 		'<ul class="layoutLeft commandList pageActions" id="pageActions"></ul>' +
 		'<ul class="layoutLeft commandList pageActions" id="selectionTools"></ul>' +
-		'<img class="layoutRight progressPane" src="'+ require.toUrl("images/none.png") +'" id="progressPane"></img>' +
+		'<img class="layoutRight progressPane" src="'+ require.toUrl("images/none.png") +'" id="progressPane" tabindex="0" role="progressbar" aria-label="Operations - Press spacebar to show current operations"></img>' +
 		'<div class="layoutRight status" id="statusPane" role="status" aria-live="off"></div>' +
 		'<ul class="layoutRight commandList pageActions" id="pageNavigationActions"></ul>' +
 		'<div id="notificationArea" class="layoutLeft layoutBlock slideContainer">' +

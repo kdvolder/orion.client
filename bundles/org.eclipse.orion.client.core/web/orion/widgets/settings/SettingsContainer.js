@@ -55,10 +55,13 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/PageU
 			for (var sub = 0; sub < subcategory.length; sub++) {
 
 				var section = dojo.create("section", {
-					id: subcategory[sub].label
+					id: subcategory[sub].label, 
+					role: "region", 
+					"aria-labelledby": subcategory[sub].label.replace(/ /g,"") + "-header"
 				}, this.table);
 
 				dojo.create("h3", {
+					id: subcategory[sub].label.replace(/ /g,"") + "-header",
 					innerHTML: subcategory[sub].ui
 				}, section);
 
@@ -82,6 +85,9 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/PageU
 				id: "plugins",
 				innerHTML: "Plugins",
 				"class": 'navbar-item',
+				role: "tab",
+				tabindex: -1,
+				"aria-selected": "false",
 				onclick: dojo.hitch( this, 'showPlugins', "plugins" )
 			};
 
@@ -104,6 +110,8 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/PageU
 
 			if (this.selectedCategory) {
 				dojo.removeClass(this.selectedCategory, "navbar-item-selected");
+				dojo.attr(this.selectedCategory, "aria-selected", "false");
+				this.selectedCategory.tabIndex = -1;
 			}
 
 			if (id) {
@@ -111,6 +119,10 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/PageU
 			}
 
 			dojo.addClass(this.selectedCategory, "navbar-item-selected");
+			dojo.attr(this.selectedCategory, "aria-selected", "true");
+			dojo.attr(this.mainNode, "aria-labelledby", id);
+			this.selectedCategory.tabIndex = 0;
+			this.selectedCategory.focus();
 
 			dojo.empty(this.table);
 
@@ -124,6 +136,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/PageU
 
 			this.pluginWidget = new orion.widgets.plugin.PluginList({
 				settings: this.settingsCore,
+				preferences: this.preferences,
 				statusService: this.preferencesStatusService,
 				dialogService: this.preferenceDialogService,
 				commandService: this.commandService,

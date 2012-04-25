@@ -12,8 +12,8 @@
 /*global define document */
 
 define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/operationsClient', 'orion/commands', 'orion/fileClient', 'orion/searchClient', 'orion/globalCommands',
-		'orion/compare/compare-features', 'orion/compare/compare-container', 'orion/contentTypes', 'dojo/parser', 'dojo/hash', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane'],
-		function(dojo, mBootstrap, mStatus, mProgress, mOperationsClient, mCommands, mFileClient, mSearchClient, mGlobalCommands, mCompareFeatures, mCompareContainer, mContentTypes) {
+		'orion/compare/compare-features', 'orion/compare/compare-container', 'orion/compare/compareUtils', 'orion/contentTypes', 'dojo/parser', 'dojo/hash', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane'],
+		function(dojo, mBootstrap, mStatus, mProgress, mOperationsClient, mCommands, mFileClient, mSearchClient, mGlobalCommands, mCompareFeatures, mCompareContainer, mCompareUtils, mContentTypes) {
 
 		dojo.addOnLoad(function(){
 			mBootstrap.startup().then(function(core) {
@@ -49,21 +49,28 @@ define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/progress', 'orion/oper
 				var readOnly = isReadOnly();
 				var conflciting = isConflciting();
 
+				var diffParams = mCompareUtils.parseCompareHash(dojo.hash());
 				var diffProvider = new mCompareContainer.DefaultDiffProvider(serviceRegistry);
 				var options = {
 					readonly: readOnly,
+					commandSpanId: "pageNavigationActions",
 					hasConflicts: conflciting,
 					diffProvider: diffProvider,
-					complexURL: dojo.hash()
+					complexURL: diffParams.complexURL,
+					blockNumber: diffParams.block,
+					changeNumber: diffParams.change
 				};
 				
-				var twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, uiFactory, options);
+				var twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, "compareContainer", uiFactory, options);
 				twoWayCompareContainer.startup();
 
 				// every time the user manually changes the hash, we need to load the diff.
 				dojo.subscribe("/dojo/hashchange", twoWayCompareContainer, function() {
-					options.compoundURL = dojo.hash();
-					twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, uiFactory, options);
+					diffParams = mCompareUtils.parseCompareHash(dojo.hash());
+					options.complexURL = diffParams.complexURL;
+					options.block = diffParams.block;
+					options.change = diffParams.change;
+					twoWayCompareContainer = new mCompareContainer.TwoWayCompareContainer(serviceRegistry, "compareContainer", uiFactory, options);
 					twoWayCompareContainer.startup();
 				});
 			});

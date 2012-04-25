@@ -64,10 +64,12 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 			var that = this;
 			var progressService = this.registry.getService("orion.page.message");
 
-			progressService.setProgressMessage(messages["Loading..."]);
+			var loadingDeferred = new dojo.Deferred();
+			progressService.showWhile(loadingDeferred, messages["Loading..."]);
 			this.registry.getService("orion.git.provider").getGitClone(location).then(
 				function(resp){					
 					if (resp.Children.length === 0) {
+						loadingDeferred.callback();
 						that.initTitleBar();
 						that.displayCommit();
 					} else if (resp.Children.length == 1 && resp.Children[0].Type === "Commit") {
@@ -75,6 +77,7 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 						
 						that.registry.getService("orion.git.provider").getGitClone(resp.CloneLocation).then(
 							function(resp){
+								loadingDeferred.callback();
 								var repositories = resp.Children;
 								
 								that.initTitleBar(commits[0], repositories[0]);
@@ -87,13 +90,15 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 								
 								// render commands
 								mGitCommands.updateNavTools(that.registry, that, "pageActions", "selectionTools", commits[0]);
-							}, function () {
+							}, function (error) {
+								loadingDeferred.callback();
 								dojo.hitch(that, that.handleError)(error);
 							}
 						);
 					}	
 					progressService.setProgressMessage("");
 				}, function(error){
+					loadingDeferred.callback();
 					dojo.hitch(that, that.handleError)(error);
 				}
 			);
@@ -255,15 +260,15 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 
 			dojo.place( content, tableNode );
 			
-			for(var i=0; i<diffs.length; i++){
-				this.renderDiff(diffs[i], i);
+			if(diffs.length > 0){
+				this.renderDiff(diffs, 0);
 			}
 		};
 
-		GitCommitExplorer.prototype.renderDiff = function(diff, index){
+		GitCommitExplorer.prototype.renderDiff = function(diffs, index){
 			
 			// add diff details
-			
+			var diff = diffs[index];
 			var diffDetailsItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("diffNode") );
 			var diffDetailsHorizontalBox = dojo.create( "div", null, diffDetailsItem );
 
@@ -274,7 +279,8 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 			}	
 			dojo.create( "span", { "class":"gitMainDescription", innerHTML: diffPath + " (" + diff.ChangeType + ") " }, detailsView );
 
-			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox );
+			var compareActionsArea = dojo.create( "div", {"id":"compareActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox, "last" );
+			var actionsArea = dojo.create( "div", {"id":"diffActionsArea_" + index, "class":"sectionTableItemActions"}, diffDetailsHorizontalBox,"last" );
 			this.commandService.renderCommands(this.actionScopeId, actionsArea, diff, this, "tool", false);	
 			
 			// add inline compare view
@@ -282,20 +288,26 @@ define(['i18n!git/nls/gitmessages', 'dojo', 'orion/explorer', 'orion/util', 'ori
 			var diffItem = dojo.create( "div", { "class":"sectionTableItem" }, dojo.byId("diffNode") );
 			var diffHorizontalBox = dojo.create( "div", null, diffItem );
 			
-			dojo.create( "div", { "id":"diffArea_" + index, "style":"height:420px;border:1px solid lightgray;"}, diffHorizontalBox );
+			dojo.create( "div", { "id":"diffArea_" + index, "style":"height:420px;border:1px solid lightgray;overflow: hidden"}, diffHorizontalBox);
 
 			var diffProvider = new mCompareContainer.DefaultDiffProvider(this.registry);
 			
 			var diffOptions = {
-				readonly: true,
+				commandSpanId: compareActionsArea.id,
 				diffProvider: diffProvider,
+				hasConflicts: false,
+				readonly: true,
+				complexURL: diff.DiffLocation,
 				callback : function(){}
 			};
 			
-			var inlineCompareContainer = new mCompareContainer.InlineCompareContainer(this.registry, "diffArea_" + index, diffOptions);
-			inlineCompareContainer.setOptions({hasConflicts: false, complexURL: diff.DiffLocation});
-			inlineCompareContainer.setDiffTitle("Compare");
-			inlineCompareContainer.startup();
+			var inlineCompareContainer = new mCompareContainer.toggleableCompareContainer(this.registry, "diffArea_" + index, "inline", diffOptions);
+			var that = this;
+			inlineCompareContainer.startup( function(){
+				if(index < (diffs.length -1 )){
+					that.renderDiff(diffs, index+1);
+				}
+			});
 		};
 		
 		// Git tags

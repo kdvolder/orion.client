@@ -30,6 +30,8 @@ define("orion/textview/tooltip", ['i18n!orion/textview/nls/messages', 'orion/tex
 			if (this._tooltipDiv) { return; }
 			var tooltipDiv = this._tooltipDiv = document.createElement("DIV");
 			tooltipDiv.className = "textviewTooltip";
+			tooltipDiv.setAttribute("aria-live", "assertive");
+			tooltipDiv.setAttribute("aria-atomic", "true");
 			var tooltipContents = this._tooltipContents = document.createElement("DIV");
 			tooltipDiv.appendChild(tooltipContents);
 			document.body.appendChild(tooltipDiv);
@@ -69,15 +71,20 @@ define("orion/textview/tooltip", ['i18n!orion/textview/nls/messages', 'orion/tex
 		isVisible: function() {
 			return this._tooltipDiv && this._tooltipDiv.style.visibility === "visible";
 		},
-		setTarget: function(target) {
+		setTarget: function(target, delay) {
 			if (this.target === target) { return; }
 			this._target = target;
 			this.hide();
 			if (target) {
 				var self = this;
-				self._showTimeout = setTimeout(function() {
+				if(delay === 0) {
 					self.show(true);
-				}, 500);
+				}
+				else {
+					self._showTimeout = setTimeout(function() {
+						self.show(true);
+					}, delay ? delay : 500);
+				}
 			}
 		},
 		show: function(autoHide) {
@@ -127,20 +134,23 @@ define("orion/textview/tooltip", ['i18n!orion/textview/nls/messages', 'orion/tex
 			} else {
 				return;
 			}
-			var left = parseInt(this._getNodeStyle(tooltipDiv, "padding-left", "0"), 10);
-			left += parseInt(this._getNodeStyle(tooltipDiv, "border-left-width", "0"), 10);
+			var documentElement = tooltipDiv.ownerDocument.documentElement;
 			if (info.anchor === "right") {
-				var right = parseInt(this._getNodeStyle(tooltipDiv, "padding-right", "0"), 10);
-				right += parseInt(this._getNodeStyle(tooltipDiv, "border-right-width", "0"), 10);
-				tooltipDiv.style.right = (tooltipDiv.ownerDocument.body.getBoundingClientRect().right - info.x + left + right) + "px";
+				var right = documentElement.clientWidth - info.x;
+				tooltipDiv.style.right = right + "px";
+				tooltipDiv.style.maxWidth = (documentElement.clientWidth - right - 10) + "px";
 			} else {
-				tooltipDiv.style.left = (info.x - left) + "px";
+				var left = parseInt(this._getNodeStyle(tooltipDiv, "padding-left", "0"), 10);
+				left += parseInt(this._getNodeStyle(tooltipDiv, "border-left-width", "0"), 10);
+				left = info.x - left;
+				tooltipDiv.style.left = left + "px";
+				tooltipDiv.style.maxWidth = (documentElement.clientWidth - left - 10) + "px";
 			}
 			var top = parseInt(this._getNodeStyle(tooltipDiv, "padding-top", "0"), 10);
 			top += parseInt(this._getNodeStyle(tooltipDiv, "border-top-width", "0"), 10);
-			tooltipDiv.style.top = (info.y - top) + "px";
-			tooltipDiv.style.maxWidth = info.maxWidth + "px";
-			tooltipDiv.style.maxHeight = info.maxHeight + "px";
+			top = info.y - top;
+			tooltipDiv.style.top = top + "px";
+			tooltipDiv.style.maxHeight = (documentElement.clientHeight - top - 10) + "px";
 			tooltipDiv.style.opacity = "1";
 			tooltipDiv.style.visibility = "visible";
 			if (autoHide) {

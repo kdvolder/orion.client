@@ -31,6 +31,10 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 					    '</div>',
 				
 		pluginDialogState: false,
+		
+		includeMaker: false,
+		
+		target: "_self",
 					    
 		postCreate: function(){
 			// set up the toolbar level commands
@@ -62,6 +66,24 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 			// register these with the toolbar and render them.  Rendering is normally done by our outer page, but since
 			// we might have been created after the page first loaded, we have to do this ourselves.
 			this.commandService.registerCommandContribution(this.toolbarID, "orion.reloadAllPlugins", 2);
+			
+			
+			var createPluginCommand = new mCommands.Command({
+				name: "Create",
+				tooltip: "Create a new Orion Plugin",
+				id: "orion.createPlugin",
+				callback: dojo.hitch(this, function(data){
+					this.createPlugin(data.items);
+				})
+			
+			});
+			
+			this.commandService.addCommand(createPluginCommand);
+			
+			if( this.includeMaker === true ){
+				this.commandService.registerCommandContribution(this.toolbarID, "orion.createPlugin", 2);
+			}
+			
 			this.commandService.renderCommands(this.toolbarID, this.toolbarID, this, this, "button");
 			
 			var reloadPluginCommand = new mCommands.Command({
@@ -95,6 +117,8 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 			this.commandService.addCommand(uninstallPluginCommand);
 			this.commandService.registerCommandContribution("pluginCommand", "orion.uninstallPlugin", 2);
 			this.addRows();
+			this.setTarget();
+			this.storageKey = this.preferences.listenForChangedSettings( dojo.hitch( this, 'onStorage' ) );
 		},
 		
 		addRows: function(){
@@ -123,8 +147,13 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 			}
 		},
 		
+		createPlugin: function( data ){
+			var path = require.toUrl("settings/maker.html");
+			window.open( path, this.target );
+		},
+		
 		addPlugin: function( plugin ){
-			this.statusService.setMessage("Installed " + plugin.getLocation(), 5000);
+			this.statusService.setMessage("Installed " + plugin.getLocation(), 5000, true);
 			this.settings.preferences.getPreferences("/plugins").then(function(plugins) {
 				plugins.put(plugin.getLocation(), true);
 			}); // this will force a sync
@@ -139,7 +168,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 		
 		installHandler: function(newPluginUrl){
 			if (/^\S+$/.test(dojo.trim(newPluginUrl))) {
-				this.statusService.setMessage("Installing " + newPluginUrl + "...");
+				this.statusService.setMessage("Installing " + newPluginUrl + "...", null, true);
 				if( this.settings.pluginRegistry.getPlugin(newPluginUrl) ){
 					this.statusService.setErrorMessage("Already installed");
 				} else {
@@ -150,7 +179,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 		
 		reloaded: function(){
 			var settingsPluginList = this.settings.pluginRegistry.getPlugins();
-			this.statusService.setMessage( "Reloaded " + settingsPluginList.length + " plugin" + ( settingsPluginList.length===1 ? "": "s") + ".", 5000 );
+			this.statusService.setMessage( "Reloaded " + settingsPluginList.length + " plugin" + ( settingsPluginList.length===1 ? "": "s") + ".", 5000, true );
 			this.addRows();
 		},
 		
@@ -160,7 +189,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 			for( var p = 0; p < settingsPluginList.length; p++ ){
 				if( settingsPluginList[p].getLocation() === url ){
 					settingsPluginList[p].update();
-					this.statusService.setMessage("Reloaded " + url, 5000);
+					this.statusService.setMessage("Reloaded " + url, 5000, true);
 					break;
 				}
 			}
@@ -198,7 +227,7 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 			for( var p = 0; p < settingsPluginList.length; p++ ){
 				if( settingsPluginList[p].getLocation() === url ){
 					settingsPluginList[p].uninstall();
-					statusService.setMessage("Uninstalled " + url, 5000);
+					statusService.setMessage("Uninstalled " + url, 5000, true);
 					settings.preferences.getPreferences("/plugins").then(function(plugins) {
 						plugins.remove(url);
 					}); // this will force a sync
@@ -210,6 +239,39 @@ define(['require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'dijit/Toolt
 			}
 		},
 		
+		setTarget: function(){
+	
+			var preferences = this.preferences;	
+			var renderer = this;
+		
+			this.preferences.getPreferences('/settings', 2).then( function(prefs){	
+			
+				var data = prefs.get("General");
+				
+				if( data !== undefined ){
+						
+					var storage = JSON.parse( data );
+					
+					if(storage){
+						var target = preferences.getSetting( storage, "Navigation", "Links" );
+						
+						if( target === "Open in new tab" ){
+							target = "_blank";
+						}else{
+							target = "_self";
+						}
+						
+						renderer.target = target;
+					}
+				}
+			});
+		},
+		
+		onStorage:function (e) {
+			if( e.key === this.storageKey ){
+				this.setTarget();
+			}
+		},
 		
 		/* removePlugin - removes a plugin by url */
 

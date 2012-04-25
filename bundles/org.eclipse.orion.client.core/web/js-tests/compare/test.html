@@ -28,15 +28,15 @@
 		  ],
 		  paths: {
 			  text: 'requirejs/text',
-			  i18n: 'requirejs/i18n'	    
+			  i18n: 'requirejs/i18n',
+			  domReady: 'requirejs/domReady'	    
 		  }
 		});
 	
 	window.onload = function() {
-		require(["orion/test","./testcase", "./testcase-model"], function(test, testcase, testcaseModel) {
+		require(["orion/test","testcase.js"], function(test, testcase) {
 			test.run({
-				"test mapper": testcase, 
-				"test model": testcaseModel
+				"test mapper": testcase
 			});		
 		});
 	};

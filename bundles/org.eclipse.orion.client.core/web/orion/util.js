@@ -211,8 +211,7 @@ define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(
 		if (!location) {
 			return location;
 		}
-		var nonHash = window.location.href.split('#')[0];
-		var hostName = nonHash.substring(0, nonHash.length - window.location.pathname.length);
+		var hostName = window.location.protocol + "//" + window.location.host;
 		if (location.indexOf(hostName) === 0) {
 			return location.substring(hostName.length);
 		}
@@ -223,8 +222,11 @@ define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(
 		if (!location) {
 			return location;
 		}
-		var nonHash = window.location.href.split('#')[0];
-		var hostName = nonHash.substring(0, nonHash.length - window.location.pathname.length);
+		
+		var hostName = window.location.protocol + "//" + window.location.host;
+		if (location.charAt(0) !== "/") {
+			location = "/" + location;
+		}
 		return (hostName + location);
 	}
 	
@@ -263,32 +265,6 @@ define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(
 			if (n1 > n2) { return 1; }
 			return 0;
 		}); 
-	}
-	
-	function rememberSuccessfulTraversal(item, registry) {
-		if (item.Parents && item.Parents.length === 0) {
-			registry.getService("orion.core.preference").getPreferences("/window/recent").then(function(prefs){
-				var projects = prefs.get("projects");
-				if (typeof projects === "string") {
-					projects = JSON.parse(projects);
-				}
-				var storedProjects = [];
-				if (projects && projects.length && projects.length > 0) {
-					for (var k=0; k<projects.length; k++) {
-						if (projects[k].location !== item.ChildrenLocation && projects[k].name !== item.Name) {
-							storedProjects.push(projects[k]);
-						}
-					}
-					storedProjects.push({name: item.Name, location: item.ChildrenLocation});
-				} else {
-					storedProjects.push({name: item.Name, location: item.ChildrenLocation});
-				}
-				if (storedProjects.length > 5) {
-					storedProjects= storedProjects.slice(-5, storedProjects.length);
-				}
-				prefs.put("projects", storedProjects);
-			});
-		}
 	}
 	
 	/**
@@ -442,6 +418,7 @@ define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(
 				lf = text.indexOf("\n", index); 
 			}
 			if (lf === -1 && cr === -1) {
+				splitLines.push(text.substring(start));
 				break; 
 			}
 			var offset = 1;
@@ -479,7 +456,6 @@ define(['dojo', 'dijit', 'dojo/hash', 'dijit/form/ValidationTextBox'], function(
 		makeFullPath: makeFullPath,
 		isAtRoot: isAtRoot,
 		processNavigatorParent: processNavigatorParent,
-		rememberSuccessfulTraversal: rememberSuccessfulTraversal,
 		getText: getText,
 		safeText: safeText,
 		setText: setText,

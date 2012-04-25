@@ -1,6 +1,6 @@
 /*******************************************************************************
  * @license
- * Copyright (c) 2011 IBM Corporation and others.
+ * Copyright (c) 2011, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials are made 
  * available under the terms of the Eclipse Public License v1.0 
  * (http://www.eclipse.org/legal/epl-v10.html), and the Eclipse Distribution 
@@ -29,26 +29,7 @@ define(['require', 'dojo', 'orion/bootstrap', 'orion/commands', 'orion/fileClien
 				
 			// global commands
 			mGlobalCommands.generateBanner("banner", serviceRegistry, commandService, preferences, searcher);
-			
-			// Populate recent projects
-			serviceRegistry.getService("orion.core.preference").getPreferences("/window/recent").then(function(prefs){
-				var projects =  prefs.get("projects");
-				if (typeof projects === "string") {
-					projects = JSON.parse(projects);
-				}
-				var recent = dojo.byId("recent");
-				dojo.empty(recent);
-				if (projects && projects.length && projects.length > 0) {
-					for (var i=projects.length-1; i>=0; i--) {
-						if (projects[i].location && projects[i].name) {
-							dojo.place("<a class='landingLink' href='" + require.toUrl("navigate/table.html") + "#" + projects[i].location+"'>"+projects[i].name+"</a><br>", recent, "last");
-						}
-					}
-				} else {
-					dojo.place("<div>Go to the <a href='" + require.toUrl("navigate/table.html") + "#'>Navigator</a> to create or view your projects.</div>", recent, "only");
-				}
-			});
-			
+		
 			// Populate the "get started" tasks
 			
 			// Note that the shape of the "orion.help.task" extension is not in any shape or form that could be considered final.
@@ -65,7 +46,7 @@ define(['require', 'dojo', 'orion/bootstrap', 'orion/commands', 'orion/fileClien
 			//             required attribute: description of the step.  May be manual instructions for the user.  Appears after the href.
 			var taskReferences = serviceRegistry.getServiceReferences("orion.help.task");
 			var taskParent = dojo.byId("tasks");
-			var operationsTable = dojo.create("table", null, taskParent, "only");
+			var operationsTable = dojo.create("table", { role: "presentation" }, taskParent, "only");
 			for (var i=0; i<taskReferences.length; i++) {
 				var info = {};
 				var propertyNames = taskReferences[i].getPropertyNames();
