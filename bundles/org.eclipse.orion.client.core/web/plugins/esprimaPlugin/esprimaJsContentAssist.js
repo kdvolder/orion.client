@@ -11,7 +11,7 @@
  *     Andrew Eisenberg (vmware) - implemented visitor pattern
  *******************************************************************************/
 
-/*global define require eclipse esprima window console inTest*/
+/*global define require eclipse esprima window console inTest localStorage*/
 define("esprimaJsContentAssist", [], function() {
 
 	/**
@@ -108,7 +108,6 @@ define("esprimaJsContentAssist", [], function() {
 			$$proto : "Object"
 		};
 		
-		// must refactor this part for the new format
 		this.Function = {
 			apply : "?Object:func,[args]",
 			"arguments" : "Arguments",
@@ -186,6 +185,23 @@ define("esprimaJsContentAssist", [], function() {
 			$$proto : "Object"
 		};
 		
+		
+		// now get everything from localstorage
+		if (localStorage && localStorage.esprimaassist) {
+			// structure consists of extra global variables and extra types
+			var structure = JSON.parse(localStorage.esprimaassist);
+			for (var type in structure.types) {
+				if (structure.types.hasOwnProperty(type) && !this[type]) {
+					this[type] = structure.types[type];
+				}
+			}
+			var globals = this.Global;
+			for (var global in structure.globals) {
+				if (structure.globals.hasOwnProperty(global) && !this[type]) {
+					globals[global] = structure.globals[global];
+				}
+			}
+		}
 	};
 
 	/**
@@ -676,7 +692,6 @@ define("esprimaJsContentAssist", [], function() {
 			if (inRange(env.offset, node.range)) {
 				// We're finished compute all the proposals
 				env.createProposals(env.scope(node.target));
-				throw "done";
 			}
 			
 			name = node.name;
@@ -726,22 +741,254 @@ define("esprimaJsContentAssist", [], function() {
 	function removePrefix(prefix, string) {
 		return string.substring(prefix.length);
 	}
-
-	function addGlobals(root, env) {
-		if (root.comments) {
-			for (var i = 0; i < root.comments.length; i++) {
-				if (root.comments[i].type === "Block" && root.comments[i].value.substring(0, "global".length) === "global") {
-					var globals = root.comments[i].value;
-					var splits = globals.split(/\s+/);
-					for (var j = 1; j < splits.length; j++) {
-						if (splits[j].length > 0) {
-							env.addOrSetVariable(splits[j]);
+	
+	/** Creates the environment object that stores type information*/
+	function createEnvironment(buffer, completionKind, offset, prefix) {
+		if (!offset) {
+			offset = buffer.length;
+		}
+		if (!prefix) {
+			prefix = "";
+		}
+		return {
+			/** Each element is the type of the current scope, which is a key into the types array */
+			_scopeStack : ["Global"],
+			/** a map of all the types and their properties currently known */
+			_allTypes : new Types(),
+			/** a counter used for creating unique names for object literals and scopes */
+			_typeCount : 0,
+			/** 
+			 * "member" or "top" or null
+			 * if Member, completion occurs after a dotted member expression.  
+			 * if top, completion occurs as the start of a new expression.
+			 * if null, then this environment is not for completion, but for structure
+			 */
+			_completionKind : completionKind,
+			/** an array of proposals generated */
+			proposals : [], 
+			/** the offset of content assist invocation */
+			offset : offset, 
+			/** 
+			 * the location of the start of the area that will be replaced 
+			 */
+			replaceStart : offset - prefix.length, 
+			/** the prefix of the invocation */
+			prefix : prefix, 
+			/** the entire contents being completed on */
+			contents : buffer,
+			newName: function() {
+				return "gen~Object~"+ this._typeCount++;
+			},
+			/** Creates a new empty scope and returns the name of the scope*/
+			newScope: function() {
+				// the prototype is always the currently top level scope
+				var targetType = this.scope();
+				var newScopeName = this.newName();
+				this._allTypes[newScopeName] = {
+					$$proto : targetType
+				};
+				this._scopeStack.push(newScopeName);
+				return newScopeName;
+			},
+			
+			/** Creates a new empty object scope and returns the name of this object */
+			newObject: function(newObjectName) {
+				// object needs its own scope
+				this.newScope();
+				// if no name passed in, create a new one
+				newObjectName = newObjectName? newObjectName : this.newName();
+				// assume that objects have their own "this" object
+				// prototype of Object
+				this._allTypes[newObjectName] = {
+					$$proto : "Object"
+				};
+				this.addVariable("this", null, newObjectName);
+				
+				return newObjectName;
+			},
+			
+			/** removes the current scope */
+			popScope: function() {
+				// Can't delete old scope since it may have been assigned somewhere
+				// but must remove "this" when outside of the scope
+				this.removeVariable("this");
+				var oldScope = this._scopeStack.pop();
+				return oldScope;
+			},
+			
+			/**
+			 * returns the type for the current scope
+			 * if a target is passed in (optional), then use the
+			 * inferred type of the target instead (if it exists)
+			 */
+			scope : function(target) {
+				return target && target.inferredType ? 
+					target.inferredType : this._scopeStack[this._scopeStack.length -1];
+			},
+			
+			/** adds the name to the target type.
+			 * if target is passed in then use the type corresponding to 
+			 * the target, otherwise use the current scope
+			 */
+			addVariable : function(name, target, type) {
+				this._allTypes[this.scope(target)][name] = type ? type : "Object";
+			},
+			
+			/** removes the variable from the current type */
+			removeVariable : function(name, target) {
+				this._allTypes[this.scope(target)][name] = null;
+			},
+			
+			/** 
+			 * like add variable, but first checks the prototype hierarchy
+			 * if exists in prototype hierarchy, then replace the type
+			 */
+			addOrSetVariable : function(name, target, type) {
+				var targetType = this.scope(target);
+				var current = this._allTypes[targetType], found = false;
+				// if no type provided, assume object
+				type = type ? type : "Object";
+				while (current) {
+					if (current[name]) {
+						// found it, just overwrite
+						current[name] = type;
+						found = true;
+						break;
+					} else {
+						current = current.$$proto;
+					}
+				}
+				if (!found) {
+					// not found, so just add to current scope
+					this._allTypes[targetType][name] = type;
+				}
+			},
+						
+			/** looks up the name in the hierarchy */
+			lookupName : function(name, target, applyFunction) {
+			
+				// translate function names on object into safe names
+				var swapper = function(name) {
+					switch (name) {
+						case "prototype":
+						case "toString":
+						case "hasOwnProperty":
+						case "toLocaleString":
+						case "valueOf":
+						case "isProtoTypeOf":
+						case "propertyIsEnumerable":
+							return "$_$" + name;
+						default:
+							return name;
+					}
+				};
+			
+				var innerLookup = function(name, type, allTypes) {
+					var res = type[name];
+					
+					// if we are in Object, then we may have special prefixed names to deal with
+					var proto = type.$$proto;
+					if (res) {
+						return res;
+					} else {
+						if (proto) {
+							return innerLookup(name, allTypes[proto], allTypes);
+						}
+						return null;
+					}
+				};
+				var targetType = this._allTypes[this.scope(target)];
+				var res = innerLookup(swapper(name), targetType, this._allTypes);
+				return res;
+			},
+			
+			createProposals : function(targetType) {
+				if (!this._completionKind) {
+					// not generating proposals.  just walking the file
+					return;
+				}
+			
+				if (!targetType) {
+					targetType = this.scope();
+				}
+				if (targetType.charAt(0) === '?') {
+					targetType = "Function";
+				}
+				var prop, propName, propType, proto, res, type = this._allTypes[targetType];
+				proto = type.$$proto;
+				
+				for (prop in type) {
+					if (type.hasOwnProperty(prop)) {
+						if (prop === "$$proto") {
+							continue;
+						}
+						if (!proto && prop.indexOf("$_$") === 0) {
+							// no prototype that means we must decode the property name
+							propName = prop.substring(3);
+						} else {
+							propName = prop;
+						}
+						if (propName === "this" && this._completionKind === "member") {
+							// don't show "this" proposals for non-top-level locations
+							// (eg- this.this is wrong)
+							continue;
+						}
+						if (propName.indexOf(this.prefix) === 0) {
+							propType = type[prop];
+							if (propType.charAt(0) === '?') {
+								// we have a function
+								res = calculateFunctionProposal(propName, 
+										propType, this.replaceStart - 1);
+								this.proposals.push({ 
+									proposal: removePrefix(this.prefix, res.completion), 
+									description: res.completion + " : " + this.createReadableType(propType) + " (esprima)", 
+									positions: res.positions, 
+									escapePosition: this.replaceStart + res.completion.length 
+								});
+							} else {
+								this.proposals.push({ 
+									proposal: removePrefix(this.prefix, propName),
+									description: propName + " : " + this.createReadableType(propType) + " (esprima)"
+								});
+							}
 						}
 					}
-					break;
+				}
+				// walk up the prototype hierarchy
+				if (proto) {
+					this.createProposals(proto);
+				}
+				// We're done!
+				throw "done";
+			},
+			
+			/**
+			 * creates a human readable type name from the name given
+			 */
+			createReadableType : function(typeName) {
+				if (typeName.charAt(0) === "?") {
+					// a function, use the return type
+					var nameEnd = typeName.indexOf(":");
+					if (nameEnd === -1) {
+						nameEnd = typeName.length;
+					}
+					return typeName.substring(1, nameEnd);
+				} else if (typeName.indexOf("gen~") === 0) {
+					// a generated object
+					// create a summary
+					var type = this._allTypes[typeName];
+					var res = "{ ";
+					for (var val in type) {
+						if (type.hasOwnProperty(val) && val !== "$$proto") {
+							res += val + " ";
+						}
+					}
+					return res + "}";
+				} else {
+					return typeName;
 				}
 			}
-		}
+		};
 	}
 
 	function EsprimaJavaScriptContentAssistProvider() {}
@@ -750,271 +997,26 @@ define("esprimaJsContentAssist", [], function() {
 	 * Main entry point to provider
 	 */
 	EsprimaJavaScriptContentAssistProvider.prototype = {
+	
+		_doVisit : function(root, environment) {
+			try {
+				addGlobals(root, environment);
+				visit(root, environment, proposalGenerator, proposalGeneratorPostOp);
+			} catch (done) {
+				if (done !== "done") {
+					// a real error
+					throw done;
+				}
+			}
+		},
 		computeProposals: function(buffer, offset, context) {
 			try {
 				var root = parse(buffer);
 				// note that if selection has length > 0, then just ignore everything past the start
 				var completionKind = shouldVisit(root, offset, context.prefix, buffer);
 				if (completionKind) {
-					var environment = {
-						/** Each element is the type of the current scope, which is a key into the types array */
-						_scopeStack : ["Global"],
-						/** a map of all the types and their properties currently known */
-						_allTypes : new Types(),
-						/** a counter used for creating unique names for object literals and scopes */
-						_typeCount : 0,
-						/** "member" or "top"  if Member, completion occurs after a dotted member expression.  if top, completion occurs as the start of a new expression */
-						_completionKind : completionKind,
-						/** an array of proposals generated */
-						proposals : [], 
-						/** the offset of content assist invocation */
-						offset : offset, 
-						/** 
-						 * the location of the start of the area that will be replaced 
-						 */
-						replaceStart : offset - context.prefix.length, 
-						/** the prefix of the invocation */
-						prefix : context.prefix, 
-						/** the entire contents being completed on */
-						contents : buffer,
-						newName: function() {
-							return "gen~Object~"+ this._typeCount++;
-						},
-						/** Creates a new empty scope and returns the name of the scope*/
-						newScope: function() {
-							// the prototype is always the currently top level scope
-							var targetType = this.scope();
-							var newScopeName = this.newName();
-							this._allTypes[newScopeName] = {
-								$$proto : targetType
-							};
-							this._scopeStack.push(newScopeName);
-							return newScopeName;
-						},
-						
-						/** Creates a new empty object scope and returns the name of this object */
-						newObject: function(newObjectName) {
-							// object needs its own scope
-							this.newScope();
-							// if no name passed in, create a new one
-							newObjectName = newObjectName? newObjectName : this.newName();
-							// assume that objects have their own "this" object
-							// prototype of Object
-							this._allTypes[newObjectName] = {
-								$$proto : "Object"
-							};
-							this.addVariable("this", null, newObjectName);
-							
-							return newObjectName;
-						},
-						
-						/** removes the current scope */
-						popScope: function() {
-							// Can't delete old scope since it may have been assigned somewhere
-							// but must remove "this" when outside of the scope
-							this.removeVariable("this");
-							var oldScope = this._scopeStack.pop();
-							return oldScope;
-						},
-						
-						/**
-						 * returns the type for the current scope
-						 * if a target is passed in (optional), then use the
-						 * inferred type of the target instead (if it exists)
-						 */
-						scope : function(target) {
-							return target && target.inferredType ? 
-								target.inferredType : this._scopeStack[this._scopeStack.length -1];
-						},
-						
-						/** adds the name to the target type.
-						 * if target is passed in then use the type corresponding to 
-						 * the target, otherwise use the current scope
-						 */
-						addVariable : function(name, target, type) {
-							this._allTypes[this.scope(target)][name] = type ? type : "Object";
-						},
-						
-						/** removes the variable from the current type */
-						removeVariable : function(name, target) {
-							this._allTypes[this.scope(target)][name] = null;
-						},
-						
-						/** 
-						 * like add variable, but first checks the prototype hierarchy
-						 * if exists in prototype hierarchy, then replace the type
-						 */
-						addOrSetVariable : function(name, target, type) {
-							var targetType = this.scope(target);
-							var current = this._allTypes[targetType], found = false;
-							// if no type provided, assume object
-							type = type ? type : "Object";
-							while (current) {
-								if (current[name]) {
-									// found it, just overwrite
-									current[name] = type;
-									found = true;
-									break;
-								} else {
-									current = current.$$proto;
-								}
-							}
-							if (!found) {
-								// not found, so just add to current scope
-								this._allTypes[targetType][name] = type;
-							}
-						},
-						
-//						/** adds the name and args (array of strings) with the given return type to the current type */
-//						addFunction : function(name, args, target, type) {
-//							var targetType = this.scope(target);
-//							type = type ? type : "Object";
-//							this._allTypes[targetType][name] = "?" + type + ":" + args.join(",");
-//						},
-						
-						/** looks up the name in the hierarchy */
-						lookupName : function(name, target, applyFunction) {
-						
-							// translate function names on object into safe names
-							var swapper = function(name) {
-								switch (name) {
-									case "prototype":
-									case "toString":
-									case "hasOwnProperty":
-									case "toLocaleString":
-									case "valueOf":
-									case "isProtoTypeOf":
-									case "propertyIsEnumerable":
-										return "$_$" + name;
-									default:
-										return name;
-								}
-							};
-						
-							var innerLookup = function(name, type, allTypes) {
-								var res = type[name];
-								
-								// if we are in Object, then we may have special prefixed names to deal with
-								var proto = type.$$proto;
-								if (res) {
-									return res;
-								} else {
-									if (proto) {
-										return innerLookup(name, allTypes[proto], allTypes);
-									}
-									return null;
-								}
-							};
-							var targetType = this._allTypes[this.scope(target)];
-							var res = innerLookup(swapper(name), targetType, this._allTypes);
-//							if (res && res.charAt(0) === '?') {
-//								// we have a function, determine if we must apply it or not
-//								if (applyFunction) {
-//									var typeEnd = res.lastIndexOf(':');
-//									if (typeEnd > 0) {
-//										res = res.substring(1, typeEnd);
-//									} else {
-//										// malformed
-//										res = "Function";
-//									}
-//								} else {
-//									res = "Function";
-//								}
-//							}
-							return res;
-						},
-						
-						createProposals : function(targetType) {
-							if (!targetType) {
-								targetType = this.scope();
-							}
-							if (targetType.charAt(0) === '?') {
-								targetType = "Function";
-							}
-							var prop, propName, propType, proto, res, type = this._allTypes[targetType];
-							proto = type.$$proto;
-							
-							for (prop in type) {
-								if (type.hasOwnProperty(prop)) {
-									if (prop === "$$proto") {
-										continue;
-									}
-									if (!proto && prop.indexOf("$_$") === 0) {
-										// no prototype that means we must decode the property name
-										propName = prop.substring(3);
-									} else {
-										propName = prop;
-									}
-									if (propName === "this" && this._completionKind === "member") {
-										// don't show "this" proposals for non-top-level locations
-										// (eg- this.this is wrong)
-										continue;
-									}
-									if (propName.indexOf(this.prefix) === 0) {
-										propType = type[prop];
-										if (propType.charAt(0) === '?') {
-											// we have a function
-											res = calculateFunctionProposal(propName, 
-													propType, this.replaceStart - 1);
-											this.proposals.push({ 
-												proposal: removePrefix(this.prefix, res.completion), 
-												description: res.completion + " : " + this.createReadableType(propType) + " (esprima)", 
-												positions: res.positions, 
-												escapePosition: this.replaceStart + res.completion.length 
-											});
-										} else {
-											this.proposals.push({ 
-												proposal: removePrefix(this.prefix, propName),
-												description: propName + " : " + this.createReadableType(propType) + " (esprima)"
-											});
-										}
-									}
-								}
-							}
-							// walk up the prototype hierarchy
-							if (proto) {
-								this.createProposals(proto);
-							}
-							// We're done!
-							throw "done";
-						},
-						
-						/**
-						 * creates a human readable type name from the name given
-						 */
-						createReadableType : function(typeName) {
-							if (typeName.charAt(0) === "?") {
-								// a function, use the return type
-								var nameEnd = typeName.indexOf(":");
-								if (nameEnd === -1) {
-									nameEnd = typeName.length;
-								}
-								return typeName.substring(1, nameEnd);
-							} else if (typeName.indexOf("gen~") === 0) {
-								// a generated object
-								// create a summary
-								var type = this._allTypes[typeName];
-								var res = "{ ";
-								for (var val in type) {
-									if (type.hasOwnProperty(val) && val !== "$$proto") {
-										res += val + " ";
-									}
-								}
-								return res + "}";
-							} else {
-								return typeName;
-							}
-						}
-					};
-					try {
-						addGlobals(root, environment);
-						visit(root, environment, proposalGenerator, proposalGeneratorPostOp);
-					} catch (done) {
-						if (done !== "done") {
-							// a real error
-							throw done;
-						}
-					}
+					var environment = createEnvironment(buffer, completionKind, offset, context.prefix);
+					this._doVisit(root, environment);
 					environment.proposals.sort(function(l,r) {
 						if (l.description < r.description) {
 							return -1;
@@ -1029,6 +1031,24 @@ define("esprimaJsContentAssist", [], function() {
 					// invalid completion location
 					return {};
 				}
+			} catch (e) {
+				if (console && console.log) {
+					console.log(e.message);
+					console.log(e.stack);
+				}
+				throw (e);
+			}
+		},
+		
+		computeStructure: function(buffer) {
+			try {
+				var root = parse(buffer);
+				var environment = createEnvironment(buffer);
+				this._doVisit(root, environment);
+				return {
+					globals : environment._allTypes.Global,
+					types : environment._allTypes
+				};
 			} catch (e) {
 				if (console && console.log) {
 					console.log(e.message);

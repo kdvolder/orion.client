@@ -7,7 +7,7 @@
 	<script src="../../requirejs/require.js"></script>
 	<script>
 		/*global window require */
-	require({
+		require({
 		  baseUrl: '../..',
 		  packages: [
 		    {
@@ -31,11 +31,12 @@
 		  ],
 		  paths: {
 			  text: 'requirejs/text',
-			  i18n: 'requirejs/i18n'	    
+			  i18n: 'requirejs/i18n',
+			  domReady: 'requirejs/domReady'	    
 		  }
 		});
 		window.onload = function() {
-			require(["orion/test","./esprimaJsContentAssistTests", "./esprimaJsContentAssist"], function(test, testcase) {
+			require(["orion/test","esprimaJsContentAssistTests.js", "esprimaJsContentAssist.js"], function(test, testcase) {
 				test.run(testcase);			
 			});
 		};

@@ -9,7 +9,11 @@
 <script type="text/javascript" src="esprimaJsContentAssist.js"></script>
 <script>
 /*global eclipse require */
-require(["esprimaJsContentAssist"], function(esprimaContentAssistPlugin) {
+require(["esprimaJsContentAssist", "structureProvider"], function(esprimaContentAssistPlugin, structureProvider) {
+
+	// create the structure of a sample file and store it locally
+	structureProvider.createStructure();
+
 	var provider = new eclipse.PluginProvider();
 	provider.registerServiceProvider("orion.edit.contentAssist", 
 			new esprimaContentAssistPlugin.EsprimaJavaScriptContentAssistProvider(), {

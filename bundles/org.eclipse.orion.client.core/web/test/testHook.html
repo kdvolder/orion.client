@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN""http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+	<script src="../requirejs/require.js"></script>
+	<script>
+	/*global window require */
+	window.onload = function() {
+		// the test case to run is encapsulated in the hash
+		var hash;
+		if (window.location.hash.charAt(0) === '#') {
+			hash = window.location.hash.substring(1);
+		} else {
+			hash = window.location.hash;
+		}
+
+		var lastSlash = hash.lastIndexOf('/');
+		var path = lastSlash >= 0 ? hash.substring(0,lastSlash) : "/";
+
+		require({
+			context: "tester",
+			baseUrl: '..',
+			packages: [
+				{
+					name: 'dojo',
+					location: 'org.dojotoolkit/dojo',
+					main: 'lib/main-browser',
+					lib: '.'
+			   }],
+			paths: {
+			  text: 'requirejs/text',
+			  i18n: 'requirejs/i18n',
+			  // use the path as the module name
+			  testpath: path
+			}
+		}, ["test/testHook", "require"], function(tester, nestedRequire) {
+			tester(nestedRequire);
+		});
+	};
+	</script>
+</head>
+<body>
+   <h1>Helps run tests defined in .js files</h1>
+</body>
+</html>
