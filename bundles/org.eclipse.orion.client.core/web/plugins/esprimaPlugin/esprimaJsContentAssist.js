@@ -19,7 +19,7 @@ define("esprimaJsContentAssist", [], function() {
 	 * Types that begin with '?' are functions.  The values after the ':' are the 
 	 * argument names.
 	 */
-	var Types = function() {
+	var Types = function(options) {
 		/**
 		 * Properties common to all objects - ECMA 262, section 15.2.4.
 		 */
@@ -185,20 +185,24 @@ define("esprimaJsContentAssist", [], function() {
 			$$proto : "Object"
 		};
 		
-		
-		// now get everything from localstorage
-		if (localStorage && localStorage.esprimaassist) {
-			// structure consists of extra global variables and extra types
-			var structure = JSON.parse(localStorage.esprimaassist);
-			for (var type in structure.types) {
-				if (structure.types.hasOwnProperty(type) && !this[type]) {
-					this[type] = structure.types[type];
-				}
-			}
-			var globals = this.Global;
-			for (var global in structure.globals) {
-				if (structure.globals.hasOwnProperty(global) && !this[type]) {
-					globals[global] = structure.globals[global];
+		// no indexer means that we should not consult indexes for extra type information
+		if (options.indexer) {
+			// get the list of summaries relevant for this file
+			var summaries = options.indexer.retrieveSummaries();
+			for (var fileName in summaries) {
+				if (summaries.hasOwnProperty(fileName)) {
+					var structure = summaries[fileName];
+					for (var type in structure.types) {
+						if (structure.types.hasOwnProperty(type) && !this[type]) {
+							this[type] = structure.types[type];
+						}
+					}
+					var globals = this.Global;
+					for (var global in structure.globals) {
+						if (structure.globals.hasOwnProperty(global) && !globals[global]) {
+							globals[global] = structure.globals[global];
+						}
+					}
 				}
 			}
 		}
@@ -743,7 +747,7 @@ define("esprimaJsContentAssist", [], function() {
 	}
 	
 	/** Creates the environment object that stores type information*/
-	function createEnvironment(buffer, completionKind, offset, prefix) {
+	function createEnvironment(buffer, completionKind, offset, prefix, indexer, fileName) {
 		if (!offset) {
 			offset = buffer.length;
 		}
@@ -753,8 +757,11 @@ define("esprimaJsContentAssist", [], function() {
 		return {
 			/** Each element is the type of the current scope, which is a key into the types array */
 			_scopeStack : ["Global"],
-			/** a map of all the types and their properties currently known */
-			_allTypes : new Types(),
+			/** 
+			 * a map of all the types and their properties currently known 
+			 * when the useDependencies flag is true, local storage will be checked for extra type information
+			 */
+			_allTypes : new Types({ indexer : indexer, fileName : fileName }),
 			/** a counter used for creating unique names for object literals and scopes */
 			_typeCount : 0,
 			/** 
@@ -777,7 +784,8 @@ define("esprimaJsContentAssist", [], function() {
 			/** the entire contents being completed on */
 			contents : buffer,
 			newName: function() {
-				return "gen~Object~"+ this._typeCount++;
+				var namePrefix = completionKind ? "gen~anon~" : "gen~external~";
+				return namePrefix + this._typeCount++;
 			},
 			/** Creates a new empty scope and returns the name of the scope*/
 			newScope: function() {
@@ -991,7 +999,13 @@ define("esprimaJsContentAssist", [], function() {
 		};
 	}
 
-	function EsprimaJavaScriptContentAssistProvider() {}
+	/**
+	 * indexer is optional.  When there is no indexer passed in
+	 * the indexes will not be consulted for extra references
+	 */
+	function EsprimaJavaScriptContentAssistProvider(indexer) {
+		this.indexer = indexer;
+	}
 	
 	/**
 	 * Main entry point to provider
@@ -1015,7 +1029,7 @@ define("esprimaJsContentAssist", [], function() {
 				// note that if selection has length > 0, then just ignore everything past the start
 				var completionKind = shouldVisit(root, offset, context.prefix, buffer);
 				if (completionKind) {
-					var environment = createEnvironment(buffer, completionKind, offset, context.prefix);
+					var environment = createEnvironment(buffer, completionKind, offset, context.prefix, this.indexer);
 					this._doVisit(root, environment);
 					environment.proposals.sort(function(l,r) {
 						if (l.description < r.description) {

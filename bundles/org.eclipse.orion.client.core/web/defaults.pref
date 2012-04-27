@@ -12,7 +12,6 @@
 		"plugins/pageLinksPlugin.html":true,
 		"plugins/preferencesPlugin.html":true,
 		"plugins/taskPlugin.html": true,
-		"plugins/csslintPlugin.html": true,
-		"plugins/esprimaJsContentAssistPlugin.html": true
+		"plugins/csslintPlugin.html": true
 	}
 }
