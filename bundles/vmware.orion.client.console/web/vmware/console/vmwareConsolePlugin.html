@@ -23,7 +23,7 @@
 		var mockGcli = {
 			addCommand: function(commandDef) {
 				var serviceImpl = {
-					exec: commandDef.exec
+					run: commandDef.run
 				};
 				var serviceProps = {
 					name: commandDef.name,

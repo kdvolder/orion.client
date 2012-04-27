@@ -17,7 +17,7 @@
  
 	var dojo = require('dojo');
  
-	/////// implementation of 'vmc exec functions commands ////////////////////////////////
+	/////// implementation of 'vmc run functions commands ////////////////////////////////
 	
 	function defaultCommandExec(commandPath) {
 		return function (args, context) {
@@ -76,7 +76,7 @@
 			description: 'install node packages',
 			manual: 'This command installs node packages and any packages that they depend on. It resolves dependencies by talking to the npm registry. ' +
 				'If no packages are specified, then packages to install are determined from the "package.json" file if it can be found.',
-			exec: defaultCommandExec('npm/install'),
+			run: defaultCommandExec('npm/install'),
 			params: [
 			    {
 					name: 'packages',
@@ -128,7 +128,7 @@
 					defaultValue: 'true'
 				}
 			],
-			exec: defaultCommandExec('npm/config/set')
+			run: defaultCommandExec('npm/config/set')
 		});
 		gcli.addCommand({
 			name: 'npm config get',
@@ -141,7 +141,7 @@
 					description: 'key'
 				}
 			],
-			exec: defaultCommandExec('npm/config/get')
+			run: defaultCommandExec('npm/config/get')
 		});
 		gcli.addCommand({
 			name: 'npm config delete',
@@ -154,7 +154,7 @@
 					description: 'key'					
 				}
 			],
-			exec: defaultCommandExec('npm/config/delete')
+			run: defaultCommandExec('npm/config/delete')
 		});
 		gcli.addCommand({
 			name: 'npm config list',
@@ -166,7 +166,7 @@
 					type: 'boolean'
 				}
 			],
-			exec: defaultCommandExec('npm/config/list')
+			run: defaultCommandExec('npm/config/list')
 		});
 	}
 	
@@ -182,7 +182,7 @@
 					description: 'Name of app'
 				}
 			],
-			exec: vmcCommandExec(name)
+			run: vmcCommandExec(name)
 		});
 	}
 
@@ -204,7 +204,7 @@
 			description: 'Reports apps installed on target',
 			manual: 'A nice manual for VMC goes in here',
 			params: [],
-			exec: vmcCommandExec('apps')
+			run: vmcCommandExec('apps')
 		});
 		
 		gcli.addCommand({
@@ -219,7 +219,7 @@
 							defaultValue: null
 					    }
 			],
-			exec: vmcCommandExec('target')
+			run: vmcCommandExec('target')
 		});
 		
 		gcli.addCommand({
@@ -238,7 +238,7 @@
 							description: 'Password'
 						}
 			],
-			exec: execVmcLogin
+			run: execVmcLogin
 		});
 		
 		gcli.addCommand({
@@ -275,7 +275,7 @@
 							description: 'Do NOT start the app'
 						}
 			],
-			exec: execVmcPush
+			run: execVmcPush
 		});
 		
 		simpleVMCCommands(gcli, ["start", "stop", "delete", "restart", "update"]);
@@ -299,7 +299,7 @@
 //					description: 'script name'
 //				}
 //			],
-//			exec: defaultCommandExec('/shellapi/roo/script')
+//			run: defaultCommandExec('/shellapi/roo/script')
 //		});
 //	}
 //	
@@ -310,7 +310,7 @@
 			manual: 'A nice manual for mvn ' + name +' goes in here',
 			params: [
 			],
-			exec: defaultCommandExec('mvn/'+name)
+			run: defaultCommandExec('mvn/'+name)
 		});
 	}
 	

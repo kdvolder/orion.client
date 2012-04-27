@@ -17,7 +17,7 @@
 
 define(['dojo', 'orion/bootstrap', 'orion/status', 'orion/commands', 'orion/globalCommands', 
 	'orion/searchClient', 'orion/fileClient', 'gcli/index', 'console/directory-type', 
-	'console/current-directory', 'shim/es5-bind'], 
+	'console/current-directory', 'orion/es5shim'], 
 function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalCommands,        mSearchClient,        mFileClient,        gcli       ) {
 
 	var withWorkspace = require('console/current-directory').withWorkspace;
@@ -201,18 +201,18 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 	}
 	
 	/**
-	 * Creates a gcli exec function wrapping an exec function contributed by
+	 * Creates a gcli exec function wrapping a 'run' function contributed by
 	 * a 'orion.console.command' service implementation.
 	 */
 	function contributedExecFunc(service) {
-		if (typeof(service.exec)==='function') {
+		if (typeof(service.run)==='function') {
 			//TODO: we may support different styles of exec functions based on 
 			// properties set in the service. For now we just have the one
 			// type that executes asynchronously and renders the result as 'pre' text.
 			return function (args, context) {
 				var promise = context.createPromise();
 				createPluginContext(context, function (jsonContext) {
-					service.exec(args, jsonContext).then(function (result) {
+					service.run(args, jsonContext).then(function (result) {
 						promise.resolve(render(result));
 					});
 				});
@@ -220,7 +220,7 @@ function(dojo,  mBootstrap,        mStatus,        mCommands,        mGlobalComm
 			};
 		}
 		return undefined; 
-		//retruns undefined if we can't create an exec function (typically because the 
+		//returns undefined if we can't create an exec function (typically because the 
 		//service doesn't provide one and is just a parent node in the command hierarchy).
 	}
 	
