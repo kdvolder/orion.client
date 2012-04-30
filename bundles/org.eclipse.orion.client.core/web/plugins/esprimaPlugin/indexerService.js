@@ -95,18 +95,12 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 		return needsUpdating;
 	}
 	
-	// This really should be an instance property of Indexer, but performIndex is called with
-	// a different this and so we don't have access to the Indexer instance.
-	// good news is that there will only be one indexer instance per tab, so w
-	// don't need to have more than one file at once.
-	var indexTargetFile;
-	
-	
 	// targetFile is optional here since it will be filled in when performIndex is called
-	function Indexer() { }
-	
-	Indexer.prototype = {
-		retrieveSummaries : function() {
+	function Indexer() {
+		// private instance variable
+		var indexTargetFile;
+		
+		this.retrieveSummaries = function() {
 			if (!indexTargetFile) {
 				return { };
 			}
@@ -127,9 +121,9 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 				}
 			}
 			return summaries;
-		},
+		};
 	
-		performIndex : function(fileName, contents) {
+		this.performIndex = function(fileName, contents) {
 			indexTargetFile = fileName;
 			
 			// ask server for dependencies of fileName
@@ -148,7 +142,7 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 			
 			// since this function is being used as a syntax checker, must return an empty array
 			return [];
-		}
+		};
 	};
 	
 	return {
