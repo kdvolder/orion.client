@@ -31,12 +31,18 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 
 	function getDependencies(fileName) {
 		// ask server for dependencies, but for now, just hard code
-		// dependency = { path : { path to file }, name { module name }, type : { global, AMD } }
+		// dependency = { path : { path to file }, name { module name }, kind : { global, AMD } }
 		return [ 
+//			{
+//				path : "http://localhost:8080/file/d/footest.js",
+//				name : "footest",
+//				kind : "global",
+//				timestamp : generateTimeStamp()
+//			},
 			{
-				path : "http://localhost:8080/file/d/footest.js",
-				name : "footest",
-				type : "global",
+				path : "http://localhost:8080/file/d/amd_test.js",
+				name : "amd_test",
+				kind : "AMD",
 				timestamp : generateTimeStamp()
 			}
 		];
@@ -62,7 +68,7 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 				if(xhr.status  === 200) {
 					// create a content assistant, but don't pass in an indexer since we don't want recursive indexing to happen
 					var esprimaContentAssistant = new mEsprimaContentAssist.EsprimaJavaScriptContentAssistProvider({});
-					var structure = esprimaContentAssistant.computeStructure(xhr.responseText);
+					var structure = esprimaContentAssistant.computeSummary(xhr.responseText, file);
 					console.log("Storing summary of " + file + " in local storage.");
 					localStorage[file + "-summary"] = JSON.stringify(structure);
 					localStorage[file + "-summary-ts"] = generateTimeStamp();
@@ -99,7 +105,10 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 		// private instance variable
 		var indexTargetFile;
 		
-		this.retrieveSummaries = function() {
+		/**
+		 * retrieves the summaries for all dependencies in the global scope
+		 */
+		this.retrieveGlobalSummaries = function() {
 			if (!indexTargetFile) {
 				return { };
 			}
@@ -110,27 +119,59 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 			}
 			deps = JSON.parse(deps);
 			
-			// for each dependency, extract the summary
+			// for each dependency that is global, extract the summary
 			var summaries = [ ];
 			for (var i = 0; i < deps.length; i++) {
 				var dep = deps[i];
-				var depPath = dep.path;
-				var summary = localStorage[depPath + "-summary"];
-				if (summary) {
-					// also add the extra dependency information
-					summary = JSON.parse(summary);
-					summary.name = dep.name;
-					summary.type = dep.type;
-					summaries.push(summary);
+				if (dep.kind === "global") {
+					var depPath = dep.path;
+					var summary = localStorage[depPath + "-summary"];
+					if (summary) {
+						// also add the extra dependency information
+						summary = JSON.parse(summary);
+						summary.name = dep.name;
+						summary.kind = dep.kind;
+						summaries.push(summary);
+					}
 				}
-				
 			}
 			return summaries;
+		};
+		
+		/**
+		 * retrieves the summary with the given name if it exists, or null if it doesn't
+		 */
+		this.retrieveSummary = function(name) {
+			if (!indexTargetFile) {
+				return null;
+			}
+			// check local storage for file
+			var deps = localStorage[indexTargetFile + "-deps"];
+			if (!deps) {
+				return null;
+			}
+			deps = JSON.parse(deps);
+			
+			// look through the dependencies until the name is found
+			for (var i = 0; i < deps.length; i++) {
+				var dep = deps[i];
+				if (dep.name === name) {
+					var summary = localStorage[dep.path + "-summary"];
+					if (summary) {
+						// also add the extra dependency information
+						summary = JSON.parse(summary);
+						summary.name = dep.name;
+						summary.kind = dep.kind;
+						return summary;
+					}
+				}
+			}
+			return null;
 		};
 	
 		/**
 		 * Two kinds of objects are worked with here:
-		 *    dependency = { path : { path to file }, name { module name }, type : { global, AMD }, timestamp : long }
+		 *    dependency = { path : { path to file }, name { module name }, kind : { global, AMD }, timestamp : long }
 		 *    summary = { provided : { name -> typeName }, types : { typeName -> { name -> typeName }, timestamp : long }
 		 */
 		this.performIndex = function(fileName, contents) {

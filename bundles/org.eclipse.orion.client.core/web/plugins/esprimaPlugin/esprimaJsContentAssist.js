@@ -19,7 +19,7 @@ define("esprimaJsContentAssist", [], function() {
 	 * Types that begin with '?' are functions.  The values after the ':' are the 
 	 * argument names.
 	 */
-	var Types = function(options) {
+	var Types = function() {
 		/**
 		 * Properties common to all objects - ECMA 262, section 15.2.4.
 		 */
@@ -184,28 +184,7 @@ define("esprimaJsContentAssist", [], function() {
 			stringify : "?String:obj",
 			$$proto : "Object"
 		};
-		
-		// no indexer means that we should not consult indexes for extra type information
-		if (options.indexer) {
-			// get the list of summaries relevant for this file
-			var summaries = options.indexer.retrieveSummaries();
-			for (var fileName in summaries) {
-				if (summaries.hasOwnProperty(fileName)) {
-					var structure = summaries[fileName];
-					for (var type in structure.types) {
-						if (structure.types.hasOwnProperty(type) && !this[type]) {
-							this[type] = structure.types[type];
-						}
-					}
-					var provided = this.Global;
-					for (var global in structure.provided) {
-						if (structure.provided.hasOwnProperty(global) && !provided[global]) {
-							provided[global] = structure.provided[global];
-						}
-					}
-				}
-			}
-		}
+
 	};
 
 	/**
@@ -591,6 +570,89 @@ define("esprimaJsContentAssist", [], function() {
 		}
 		return "?" + newReturnType + originalFunctionType.substring(end);
 	}
+	/**
+	 * checks to see if this file looks like an AMD module
+	 * @return true iff there is a top-level call to 'define'
+	 */
+	function checkForAMD(node) {
+		var body = node.body;
+		// FIXADE should we only be handling the case where there is more than one module?
+		if (body && body.length === 1) {
+			if (body[0].type === "ExpressionStatement" && 
+				body[0].expression.type === "CallExpression" && 
+				body[0].expression.callee.name === "define") {
+				
+				// found it.
+				return body[0].expression;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * if the type passed in is a function type, extracts the return type
+	 * otherwise returns as is
+	 */
+	function extractReturnType(fnType) {
+		if (fnType.charAt(0) === '?') {
+			var typeEnd = fnType.lastIndexOf(':');
+			typeEnd = typeEnd >0 ? typeEnd : fnType.length;
+			fnType = fnType.substring(1,typeEnd);
+		}
+		return fnType;	
+	}
+	
+	/**
+	 * checks to see if this function is a module definition
+	 * and if so returns an array of module definitions
+	 * 
+	 * if this is not a module definition, then just return an array of Object for each type
+	 */
+	function findModuleDefinitions(fnode, env) {
+		var paramTypes = [], params = fnode.params, i;
+		if (params.length > 0) {
+			if (env.indexer && env.amdModule) {
+				var args = env.amdModule.arguments;
+				// the function definition must be the last argument of the call to define 
+				if (args.length > 1 && args[args.length-1] === fnode) {
+					// the module names could be the first or second argument
+					var moduleNames = null;
+					if (args.length === 3 && args[0].type === "Literal" && args[1].type === "ArrayExpression") {
+						moduleNames = args[1].elements;
+					} else if (args.length === 2 && args[0].type === "ArrayExpression") {
+						moduleNames = args[0].elements;
+					}
+					if (moduleNames) {
+						for (i = 0; i < params.length; i++) {
+							if (i < moduleNames.length && moduleNames[i].type === "Literal") {
+								// resolve the module name from the indexer
+								var summary = env.indexer.retrieveSummary(moduleNames[i].value);
+								if (summary) {
+									// must create a type to add the summary to
+									var typeName = env.newScope();
+									env.popScope();
+									paramTypes.push(typeName);
+									env.mergeSummary(summary, typeName);
+								} else {
+									paramTypes.push("Object");
+								}
+							} else {
+								paramTypes.push("Object");
+							}
+						}
+					}
+				}
+			}
+			
+			
+			if (params.length === 0) {
+				for (i = 0; i < params.length; i++) {
+					paramTypes.push("Object");
+				}
+			}
+		}
+		return paramTypes;
+	}
 
 	/**
 	 * This function takes the current AST node and does the first inferencing step for it.
@@ -602,12 +664,13 @@ define("esprimaJsContentAssist", [], function() {
 		
 		// FIXADE Do we still want to do this?
 		if (type === "VariableDeclaration" && isBefore(env.offset, node.range)) {
-			// must do this check since "VariableDeclarator"s do not seem to have their range set correctly
+			// must do this check since "VariableDeclarator"s do not have their range set correctly in the version of esprima being used now
 			return false;
 		}
 		
 		if (type === "Program") {
-			// do nothing...
+			// check for potential AMD module.  Can add other module kinds later
+			env.amdModule = checkForAMD(node);
 		} else if (type === "BlockStatement") {
 			node.inferredType = env.newScope();
 		} else if (type === "NewExpression") {
@@ -679,8 +742,9 @@ define("esprimaJsContentAssist", [], function() {
 
 			// add parameters to the current scope
 			if (params.length > 0) {
+				var moduleDefs = findModuleDefinitions(node, env);
 				for (i = 0; i < params.length; i++) {
-					env.addVariable(params[i], node.target);
+					env.addVariable(params[i], node.target, moduleDefs[i]);
 				}	
 			}
 		} else if (type === "VariableDeclarator") {
@@ -741,11 +805,7 @@ define("esprimaJsContentAssist", [], function() {
 		} else if (type === "CallExpression") {
 			// apply the function
 			var fnType = node.callee.inferredType;
-			if (fnType.charAt(0) === '?') {
-				var typeEnd = fnType.lastIndexOf(':');
-				typeEnd = typeEnd >0 ? typeEnd : fnType.length;
-				fnType = fnType.substring(1,typeEnd);
-			}
+			fnType = extractReturnType(fnType);
 			node.inferredType = fnType;
 		} else if (type === "ObjectExpression") {
 			// now that we know all the types of the values, use that to populate the types of the keys
@@ -860,7 +920,7 @@ define("esprimaJsContentAssist", [], function() {
 	/**
 	 * add variable names from inside a jslint global directive
 	 */
-	function addGlobals(root, env) {
+	function addJSLintGlobals(root, env) {
 		if (root.comments) {
 			for (var i = 0; i < root.comments.length; i++) {
 				if (root.comments[i].type === "Block" && root.comments[i].value.substring(0, "global".length) === "global") {
@@ -876,36 +936,66 @@ define("esprimaJsContentAssist", [], function() {
 			}
 		}
 	}
+	
+	/**
+	 * Adds global variables defined in dependencies
+	 */
+	function addIndexedGlobals(env) {
+		// no indexer means that we should not consult indexes for extra type information
+		if (env.indexer) {
+			// get the list of summaries relevant for this file
+			// add it to the global scope
+			var summaries = env.indexer.retrieveGlobalSummaries();
+			for (var fileName in summaries) {
+				if (summaries.hasOwnProperty(fileName)) {
+					env.mergeSummary(summaries[fileName], "Global");
+				}
+			}
+		} 
+	}
 
+	/**
+	 * the prefix of a completion should not be included in the completion itself
+	 * must explicitly remove it
+	 */
 	function removePrefix(prefix, string) {
 		return string.substring(prefix.length);
 	}
 	
 	/** Creates the environment object that stores type information*/
-	function createEnvironment(buffer, completionKind, offset, prefix, indexer) {
+	function createEnvironment(buffer, uid, completionKind, offset, prefix, indexer) {
 		if (!offset) {
 			offset = buffer.length;
 		}
 		if (!prefix) {
 			prefix = "";
 		}
+		// prefix for generating local types
+		// need to add a unique id for each file so that types defined in dependencies don't clash with types
+		// defined locally
+		var namePrefix = "gen~" + uid + "~";
+
 		return {
 			/** Each element is the type of the current scope, which is a key into the types array */
 			_scopeStack : ["Global"],
 			/** 
 			 * a map of all the types and their properties currently known 
-			 * when the useDependencies flag is true, local storage will be checked for extra type information
+			 * when an indexer exists, local storage will be checked for extra type information
 			 */
-			_allTypes : new Types({ indexer : indexer }),
+			_allTypes : new Types(),
+			/** if this is an AMD module, then the value of this property is the 'define' call expression */
+			amdModule : null,	
 			/** a counter used for creating unique names for object literals and scopes */
 			_typeCount : 0,
 			/** 
 			 * "member" or "top" or null
 			 * if Member, completion occurs after a dotted member expression.  
 			 * if top, completion occurs as the start of a new expression.
-			 * if null, then this environment is not for completion, but for structure
+			 * if null, then this environment is not for completion, but for building a summary
 			 */
 			_completionKind : completionKind,
+			/** the indexer for thie content assist invocation.  Used to track down dependencies */
+			indexer: indexer,
 			/** an array of proposals generated */
 			proposals : [], 
 			/** the offset of content assist invocation */
@@ -919,7 +1009,6 @@ define("esprimaJsContentAssist", [], function() {
 			/** the entire contents being completed on */
 			contents : buffer,
 			newName: function() {
-				var namePrefix = completionKind ? "gen~anon~" : "gen~external~";
 				return namePrefix + this._typeCount++;
 			},
 			/** Creates a new empty scope and returns the name of the scope*/
@@ -1050,6 +1139,24 @@ define("esprimaJsContentAssist", [], function() {
 				return res;
 			},
 			
+			/**
+			 * adds a file summary to this module
+			 */
+			mergeSummary : function(summary, targetTypeName) {
+				for (var type in summary.types) {
+					// don't add types that already exist
+					if (summary.types.hasOwnProperty(type) && !this._allTypes[type]) {
+						this._allTypes[type] = summary.types[type];
+					}
+				}
+				var targetType = this._allTypes[targetTypeName];
+				for (var providedProperty in summary.provided) {
+					if (summary.provided.hasOwnProperty(providedProperty) && !targetType[providedProperty]) {
+						targetType[providedProperty] = summary.provided[providedProperty];
+					}
+				}
+			},
+			
 			createProposals : function(targetType) {
 				if (!this._completionKind) {
 					// not generating proposals.  just walking the file
@@ -1153,8 +1260,10 @@ define("esprimaJsContentAssist", [], function() {
 	EsprimaJavaScriptContentAssistProvider.prototype = {
 	
 		_doVisit : function(root, environment) {
+			// first augment the global scope with things we know
+			addJSLintGlobals(root, environment);
+			addIndexedGlobals(environment);
 			try {
-				addGlobals(root, environment);
 				visit(root, environment, proposalGenerator, proposalGeneratorPostOp);
 			} catch (done) {
 				if (done !== "done") {
@@ -1163,13 +1272,17 @@ define("esprimaJsContentAssist", [], function() {
 				}
 			}
 		},
+		
+		/**
+		 * implements the Orion content assist API
+		 */
 		computeProposals: function(buffer, offset, context) {
 			try {
 				var root = parse(buffer);
 				// note that if selection has length > 0, then just ignore everything past the start
 				var completionKind = shouldVisit(root, offset, context.prefix, buffer);
 				if (completionKind) {
-					var environment = createEnvironment(buffer, completionKind, offset, context.prefix, this.indexer);
+					var environment = createEnvironment(buffer, "local", completionKind, offset, context.prefix, this.indexer);
 					this._doVisit(root, environment);
 					environment.proposals.sort(function(l,r) {
 						if (l.description < r.description) {
@@ -1194,14 +1307,38 @@ define("esprimaJsContentAssist", [], function() {
 			}
 		},
 		
-		computeStructure: function(buffer) {
+		/**
+		 * Computes a summary of the file that is suitable to be stored locally and used as a dependency 
+		 * in another file
+		 */
+		computeSummary: function(buffer, fileName) {
 			try {
 				var root = parse(buffer);
-				var environment = createEnvironment(buffer);
+				var environment = createEnvironment(buffer, fileName);
 				this._doVisit(root, environment);
+				var provided;
+				var kind;
+				if (environment.amdModule) {
+					// provide the exports of the AMD module
+					// the exports is the return value of the final argument
+					var args = environment.amdModule.arguments;
+					var modType;
+					if (args && args.length > 0) {
+						modType = extractReturnType(args[args.length-1].inferredType);
+					} else {
+						modType = "Object";
+					}
+					provided = environment._allTypes[modType];
+					kind = "AMD";
+				} else {
+					// if not AMD module, then return everything that is in the global scope
+					provided = environment._allTypes.Global;
+					kind = "global";
+				}
 				return {
-					provided : environment._allTypes.Global,
-					types : environment._allTypes
+					provided : provided,
+					types : environment._allTypes,
+					kind : kind
 				};
 			} catch (e) {
 				if (console && console.log) {
