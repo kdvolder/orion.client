@@ -24,7 +24,7 @@ define("esprimaJsContentAssist", [], function() {
 		 * Properties common to all objects - ECMA 262, section 15.2.4.
 		 */
 		this.Object = {
-			// Urrrgh...can't use the real name here because would override the real methods of that name
+			// Can't use the real propoerty name here because would override the real methods of that name
 			$_$prototype : "Object",
 			$_$toString: "?String:",
 			$_$toLocaleString : "?String:",
@@ -882,7 +882,7 @@ define("esprimaJsContentAssist", [], function() {
 	}
 	
 	/** Creates the environment object that stores type information*/
-	function createEnvironment(buffer, completionKind, offset, prefix, indexer, fileName) {
+	function createEnvironment(buffer, completionKind, offset, prefix, indexer) {
 		if (!offset) {
 			offset = buffer.length;
 		}
@@ -896,7 +896,7 @@ define("esprimaJsContentAssist", [], function() {
 			 * a map of all the types and their properties currently known 
 			 * when the useDependencies flag is true, local storage will be checked for extra type information
 			 */
-			_allTypes : new Types({ indexer : indexer, fileName : fileName }),
+			_allTypes : new Types({ indexer : indexer }),
 			/** a counter used for creating unique names for object literals and scopes */
 			_typeCount : 0,
 			/** 
