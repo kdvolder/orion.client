@@ -496,16 +496,11 @@ define("esprimaJsContentAssist", [], function() {
 		if (!node) {
 			return null;
 		}
-		var type = node.type, maybe, i;
+		var type = node.type, maybe, i, last;
 		// since we are finding the last return statement, start from the end
-		if (type === "BlockStatement" || 
-			type === "WhileStatement" || 
-			type === "DoWhileStatement" ||
-			type === "ForStatement" ||
-			type === "ForInStatement" ||
-			type === "CatchClause") {
+		if (type === "BlockStatement") {
 			if (node.body && node.body.length > 0) {
-				var last = node.body[node.body.length-1];
+				last = node.body[node.body.length-1];
 				if (last.type === "ReturnStatement") {
 					return last;
 				} else {
@@ -514,6 +509,13 @@ define("esprimaJsContentAssist", [], function() {
 			} else {
 				return null;
 			}
+		} else if(type === "WhileStatement" || 
+			type === "DoWhileStatement" ||
+			type === "ForStatement" ||
+			type === "ForInStatement" ||
+			type === "CatchClause") {
+			
+			return findReturn(node.body);
 		} else if (type === "IfStatement") {
 			maybe = findReturn(node.alternate);
 			if (!maybe) {
@@ -523,10 +525,10 @@ define("esprimaJsContentAssist", [], function() {
 		} else if (type === "TryStatement") {
 			maybe = findReturn(node.finalizer);
 			var handlers = node.handlers;
-			if (handlers) {
+			if (!maybe && handlers) {
 				// start from the last handler
 				for (i = handlers.length-1; i >= 0; i--) {
-					findReturn(handlers[i]);
+					maybe = findReturn(handlers[i]);
 					if (maybe) {
 						break;
 					}
@@ -541,13 +543,24 @@ define("esprimaJsContentAssist", [], function() {
 			if (cases) {
 				// start from the last handler
 				for (i = cases.length-1; i >= 0; i--) {
-					findReturn(cases[i].consequent);
+					maybe = findReturn(cases[i]);
 					if (maybe) {
 						break;
 					}
 				}
 			}
 			return maybe;
+		} else if (type === "SwitchCase") {
+			if (node.consequent && node.consequent.length > 0) {
+				last = node.consequent[node.consequent.length-1];
+				if (last.type === "ReturnStatement") {
+					return last;
+				} else {
+					return findReturn(last);
+				}
+			} else {
+				return null;
+			}
 			
 		} else if (type === "ReturnStatement") {
 			return node;

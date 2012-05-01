@@ -1044,13 +1044,204 @@ tests.testEmpty = function() {};
 		]);
 	};
 	
+	// test return types of various simple functions
+	tests["test function return type 1"] = function() {
+		var results = computeContentAssist(
+			"var first = function() { return 9; };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type 1a"] = function() {
+		// complete on a function, not a number
+		var results = computeContentAssist(
+			"var first = function() { return 9; };\nfirst.arg", "arg");
+		testProposals("arg", results, [
+			["arguments", "arguments : Arguments (esprima)"]
+		]);
+	};
+	
+	tests["test function return type 2"] = function() {
+		var results = computeContentAssist(
+			"function first() { return 9; };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type 3"] = function() {
+		var results = computeContentAssist(
+			"var obj = { first : function () { return 9; } };\nobj.first().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type 4"] = function() {
+		var results = computeContentAssist(
+			"function first() { return { ff : 9 }; };\nfirst().ff.toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type 5"] = function() {
+		var results = computeContentAssist(
+			"function first() { return function() { return 9; }; };\nvar ff = first();\nff().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type 6"] = function() {
+		var results = computeContentAssist(
+			"function first() { return function() { return 9; }; };\nfirst()().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	// now test different ways that functions can be constructed
+	tests["test function return type if 1"] = function() {
+		var results = computeContentAssist(
+			"function first() { if(true) { return 8; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type if 2"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { if(true) { return ''; } else  { return 8; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type while"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { while(true) { return 1; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type do/while"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { do { return 1; } while(true); };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type for"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { for (var i; i < 10; i++) { return 1; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type for in"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { for (var i in k) { return 1; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type try 1"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { try { return 1; } catch(e) { } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type try 2"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { try { return 1; } catch(e) { } finally { } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type try 3"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { try { return ''; } catch(e) { return 9; } finally { } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type try 4"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { try { return ''; } catch(e) { return ''; } finally { return 9; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type switch 1"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { switch (v) { case a: return 9; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type switch 2"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { switch (v) { case b: return ''; case a: return 1; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type switch 3"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { switch (v) { case b: return ''; default: return 1; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type nested block 1"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { while(true) { a;\nb\n;return 9; } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test function return type nest block 2"] = function() {
+		// always choose the last return statement
+		var results = computeContentAssist(
+			"function first() { while(true) { while(false) { \n;return 9; } } };\nfirst().toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+
 	/*
 	 yet to do:
 	 1. with, function inside obj literal
 	 *  nested object literal suppport, correct typing of object literal keys
 	 *  function argument types
-	 3. function/method return types vs functions themselves
-	 4. inferring the return type of a function
 	 5. parameterized types (eg- array of string, function that returns number)
 	 *  function expressions
 	*/
