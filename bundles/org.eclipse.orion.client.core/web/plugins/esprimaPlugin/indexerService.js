@@ -29,18 +29,26 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 		return new Date().getTime();
 	}
 
-	function findDependencies(fileName) {
+	function getDependencies(fileName) {
 		// ask server for dependencies, but for now, just hard code
-		return {
-			"http://localhost:8080/file/d/footest.js" : generateTimeStamp()
-		};
+		// dependency = { path : { path to file }, name { module name }, type : { global, AMD } }
+		return [ 
+			{
+				path : "http://localhost:8080/file/d/footest.js",
+				name : "footest",
+				type : "global",
+				timestamp : generateTimeStamp()
+			}
+		];
 	}	
 
 	/**
 	 * gets the text of the given file, parses it and stores the file summary in local storage
 	 * @param file a url of the file to summarize
 	 */
-	function createSummary(file) {
+	function createSummary(dependency) {
+		var file = dependency.path;
+		
 		// for now, just use static text and update it each time
 		var xhr;
 		if (window.XMLHttpRequest) {
@@ -69,33 +77,24 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 	}
 	
 	function cacheDeps(fileName, deps) {
-		var toCache = [];
-		for (var dep in deps) {
-			if (deps.hasOwnProperty(dep)) {
-				toCache.push(dep);
-			}
-		}
-		localStorage[fileName + "-deps"] = JSON.stringify(toCache);
+		localStorage[fileName + "-deps"] = JSON.stringify(deps);
 		localStorage[fileName + "-deps-ts"] = generateTimeStamp();
 	}
 	
 	function checkCache(deps) {
 		var needsUpdating = [];
-		for (var dep in deps) {
-			if (deps.hasOwnProperty(dep)) {
-				var tsCache = localStorage[dep + "-summary-ts"];
-				var tsDep = deps[dep];
-				// only update the local cache if it 
-				// older than what the server has
-				if (!tsCache || tsCache < tsDep) {
-					needsUpdating.push(dep);
-				}
+		for (var i = 0; i < deps.length; i++) {
+			var tsCache = localStorage[deps[i].path + "-summary-ts"];
+			var tsDep = deps[i].timestamp;
+			// only update the local cache if it 
+			// older than what the server has
+			if (!tsCache || !tsDep || tsCache < tsDep) {
+				needsUpdating.push(deps[i]);
 			}
 		} 
 		return needsUpdating;
 	}
 	
-	// targetFile is optional here since it will be filled in when performIndex is called
 	function Indexer() {
 		// private instance variable
 		var indexTargetFile;
@@ -112,22 +111,33 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 			deps = JSON.parse(deps);
 			
 			// for each dependency, extract the summary
-			var summaries = { };
+			var summaries = [ ];
 			for (var i = 0; i < deps.length; i++) {
 				var dep = deps[i];
-				var summary = localStorage[dep + "-summary"];
+				var depPath = dep.path;
+				var summary = localStorage[depPath + "-summary"];
 				if (summary) {
-					summaries[dep] = JSON.parse(summary);
+					// also add the extra dependency information
+					summary = JSON.parse(summary);
+					summary.name = dep.name;
+					summary.type = dep.type;
+					summaries.push(summary);
 				}
+				
 			}
 			return summaries;
 		};
 	
+		/**
+		 * Two kinds of objects are worked with here:
+		 *    dependency = { path : { path to file }, name { module name }, type : { global, AMD }, timestamp : long }
+		 *    summary = { provided : { name -> typeName }, types : { typeName -> { name -> typeName }, timestamp : long }
+		 */
 		this.performIndex = function(fileName, contents) {
 			indexTargetFile = fileName;
 			
 			// ask server for dependencies of fileName
-			var deps = findDependencies(fileName);
+			var deps = getDependencies(fileName);
 			
 			// cache these dependencies
 			cacheDeps(fileName, deps);
@@ -143,7 +153,7 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 			// since this function is being used as a syntax checker, must return an empty array
 			return [];
 		};
-	};
+	}
 	
 	return {
 		Indexer : Indexer

@@ -197,10 +197,10 @@ define("esprimaJsContentAssist", [], function() {
 							this[type] = structure.types[type];
 						}
 					}
-					var globals = this.Global;
-					for (var global in structure.globals) {
-						if (structure.globals.hasOwnProperty(global) && !globals[global]) {
-							globals[global] = structure.globals[global];
+					var provided = this.Global;
+					for (var global in structure.provided) {
+						if (structure.provided.hasOwnProperty(global) && !provided[global]) {
+							provided[global] = structure.provided[global];
 						}
 					}
 				}
@@ -485,6 +485,99 @@ define("esprimaJsContentAssist", [], function() {
 		}
 		return "top";
 	}	
+	
+	/**
+	 * finds the final return statement of a function declaration
+	 * @param node an ast statement node
+	 * @return the lexically last ReturnStatment AST node if there is one, else
+	 * null if there is no return statement
+	 */
+	function findReturn(node) {
+		if (!node) {
+			return null;
+		}
+		var type = node.type, maybe, i;
+		// since we are finding the last return statement, start from the end
+		if (type === "BlockStatement" || 
+			type === "WhileStatement" || 
+			type === "DoWhileStatement" ||
+			type === "ForStatement" ||
+			type === "ForInStatement" ||
+			type === "CatchClause") {
+			if (node.body && node.body.length > 0) {
+				var last = node.body[node.body.length-1];
+				if (last.type === "ReturnStatement") {
+					return last;
+				} else {
+					return findReturn(last);
+				}
+			} else {
+				return null;
+			}
+		} else if (type === "IfStatement") {
+			maybe = findReturn(node.alternate);
+			if (!maybe) {
+				maybe = findReturn(node.consequent);
+			}
+			return maybe;
+		} else if (type === "TryStatement") {
+			maybe = findReturn(node.finalizer);
+			var handlers = node.handlers;
+			if (handlers) {
+				// start from the last handler
+				for (i = handlers.length-1; i >= 0; i--) {
+					findReturn(handlers[i]);
+					if (maybe) {
+						break;
+					}
+				}
+			}
+			if (!maybe) {
+				maybe = findReturn(node.block);
+			}
+			return maybe;
+		} else if (type === "SwitchStatement") {
+			var cases = node.cases;
+			if (cases) {
+				// start from the last handler
+				for (i = cases.length-1; i >= 0; i--) {
+					findReturn(cases[i].consequent);
+					if (maybe) {
+						break;
+					}
+				}
+			}
+			return maybe;
+			
+		} else if (type === "ReturnStatement") {
+			return node;
+		} else {
+			// don't visit nested functions
+			// expression statements, variable declarations,
+			// or any other kind of node
+			return null;
+		} 
+	}
+	
+	/**
+	 * updates a function type to include a new return type.
+	 * function types are specified like this: ?returnType:[arg-n...]
+	 * return type is the name of the return type, arg-n is the name of
+	 * the nth argument.
+	 */
+	function updateReturnType(originalFunctionType, newReturnType) {
+		if (! originalFunctionType || originalFunctionType.charAt(0) !== "?") {
+			// not a valid function type
+			return newReturnType;
+		}
+		
+		var end = originalFunctionType.lastIndexOf(":");
+		if (!end) {
+			// not a valid function type
+			return newReturnType;
+		}
+		return "?" + newReturnType + originalFunctionType.substring(end);
+	}
 
 	/**
 	 * This function takes the current AST node and does the first inferencing step for it.
@@ -555,6 +648,8 @@ define("esprimaJsContentAssist", [], function() {
 				node.body.isConstructor = true;
 				newTypeName = env.newObject(name);
 			} else {
+				// temporarily use "Object" as type, but this may change once we 
+				// walk through to get to a return statement
 				newTypeName = "Object";
 			}
 			newTypeName = "?" + newTypeName + ":" + params;
@@ -588,7 +683,7 @@ define("esprimaJsContentAssist", [], function() {
 		} else if (type === "CatchClause") {
 			// create a new scope for the catch parameter
 			node.inferredType = env.newScope();
-			if (node.param) {
+			if (node.param) {	
 				node.param.inferredType = "Error";
 				env.addVariable(node.param.name, node.target, "Error");
 			}
@@ -598,7 +693,6 @@ define("esprimaJsContentAssist", [], function() {
 				// so that its type can be used as the seed for finding properties
 				node.property.target = node.object;
 			}
-		
 		}
 		return true;
 	}
@@ -672,8 +766,29 @@ define("esprimaJsContentAssist", [], function() {
 			node.inferredType = "Number";
 		} else if (type === "FunctionDeclaration" || type === "FunctionExpression") {
 			env.popScope();
-			if (node.body && node.body.isConstructor) {
-				env.popScope();
+			if (node.body) {
+				if (node.body.isConstructor) {
+					// an extra scope was created for the implicit 'this'
+					env.popScope();
+				} else {
+					// a regular function.  try updating to a more explicit return type
+					var returnStatement = findReturn(node.body);
+					if (returnStatement) {
+						node.inferredType = updateReturnType(node.inferredType, returnStatement.inferredType);
+						// if there is a name, then update that as well
+						var fname;
+						if (node.id) {
+							// true for function declarations
+							fname = node.id.name;
+						} else if (node.fname) {
+							// true for rhs of assignment to function expression
+							fname = node.fname;
+						}
+						if (fname) {
+							env.addOrSetVariable(fname, node.target, node.inferredType);
+						}				
+					}
+				}
 			}
 		} else if (type === "VariableDeclarator") {
 			if (node.init) {
@@ -709,6 +824,10 @@ define("esprimaJsContentAssist", [], function() {
 			}
 		} else if (type === "ThisExpression") {
 			node.inferredType = env.lookupName("this");
+		} else if (type === "ReturnStatement") {
+			if (node.argument) {
+				node.inferredType = node.argument.inferredType;
+			}
 		}
 		
 		if (!node.inferredType) {
@@ -725,6 +844,9 @@ define("esprimaJsContentAssist", [], function() {
 		return parsedProgram;
 	}
 	
+	/**
+	 * add variable names from inside a jslint global directive
+	 */
 	function addGlobals(root, env) {
 		if (root.comments) {
 			for (var i = 0; i < root.comments.length; i++) {
@@ -830,8 +952,13 @@ define("esprimaJsContentAssist", [], function() {
 			 * inferred type of the target instead (if it exists)
 			 */
 			scope : function(target) {
-				return target && target.inferredType ? 
-					target.inferredType : this._scopeStack[this._scopeStack.length -1];
+				if (target && target.inferredType) {
+					// check for function literal
+					return target.inferredType.charAt(0) === "?" ? "Function" : target.inferredType;
+				} else {
+					// grab topmost scope
+					return this._scopeStack[this._scopeStack.length -1];
+				}
 			},
 			
 			/** adds the name to the target type.
@@ -919,9 +1046,9 @@ define("esprimaJsContentAssist", [], function() {
 				if (!targetType) {
 					targetType = this.scope();
 				}
-				if (targetType.charAt(0) === '?') {
-					targetType = "Function";
-				}
+//				if (targetType.charAt(0) === '?') {
+//					targetType = "Function";
+//				}
 				var prop, propName, propType, proto, res, type = this._allTypes[targetType];
 				proto = type.$$proto;
 				
@@ -1060,7 +1187,7 @@ define("esprimaJsContentAssist", [], function() {
 				var environment = createEnvironment(buffer);
 				this._doVisit(root, environment);
 				return {
-					globals : environment._allTypes.Global,
+					provided : environment._allTypes.Global,
 					types : environment._allTypes
 				};
 			} catch (e) {
