@@ -122,7 +122,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 
 	var tests = {};
 
-tests.testEmpty = function() {};
+	tests.testEmpty = function() {};
 
 	tests["test recovery basic parse"] = function() {
 		var parsedProgram = parse("foo.bar");

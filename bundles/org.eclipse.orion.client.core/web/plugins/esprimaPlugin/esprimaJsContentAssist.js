@@ -76,6 +76,7 @@ define("esprimaJsContentAssist", [], function() {
 			sort : "?Array:[sorter]",
 			concat : "?Array:left,right",
 			slice : "?Array:start,end",
+			push : "?Object:val",
 			$$proto : "Object"
 		};
 		
@@ -1073,7 +1074,7 @@ define("esprimaJsContentAssist", [], function() {
 			
 			/** removes the variable from the current type */
 			removeVariable : function(name, target) {
-				this._allTypes[this.scope(target)][name] = null;
+				delete this._allTypes[this.scope(target)][name];
 			},
 			
 			/** 
@@ -1143,15 +1144,20 @@ define("esprimaJsContentAssist", [], function() {
 			 * adds a file summary to this module
 			 */
 			mergeSummary : function(summary, targetTypeName) {
+			
+				// add the extra types that don't already exists
 				for (var type in summary.types) {
-					// don't add types that already exist
 					if (summary.types.hasOwnProperty(type) && !this._allTypes[type]) {
 						this._allTypes[type] = summary.types[type];
 					}
 				}
+				
+				// now augment the target type with the provided properties
 				var targetType = this._allTypes[targetTypeName];
 				for (var providedProperty in summary.provided) {
-					if (summary.provided.hasOwnProperty(providedProperty) && !targetType[providedProperty]) {
+					if (summary.provided.hasOwnProperty(providedProperty)) {
+						// the targetType may already have the providedProperty defined
+						// but should override
 						targetType[providedProperty] = summary.provided[providedProperty];
 					}
 				}
@@ -1245,6 +1251,35 @@ define("esprimaJsContentAssist", [], function() {
 			}
 		};
 	}
+	
+	function getBuiltInTypes(environment) {
+		var builtInTypes = [];
+		for (var prop in environment._allTypes) {
+			if (environment._allTypes.hasOwnProperty(prop)) {
+				builtInTypes.push(prop);
+			}
+		}
+		return builtInTypes;
+	}
+	
+	function filterTypes(environment, builtInTypes, kind) {
+		if (kind === "global") {
+			// for global dependencies must keep the global scope, but remove all builtin global variables
+			var global = environment._allTypes.Global;
+			delete global["this"];
+			delete global.Math;
+			delete global.JSON;
+			delete global.$$proto;
+		} else {
+			delete environment._allTypes.Global;
+		}
+	
+		for (var i = 0; i < builtInTypes.length; i++) {
+			if (builtInTypes[i] !== "Global") {
+				delete environment._allTypes[builtInTypes[i]];
+			}
+		}
+	}
 
 	/**
 	 * indexer is optional.  When there is no indexer passed in
@@ -1315,7 +1350,11 @@ define("esprimaJsContentAssist", [], function() {
 			try {
 				var root = parse(buffer);
 				var environment = createEnvironment(buffer, fileName);
+				// keep track of built-in types so they can be removed later
+				var builtInTypes = getBuiltInTypes(environment);
+				
 				this._doVisit(root, environment);
+				
 				var provided;
 				var kind;
 				if (environment.amdModule) {
@@ -1335,6 +1374,10 @@ define("esprimaJsContentAssist", [], function() {
 					provided = environment._allTypes.Global;
 					kind = "global";
 				}
+
+				// now filter the builtins since they are always available
+				filterTypes(environment, builtInTypes, kind);
+				
 				return {
 					provided : provided,
 					types : environment._allTypes,

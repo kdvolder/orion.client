@@ -29,10 +29,10 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 		return new Date().getTime();
 	}
 
-	function getDependencies(fileName) {
+	function getDependencies(fileName, callback) {
 		// ask server for dependencies, but for now, just hard code
 		// dependency = { path : { path to file }, name { module name }, kind : { global, AMD } }
-		return [ 
+		callback( [ 
 //			{
 //				path : "http://localhost:8080/file/d/footest.js",
 //				name : "footest",
@@ -45,7 +45,7 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 				kind : "AMD",
 				timestamp : generateTimeStamp()
 			}
-		];
+		]);
 	}	
 
 	/**
@@ -82,11 +82,18 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 		xhr.send(null); 
 	}
 	
+	/**
+	 * caches the dependency list for a single file
+	 */
 	function cacheDeps(fileName, deps) {
 		localStorage[fileName + "-deps"] = JSON.stringify(deps);
 		localStorage[fileName + "-deps-ts"] = generateTimeStamp();
 	}
 	
+	/**
+	 * checks the dependency list to see which summaries need updating.
+	 * FIXADE : this is currently a stub method and always assumes that everything needs updating
+	 */
 	function checkCache(deps) {
 		var needsUpdating = [];
 		for (var i = 0; i < deps.length; i++) {
@@ -173,23 +180,25 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 		 * Two kinds of objects are worked with here:
 		 *    dependency = { path : { path to file }, name { module name }, kind : { global, AMD }, timestamp : long }
 		 *    summary = { provided : { name -> typeName }, types : { typeName -> { name -> typeName }, timestamp : long }
+		 * 
+		 * Performs the index asynchronously
 		 */
 		this.performIndex = function(fileName, contents) {
 			indexTargetFile = fileName;
 			
-			// ask server for dependencies of fileName
-			var deps = getDependencies(fileName);
-			
-			// cache these dependencies
-			cacheDeps(fileName, deps);
-	
-			// for each dependency, check local storage to see if still valid
-			var needsUpdating = checkCache(deps);
-			
-			// ask server for contents of each stale dependency
-			for (var i = 0; i < needsUpdating.length; i++) {
-				createSummary(needsUpdating[i]);
-			}
+			// asynchronously ask server for dependencies of fileName
+			getDependencies(fileName, function(deps) { 
+				// cache these dependencies
+				cacheDeps(fileName, deps);
+		
+				// for each dependency, check local storage to see if still valid
+				var needsUpdating = checkCache(deps);
+				
+				// ask server for contents of each stale dependency
+				for (var i = 0; i < needsUpdating.length; i++) {
+					createSummary(needsUpdating[i]);
+				}
+			});
 			
 			// since this function is being used as a syntax checker, must return an empty array
 			return [];
