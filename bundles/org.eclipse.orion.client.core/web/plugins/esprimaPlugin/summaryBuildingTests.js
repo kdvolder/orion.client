@@ -94,11 +94,11 @@ define(["./esprimaJsContentAssist", "./indexerService", "orion/assert"], functio
 	// AMD dependencies
 	//////////////////////////////////////////////////////////
 	tests.testAMD1 = function() {
-		assertCreateSummary('{"provided":{"$_$prototype":"Object","$_$toString":"?String:","$_$toLocaleString":"?String:","$_$valueOf":"?Object:","$_$hasOwnProperty":"?boolean:property","$_$isPrototypeOf":"?boolean:object","$_$propertyIsEnumerable":"?boolean:property"},"types":{"gen~a~0":{"$$proto":"Global","arguments":"Arguments"},"gen~a~1":{"$$proto":"gen~a~0"}},"kind":"AMD"}',
+		assertCreateSummary('{"provided":"Object","types":{"gen~a~0":{"$$proto":"Global","arguments":"Arguments"},"gen~a~1":{"$$proto":"gen~a~0"}},"kind":"AMD"}',
 			"define('afg', [], function() { });", "a");
 	};
 	tests.testAMD2 = function() {
-		assertCreateSummary('{"provided":{"toExponential":"?Number:digits","toFixed":"?Number:digits","toPrecision":"?Number:digits","$$proto":"Object"},"types":{"gen~a~0":{"$$proto":"Global","arguments":"Arguments"},"gen~a~1":{"$$proto":"gen~a~0"}},"kind":"AMD"}',
+		assertCreateSummary('{"provided":"Number","types":{"gen~a~0":{"$$proto":"Global","arguments":"Arguments"},"gen~a~1":{"$$proto":"gen~a~0"}},"kind":"AMD"}',
 			"define('afg', [], function() { return 8; });", "a");
 	};
 	tests.testAMD3 = function() {

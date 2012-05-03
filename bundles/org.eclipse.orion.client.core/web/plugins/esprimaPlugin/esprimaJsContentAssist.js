@@ -40,6 +40,7 @@ define("esprimaJsContentAssist", [], function() {
 			"this": "Global",  
 			Math: "Math",
 			JSON: "JSON",
+			Date: "?Date:",
 			$$proto : "Object"
 		};
 		
@@ -629,11 +630,18 @@ define("esprimaJsContentAssist", [], function() {
 								// resolve the module name from the indexer
 								var summary = env.indexer.retrieveSummary(moduleNames[i].value);
 								if (summary) {
-									// must create a type to add the summary to
-									var typeName = env.newScope();
-									env.popScope();
+									var typeName;
+									if (typeof summary.provided === "string") {
+										// module provides a builtin type, just remember that type
+										typeName = summary.provided;
+									} else {
+										// module provides a composite type
+										// must create a type to add the summary to
+										typeName = env.newScope();
+										env.popScope();
+										env.mergeSummary(summary, typeName);
+									}
 									paramTypes.push(typeName);
-									env.mergeSummary(summary, typeName);
 								} else {
 									paramTypes.push("Object");
 								}
@@ -674,8 +682,6 @@ define("esprimaJsContentAssist", [], function() {
 			env.amdModule = checkForAMD(node);
 		} else if (type === "BlockStatement") {
 			node.inferredType = env.newScope();
-		} else if (type === "NewExpression") {
-			node.inferredType = node.callee.name;
 		} else if (type === "Literal") {
 			oftype = (typeof node.value);
 			node.inferredType = oftype[0].toUpperCase() + oftype.substring(1, oftype.length);
@@ -808,6 +814,12 @@ define("esprimaJsContentAssist", [], function() {
 			var fnType = node.callee.inferredType;
 			fnType = extractReturnType(fnType);
 			node.inferredType = fnType;
+		} else if (type === "NewExpression") {
+			// FIXADE we have a slight problem here.
+			// constructors that are called like this: new foo.Bar()  should have an inferred type of foo.Bar,
+			// This ensures that another constructor new baz.Bar() doesn't conflict.  However, 
+			// we are only taking the final prefix and assuming that it is unique.
+			node.inferredType = extractReturnType(node.callee.inferredType);
 		} else if (type === "ObjectExpression") {
 			// now that we know all the types of the values, use that to populate the types of the keys
 			// FIXADE esprima has changed the way it does key-value pairs,  Should do it differently here
@@ -844,6 +856,9 @@ define("esprimaJsContentAssist", [], function() {
 				if (node.body.isConstructor) {
 					// an extra scope was created for the implicit 'this'
 					env.popScope();
+
+					// now add a reference to the constructor
+					env.addOrSetVariable(extractReturnType(node.inferredType), node.target, node.inferredType);
 				} else {
 					// a regular function.  try updating to a more explicit return type
 					var returnStatement = findReturn(node.body);
@@ -953,6 +968,15 @@ define("esprimaJsContentAssist", [], function() {
 				}
 			}
 		} 
+	}
+	
+	function isMember(val, inArray) {
+		for (var i = 0; i < inArray.length; i++) {
+			if (inArray[i] === val) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -1262,11 +1286,16 @@ define("esprimaJsContentAssist", [], function() {
 		return builtInTypes;
 	}
 	
+	/**
+	 * filters types from the environment that should not be exported
+	 * FIXADE should also walk through and remove all unreachable types
+	 */
 	function filterTypes(environment, builtInTypes, kind) {
 		if (kind === "global") {
 			// for global dependencies must keep the global scope, but remove all builtin global variables
 			var global = environment._allTypes.Global;
 			delete global["this"];
+			delete global.Date;
 			delete global.Math;
 			delete global.JSON;
 			delete global.$$proto;
@@ -1367,7 +1396,13 @@ define("esprimaJsContentAssist", [], function() {
 					} else {
 						modType = "Object";
 					}
-					provided = environment._allTypes[modType];
+					if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
+						// this module provides a primitive type or a function
+						provided = modType;
+					} else {
+						// this module provides a composite type
+						provided = environment._allTypes[modType];
+					}
 					kind = "AMD";
 				} else {
 					// if not AMD module, then return everything that is in the global scope

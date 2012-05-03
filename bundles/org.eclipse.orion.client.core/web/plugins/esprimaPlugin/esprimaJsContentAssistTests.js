@@ -150,6 +150,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test Empty File Content Assist"] = function() {
 		var results = computeContentAssist("");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -165,6 +166,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test Single Var Content Assist"] = function() {
 		var results = computeContentAssist("var zzz = 9;\n");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -181,6 +183,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test Single Var Content Assist 2"] = function() {
 		var results = computeContentAssist("var zzz;\n");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -197,6 +200,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test multi var content assist 1"] = function() {
 		var results = computeContentAssist("var zzz;\nvar xxx, yyy;\n");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -222,6 +226,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test single function content assist"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\n");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
@@ -238,6 +243,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test multi function content assist 1"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {}\n");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
@@ -277,6 +283,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test in function 1"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {/**/}", "");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -298,6 +305,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test in function 2"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {\n/**/nuthin}", "");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -363,6 +371,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n}\n}");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -387,6 +396,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n} /**/\n}");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["a", "a : Object (esprima)"],
@@ -709,10 +719,72 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		]);
 	};
 	
+	tests["test constructor 5"] = function() {
+		var results = computeContentAssist(
+		"var x = { Fun : function () { this.xxx = 9;	this.uuu = this.xxx; } }\n" +
+		"var y = new x.Fun();\n" +
+		"y.uuu.toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test constructor 6"] = function() {
+		var results = computeContentAssist(
+		"var x = { Fun : function () { this.xxx = 9;	this.uuu = this.xxx; } }\n" +
+		"var y = new x.Fun().uuu.toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test constructor 7"] = function() {
+		var results = computeContentAssist(
+		"var Fun = function () {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
+		"var x = { Fun : Fun };\n" +
+		"var y = new x.Fun();\n" +
+		"y.uuu.toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests["test constructor 8"] = function() {
+		var results = computeContentAssist(
+		"var FunOrig = function () {	this.xxx = 9;	this.uuu = this.xxx; }\n" +
+		"var x = { Fun : FunOrig };\n" +
+		"var y = new x.Fun();\n" +
+		"y.uuu.toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	// functions should not be available outside the scope that declares them
+	tests["test constructor 9"] = function() {
+		var results = computeContentAssist(
+		"function outer() { function Inner() { }}\n" +
+		"Inn", "Inn");
+		testProposals("Inn", results, [
+			// empty
+		]);
+	};
+	
+	// should be able to reference functions using qualified name
+	tests["test constructor 10"] = function() {
+		var results = computeContentAssist(
+		"var outer = { Inner : function() { }}\n" +
+		"outer.Inn", "Inn");
+		testProposals("Inn", results, [
+			["Inner()", "Inner() : Inner (esprima)"]
+		]);
+	};
+	
 	tests["test Function args 1"] = function() {
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(/**/)");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -731,6 +803,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(ttt, /**/)");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -749,6 +822,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(ttt, /**/, uuu)");
 		testProposals("", results, [
+			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
@@ -883,31 +957,31 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	////////////////////////////
 	// tests for complex names
 	////////////////////////////
-	tests["test complexx name 1"] = function() {
+	tests["test complex name 1"] = function() {
 		var results = computeContentAssist("function Ttt() { }\nvar ttt = new Ttt();\ntt", "tt");
 		testProposals("tt", results, [
 			["ttt", "ttt : Ttt (esprima)"]
 		]);
 	};
-	tests["test complexx name 2"] = function() {
+	tests["test complex name 2"] = function() {
 		var results = computeContentAssist("var Ttt = function() { };\nvar ttt = new Ttt();\ntt", "tt");
 		testProposals("tt", results, [
 			["ttt", "ttt : Ttt (esprima)"]
 		]);
 	};
-	tests["test complexx name 3"] = function() {
+	tests["test complex name 3"] = function() {
 		var results = computeContentAssist("var ttt = { };\ntt", "tt");
 		testProposals("tt", results, [
 			["ttt", "ttt : { } (esprima)"]
 		]);
 	};
-	tests["test complexx name 4"] = function() {
+	tests["test complex name 4"] = function() {
 		var results = computeContentAssist("var ttt = { aa: 1, bb: 2 };\ntt", "tt");
 		testProposals("tt", results, [
 			["ttt", "ttt : { aa bb } (esprima)"]
 		]);
 	};
-	tests["test complexx name 5"] = function() {
+	tests["test complex name 5"] = function() {
 		var results = computeContentAssist("var ttt = { aa: 1, bb: 2 };\nttt.cc = 9;\ntt", "tt");
 		testProposals("tt", results, [
 			["ttt", "ttt : { aa bb cc } (esprima)"]
