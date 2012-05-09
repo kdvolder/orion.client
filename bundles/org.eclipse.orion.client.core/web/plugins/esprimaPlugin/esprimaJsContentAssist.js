@@ -311,7 +311,16 @@ define("esprimaJsContentAssist", [], function() {
 			if (p > 0) {
 				completion += ', ';
 			}
-			var argName = params[p].name ? params[p].name : params[p];
+			var argName;
+			if (typeof params[p] === "string") {
+				// need this because jslintworker.js augments the String prototype with a name() function
+				// don't want confusion
+				argName = params[p];
+			} else if (params[p].name) {
+				argName = params[p].name();
+			} else {
+				argName = params[p];
+			}
 			positions.push({offset:offset+completion.length+1, length: argName.length});
 			completion += argName;
 		}
@@ -397,6 +406,11 @@ define("esprimaJsContentAssist", [], function() {
 		 *   the end visit of the node
 		 */ 
 		var findParent = function(node, parents, isInitialVisit) {
+			// extras prop is where we stuff everything that we have added
+			if (!node.extras) {
+				node.extras = {};
+			}
+			
 			if (!isInitialVisit) {
 			
 				// if we have reached the end of an inRange block expression then 
@@ -479,7 +493,8 @@ define("esprimaJsContentAssist", [], function() {
 		}
 		var type = node.type, maybe, i, last;
 		// since we are finding the last return statement, start from the end
-		if (type === "BlockStatement") {
+		switch(type) {
+		case "BlockStatement":
 			if (node.body && node.body.length > 0) {
 				last = node.body[node.body.length-1];
 				if (last.type === "ReturnStatement") {
@@ -487,23 +502,22 @@ define("esprimaJsContentAssist", [], function() {
 				} else {
 					return findReturn(last);
 				}
-			} else {
-				return null;
 			}
-		} else if(type === "WhileStatement" || 
-			type === "DoWhileStatement" ||
-			type === "ForStatement" ||
-			type === "ForInStatement" ||
-			type === "CatchClause") {
+			return null;
+		case "WhileStatement": 
+		case "DoWhileStatement":
+		case "ForStatement":
+		case "ForInStatement":
+		case "CatchClause":
 			
 			return findReturn(node.body);
-		} else if (type === "IfStatement") {
+		case "IfStatement":
 			maybe = findReturn(node.alternate);
 			if (!maybe) {
 				maybe = findReturn(node.consequent);
 			}
 			return maybe;
-		} else if (type === "TryStatement") {
+		case "TryStatement":
 			maybe = findReturn(node.finalizer);
 			var handlers = node.handlers;
 			if (!maybe && handlers) {
@@ -519,7 +533,7 @@ define("esprimaJsContentAssist", [], function() {
 				maybe = findReturn(node.block);
 			}
 			return maybe;
-		} else if (type === "SwitchStatement") {
+		case "SwitchStatement":
 			var cases = node.cases;
 			if (cases) {
 				// start from the last handler
@@ -531,7 +545,7 @@ define("esprimaJsContentAssist", [], function() {
 				}
 			}
 			return maybe;
-		} else if (type === "SwitchCase") {
+		case "SwitchCase":
 			if (node.consequent && node.consequent.length > 0) {
 				last = node.consequent[node.consequent.length-1];
 				if (last.type === "ReturnStatement") {
@@ -539,13 +553,12 @@ define("esprimaJsContentAssist", [], function() {
 				} else {
 					return findReturn(last);
 				}
-			} else {
-				return null;
 			}
+			return null;
 			
-		} else if (type === "ReturnStatement") {
+		case "ReturnStatement":
 			return node;
-		} else {
+		default:
 			// don't visit nested functions
 			// expression statements, variable declarations,
 			// or any other kind of node
@@ -574,12 +587,13 @@ define("esprimaJsContentAssist", [], function() {
 	}
 	/**
 	 * checks to see if this file looks like an AMD module
+	 * Assumes that there are one or more calls to define at the top level
+	 * and the first statement is a define call
 	 * @return true iff there is a top-level call to 'define'
 	 */
 	function checkForAMD(node) {
 		var body = node.body;
-		// FIXADE should we only be handling the case where there is more than one module?
-		if (body && body.length === 1) {
+		if (body && body.length >= 1) {
 			if (body[0].type === "ExpressionStatement" && 
 				body[0].expression.type === "CallExpression" && 
 				body[0].expression.callee.name === "define") {
@@ -613,9 +627,12 @@ define("esprimaJsContentAssist", [], function() {
 	function findModuleDefinitions(fnode, env) {
 		var paramTypes = [], params = fnode.params, i;
 		if (params.length > 0) {
-			if (env.indexer && env.amdModule) {
-				var args = env.amdModule.arguments;
-				// the function definition must be the last argument of the call to define 
+			if (!fnode.extras) {
+				fnode.extras = {};
+			}
+			if (env.indexer && fnode.extras.amdDefn) {
+				var args = fnode.extras.amdDefn.arguments;
+				// the function definition must be the last argument of the call to define or require
 				if (args.length > 1 && args[args.length-1] === fnode) {
 					// the module names could be the first or second argument
 					var moduleNames = null;
@@ -651,8 +668,7 @@ define("esprimaJsContentAssist", [], function() {
 						}
 					}
 				}
-			}
-			
+			} 
 			
 			if (params.length === 0) {
 				for (i = 0; i < params.length; i++) {
@@ -671,28 +687,39 @@ define("esprimaJsContentAssist", [], function() {
 	function proposalGenerator(node, env) {
 		var type = node.type, oftype, name, i, property, params, newTypeName;
 		
+		// extras prop is where we stuff everything that we have added
+		if (!node.extras) {
+			node.extras = {};
+		}
+
+		
 		// FIXADE Do we still want to do this?
 		if (type === "VariableDeclaration" && isBefore(env.offset, node.range)) {
 			// must do this check since "VariableDeclarator"s do not have their range set correctly in the version of esprima being used now
 			return false;
 		}
 		
-		if (type === "Program") {
+		switch(type) {
+		case "Program":
 			// check for potential AMD module.  Can add other module kinds later
 			env.amdModule = checkForAMD(node);
-		} else if (type === "BlockStatement") {
-			node.inferredType = env.newScope();
-		} else if (type === "Literal") {
+			break;
+		case "BlockStatement":
+			node.extras.inferredType = env.newScope();
+			break;
+		case "Literal":
 			oftype = (typeof node.value);
-			node.inferredType = oftype[0].toUpperCase() + oftype.substring(1, oftype.length);
-		} else if (type === "ArrayExpression") {
-			node.inferredType = "Array";
-		} else if (type === "ObjectExpression") {
+			node.extras.inferredType = oftype[0].toUpperCase() + oftype.substring(1, oftype.length);
+			break;
+		case "ArrayExpression":
+			node.extras.inferredType = "Array";
+			break;
+		case "ObjectExpression":
 			// for object literals, create a new object type so that we can stuff new properties into it.
 			// we might be able to do better by walking into the object and inferring each RHS of a 
 			// key-value pair
 			newTypeName = env.newObject();
-			node.inferredType = newTypeName;
+			node.extras.inferredType = newTypeName;
 			for (i = 0; i < node.properties.length; i++) {
 				property = node.properties[i];
 				// only remember if the property is an identifier
@@ -702,20 +729,24 @@ define("esprimaJsContentAssist", [], function() {
 					// all of the variables to reflect their final inferred type
 					env.addVariable(property.key.name, node, "Object");
 					if (property.value.type === "FunctionExpression") {
+						if (!property.value.extras) {
+							property.value.extras = {};
+						}
 						// RHS is a function, remember the name in case it is a constructor
-						property.value.fname = property.key.name;
+						property.value.extras.fname = property.key.name;
 					}
 				}
 			}
-			
-		} else if (type === "FunctionDeclaration" || type === "FunctionExpression") {
+			break;
+		case "FunctionDeclaration":
+		case "FunctionExpression":
 
 			if (node.id) {
 				// true for function declarations
 				name = node.id.name;
-			} else if (node.fname) {
+			} else if (node.extras.fname) {
 				// true for rhs of assignment to function expression
-				name = node.fname;
+				name = node.extras.fname;
 			}
 			params = [];
 			if (node.params) {
@@ -728,7 +759,10 @@ define("esprimaJsContentAssist", [], function() {
 			// a constructor
 			if (name && node.body && name.charAt(0) === name.charAt(0).toUpperCase()) {
 				// create new object so that there is a custom "this"
-				node.body.isConstructor = true;
+				if (!node.body.extras) {
+					node.body.extras = {};
+				}
+				node.body.extras.isConstructor = true;
 				newTypeName = env.newObject(name);
 			} else {
 				// temporarily use "Object" as type, but this may change once we 
@@ -736,47 +770,80 @@ define("esprimaJsContentAssist", [], function() {
 				newTypeName = "Object";
 			}
 			newTypeName = "?" + newTypeName + ":" + params;
-			node.inferredType = newTypeName;
+			node.extras.inferredType = newTypeName;
 			
 			if (name && !isBefore(env.offset, node.range)) {
 				// if we have a name, then add it to the scope
-				env.addVariable(name, node.target, newTypeName);
+				env.addVariable(name, node.extras.target, newTypeName);
 			}
 			
 			// now add the scope for inside the function
 			env.newScope();
-			env.addVariable("arguments", node.target, "Arguments");
+			env.addVariable("arguments", node.extras.target, "Arguments");
 
 			// add parameters to the current scope
 			if (params.length > 0) {
 				var moduleDefs = findModuleDefinitions(node, env);
 				for (i = 0; i < params.length; i++) {
-					env.addVariable(params[i], node.target, moduleDefs[i]);
+					env.addVariable(params[i], node.extras.target, moduleDefs[i]);
 				}	
 			}
-		} else if (type === "VariableDeclarator") {
+			break;
+		case "VariableDeclarator":
 			if (node.id.name && node.init && node.init.type === "FunctionExpression") {
 				// RHS is a function, remember the name in case it is a constructor
-				node.init.fname = node.id.name;
+				if (!node.init.extras) {
+					node.init.extras = {};
+				}
+				node.init.extras.fname = node.id.name;
 			}
-		} else if (type === "AssignmentExpression") {
+			break;
+		case "AssignmentExpression":
 			if (node.left.type === "Identifier" && node.right.type === "FunctionExpression") {
 				// RHS is a function, remember the name in case it is a constructor
-				node.right.fname = node.left.name;
+				if (!node.right.extras) {
+					node.right.extras = {};
+				}
+				node.right.extras.fname = node.left.name;
 			}
-		} else if (type === "CatchClause") {
+			break;
+		case "CatchClause":
 			// create a new scope for the catch parameter
-			node.inferredType = env.newScope();
+			node.extras.inferredType = env.newScope();
 			if (node.param) {	
-				node.param.inferredType = "Error";
-				env.addVariable(node.param.name, node.target, "Error");
+				if (!node.param.extras) {
+					node.param.extras = {};
+				}
+				node.param.extras.inferredType = "Error";
+				env.addVariable(node.param.name, node.extras.target, "Error");
 			}
-		} else if (type === "MemberExpression") {
+			break;
+		case "MemberExpression":
 			if (node.property) {
 				// keep track of the target of the property expression
 				// so that its type can be used as the seed for finding properties
-				node.property.target = node.object;
+				if (!node.property.extras) {
+					node.property.extras = {};
+				}
+				node.property.extras.target = node.object;
 			}
+			break;
+		case "CallExpression":
+			if (node.callee.name === "define" || node.callee.name === "require") {
+				// check for AMD definition
+				var args = node.arguments;
+				if (args.length > 1 && 
+					args[args.length-1].type === "FunctionExpression" &&
+					args[args.length-2].type === "ArrayExpression") {
+					
+					// assume definition
+					if (!args[args.length-1].extras) {
+						args[args.length-1].extras = {};
+					}
+					args[args.length-1].extras.amdDefn = node;
+				}
+			}
+			break;
 		}
 		return true;
 	}
@@ -788,11 +855,14 @@ define("esprimaJsContentAssist", [], function() {
 	function proposalGeneratorPostOp(node, env) {
 		var type = node.type, name, inferredType, newTypeName, rightMost, kvps, i;
 		
-		if (type === "Program") {
+		switch(type) {
+		case "Program":
 			// if we've gotten here and we are still in range, then 
 			// we are completing as a top-level entity with no prefix
 			env.createProposals();
-		} else if (type === "BlockStatement" || type === "CatchClause") {
+			break;
+		case "BlockStatement":
+		case "CatchClause":
 			if (inRange(env.offset, node.range)) {
 				// if we've gotten here and we are still in range, then 
 				// we are completing as a top-level entity with no prefix
@@ -800,27 +870,30 @@ define("esprimaJsContentAssist", [], function() {
 			}
 		
 			env.popScope();
-			
-		} if (type === "MemberExpression") {
+			break;
+		case "MemberExpression":
 			if (afterDot(env.offset, node, env.contents)) {
 				// completion after a dot with no prefix
 				env.createProposals(env.scope(node.object));
 			}
 			// inferred type is the type of the property expression
 			// node.propery will be null for mal-formed asts
-			node.inferredType = node.property ? node.property.inferredType : node.object.inferredType;
-		} else if (type === "CallExpression") {
+			node.extras.inferredType = node.property ? node.property.extras.inferredType : node.object.extras.inferredType;
+			break;
+		case "CallExpression":
 			// apply the function
-			var fnType = node.callee.inferredType;
+			var fnType = node.callee.extras.inferredType;
 			fnType = extractReturnType(fnType);
-			node.inferredType = fnType;
-		} else if (type === "NewExpression") {
+			node.extras.inferredType = fnType;
+			break;
+		case "NewExpression":
 			// FIXADE we have a slight problem here.
 			// constructors that are called like this: new foo.Bar()  should have an inferred type of foo.Bar,
 			// This ensures that another constructor new baz.Bar() doesn't conflict.  However, 
 			// we are only taking the final prefix and assuming that it is unique.
-			node.inferredType = extractReturnType(node.callee.inferredType);
-		} else if (type === "ObjectExpression") {
+			node.extras.inferredType = extractReturnType(node.callee.extras.inferredType);
+			break;
+		case "ObjectExpression":
 			// now that we know all the types of the values, use that to populate the types of the keys
 			// FIXADE esprima has changed the way it does key-value pairs,  Should do it differently here
 			kvps = node.properties;
@@ -831,96 +904,106 @@ define("esprimaJsContentAssist", [], function() {
 					// and also update the variable
 					name = kvps[i].key.name;
 					if (name) {
-						inferredType = kvps[i].value.inferredType;
-						kvps[i].key.inferredType = inferredType;
+						inferredType = kvps[i].value.extras.inferredType;
+						kvps[i].key.extras.inferredType = inferredType;
 						env.addVariable(name, node, inferredType);
 					}
 				}
 			}
 			env.popScope();
-		} else if (type === "BinaryExpression") {
+			break;
+		case "BinaryExpression":
 			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || 
 					node.operator === "*") {
 				// assume number for now
 				// rules are really much more complicated
-				node.inferredType = "Number";
+				node.extras.inferredType = "Number";
 			} else {
-				node.inferredType = "Object";
+				node.extras.inferredType = "Object";
 			}
-		} else if (type === "UpdateExpression" || type === "UnaryExpression") {
+			break;
+		case "UpdateExpression":
+		case "UnaryExpression":
 			// assume number for now.  actual rules are much more complicated
-			node.inferredType = "Number";
-		} else if (type === "FunctionDeclaration" || type === "FunctionExpression") {
+			node.extras.inferredType = "Number";
+			break;
+		case "FunctionDeclaration":
+		case "FunctionExpression":
 			env.popScope();
 			if (node.body) {
-				if (node.body.isConstructor) {
+				if (node.body.extras.isConstructor) {
 					// an extra scope was created for the implicit 'this'
 					env.popScope();
 
 					// now add a reference to the constructor
-					env.addOrSetVariable(extractReturnType(node.inferredType), node.target, node.inferredType);
+					env.addOrSetVariable(extractReturnType(node.extras.inferredType), node.extras.target, node.extras.inferredType);
 				} else {
 					// a regular function.  try updating to a more explicit return type
 					var returnStatement = findReturn(node.body);
 					if (returnStatement) {
-						node.inferredType = updateReturnType(node.inferredType, returnStatement.inferredType);
+						node.extras.inferredType = updateReturnType(node.extras.inferredType, returnStatement.extras.inferredType);
 						// if there is a name, then update that as well
 						var fname;
 						if (node.id) {
 							// true for function declarations
 							fname = node.id.name;
-						} else if (node.fname) {
+						} else if (node.extras.fname) {
 							// true for rhs of assignment to function expression
-							fname = node.fname;
+							fname = node.extras.fname;
 						}
 						if (fname) {
-							env.addOrSetVariable(fname, node.target, node.inferredType);
+							env.addOrSetVariable(fname, node.extras.target, node.extras.inferredType);
 						}				
 					}
 				}
 			}
-		} else if (type === "VariableDeclarator") {
+			break;
+		case "VariableDeclarator":
 			if (node.init) {
-				inferredType = node.init.inferredType;
+				inferredType = node.init.extras.inferredType;
 			} else {
 				inferredType = "Object";
 			}
-			node.inferredType = inferredType;
-			env.addVariable(node.id.name, node.target, inferredType);
-
-		} else if (type === "AssignmentExpression") {
-			inferredType = node.right.inferredType;
-			node.inferredType = inferredType;
+			node.extras.inferredType = inferredType;
+			env.addVariable(node.id.name, node.extras.target, inferredType);
+			break;
+		case "AssignmentExpression":
+			inferredType = node.right.extras.inferredType;
+			node.extras.inferredType = inferredType;
 			// when we have this.that.theOther.f need to find the right-most identifier
 			rightMost = findRightMost(node.left);
 			if (rightMost) {
-				env.addOrSetVariable(rightMost.name, rightMost.target, inferredType);
+				env.addOrSetVariable(rightMost.name, rightMost.extras.target, inferredType);
 			}
-		} else if (type === 'Identifier') {
+			break;
+		case 'Identifier':
 			if (inRange(env.offset, node.range)) {
 				// We're finished compute all the proposals
-				env.createProposals(env.scope(node.target));
+				env.createProposals(env.scope(node.extras.target));
 			}
 			
 			name = node.name;
-			newTypeName = env.lookupName(name, node.target);
+			newTypeName = env.lookupName(name, node.extras.target);
 			if (newTypeName) {
 				// name already exists
-				node.inferredType = newTypeName;
+				node.extras.inferredType = newTypeName;
 			} else {
 				// If name doesn't already exist, then just assume "Object".
-				node.inferredType = "Object";
+				node.extras.inferredType = "Object";
 			}
-		} else if (type === "ThisExpression") {
-			node.inferredType = env.lookupName("this");
-		} else if (type === "ReturnStatement") {
+			break;
+		case "ThisExpression":
+			node.extras.inferredType = env.lookupName("this");
+			break;
+		case "ReturnStatement":
 			if (node.argument) {
-				node.inferredType = node.argument.inferredType;
+				node.extras.inferredType = node.argument.extras.inferredType;
 			}
+			break;
 		}
 		
-		if (!node.inferredType) {
-			node.inferredType = "Object";
+		if (!node.extras.inferredType) {
+			node.extras.inferredType = "Object";
 		}
 	}
 
@@ -1079,9 +1162,9 @@ define("esprimaJsContentAssist", [], function() {
 			 * inferred type of the target instead (if it exists)
 			 */
 			scope : function(target) {
-				if (target && target.inferredType) {
+				if (target && target.extras.inferredType) {
 					// check for function literal
-					return target.inferredType.charAt(0) === "?" ? "Function" : target.inferredType;
+					return target.extras.inferredType.charAt(0) === "?" ? "Function" : target.extras.inferredType;
 				} else {
 					// grab topmost scope
 					return this._scopeStack[this._scopeStack.length -1];
@@ -1392,7 +1475,7 @@ define("esprimaJsContentAssist", [], function() {
 					var args = environment.amdModule.arguments;
 					var modType;
 					if (args && args.length > 0) {
-						modType = extractReturnType(args[args.length-1].inferredType);
+						modType = extractReturnType(args[args.length-1].extras.inferredType);
 					} else {
 						modType = "Object";
 					}

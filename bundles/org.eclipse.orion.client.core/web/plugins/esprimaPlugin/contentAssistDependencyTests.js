@@ -282,7 +282,103 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
+	
 
+	//////////////////////////////////////////////////////////
+	// tests for NVP style modules
+	//////////////////////////////////////////////////////////
+	tests.testNVP1 = function() {
+		var results = computeContentAssist(
+			"define(['first'], function(ff) { ff.fun.toF/**/ });", "toF", new MockIndexer(
+			[], {
+				first: "define({ fun : 8 });"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testNVP2 = function() {
+		var results = computeContentAssist(
+			"define(['first'], function(ff) { ff.fun().toF/**/ });", "toF", new MockIndexer(
+			[], {
+				first: "define({ fun : function() { return 8; }});"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testNVP3 = function() {
+		var results = computeContentAssist(
+			"define(['first'], function(ff) { new ff.Fun().ff.toF/**/ });", "toF", new MockIndexer(
+			[], {
+				first: "define({ Fun : function() { this.ff = 8; }});"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+		
+	//////////////////////////////////////////////////////////
+	// tests for the require function
+	//////////////////////////////////////////////////////////
+	tests.testAMDRequire1Simple = function() {
+		var results = computeContentAssist(
+			"require(['first'], function(ff) { new ff.Fun().ff.toF/**/ });", "toF", new MockIndexer(
+			[], {
+				first: "define('first', [], function() { return { Fun : function(a,b) { this.ff = 9; } } });"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+
+	tests.testAMDRequire2NestedInDefine = function() {
+		var results = computeContentAssist(
+			"define(['second'], function(ss) { require(['first'], function(ff) { new ff.Fun().ff.toF/**/ }); });", "toF", new MockIndexer(
+			[], {
+				first: "define('first', [], function() { return { Fun : function(a,b) { this.ff = 9; } } });",
+				second: "define('second', [], function() { return { Fun2 : function(a,b) { this.ff = 9; } } });"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+
+	tests.testAMDRequire3NestedInRequire = function() {
+		var results = computeContentAssist(
+			"require(['second'], function(ss) { require(['first'], function(ff) { new ff.Fun().ff.toF/**/ }); });", "toF", new MockIndexer(
+			[], {
+				first: "define('first', [], function() { return { Fun : function(a,b) { this.ff = 9; } } });",
+				second: "define('second', [], function() { return { Fun2 : function(a,b) { this.ff = 9; } } });"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests.testAMDRequire4NestedInDefineWithShadowing = function() {
+		var results = computeContentAssist(
+			"define(['second'], function(ff) { require(['first'], function(ff) { new ff.Fun().ff.toF/**/ }); });", "toF", new MockIndexer(
+			[], {
+				first: "define('first', [], function() { return { Fun : function(a,b) { this.ff = 9; } } });",
+				second: "define('second', [], function() { return { Fun2 : function(a,b) { this.ff = ''; } } });"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+
+	tests.testAMDRequire5NestedInRequire = function() {
+		var results = computeContentAssist(
+			"require(['second'], function(ff) { require(['first'], function(ff) { new ff.Fun().ff.toF/**/ }); });", "toF", new MockIndexer(
+			[], {
+				first: "define('first', [], function() { return { Fun : function(a,b) { this.ff = 9; } } });",
+				second: "define('second', [], function() { return { Fun2 : function(a,b) { this.ff = ''; } } });"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
 
 	// what's up with content assist on constructor calls...!!!!!!!!
 	// returns an object that refererences an object defined in module

@@ -183,7 +183,7 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 		 * 
 		 * Performs the index asynchronously
 		 */
-		this.performIndex = function(fileName, contents) {
+		this.performIndex = function(fileName) {
 			indexTargetFile = fileName;
 			
 			// asynchronously ask server for dependencies of fileName

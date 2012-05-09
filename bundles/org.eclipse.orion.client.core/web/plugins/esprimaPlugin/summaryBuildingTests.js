@@ -91,6 +91,21 @@ define(["./esprimaJsContentAssist", "./indexerService", "orion/assert"], functio
 	};
 	
 	//////////////////////////////////////////////////////////
+	// AMD dependencies name value pairs
+	// See http://requirejs.org/docs/api.html#defsimple
+	//////////////////////////////////////////////////////////
+	tests.testNVP1 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"Number","b":"String"},"types":{"gen~a~0":{"$$proto":"Global"},"gen~a~1":{"$$proto":"Object","a":"Number","b":"String"}},"kind":"AMD"}',
+			"define({a : 1, b: ''});", "a");
+	};
+
+	tests.testNVP2 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"Number","b":"?Number:"},"types":{"gen~a~0":{"$$proto":"Global","b":"?Number:"},"gen~a~1":{"$$proto":"Object","a":"Number","b":"?Number:"},"gen~a~2":{"$$proto":"gen~a~0","arguments":"Arguments"},"gen~a~3":{"$$proto":"gen~a~2"}},"kind":"AMD"}',
+			"define({a : 1, b: function() { return 8; }});", "a");
+	};
+
+	
+	//////////////////////////////////////////////////////////
 	// AMD dependencies
 	//////////////////////////////////////////////////////////
 	tests.testAMD1 = function() {
@@ -125,6 +140,7 @@ define(["./esprimaJsContentAssist", "./indexerService", "orion/assert"], functio
 		assertCreateSummary('{"provided":{"$$proto":"Object","Exported":"?Exported:","second":"Number"},"types":{"gen~a~0":{"$$proto":"Global","arguments":"Arguments"},"gen~a~1":{"$$proto":"gen~a~0","Exported":"?Exported:"},"gen~a~2":{"$$proto":"gen~a~1","Exported":"?Exported:"},"Exported":{"$$proto":"Object","a":"Number"},"gen~a~3":{"$$proto":"gen~a~2","arguments":"Arguments"},"gen~a~4":{"$$proto":"gen~a~3"},"gen~a~5":{"$$proto":"gen~a~1"},"gen~a~6":{"$$proto":"Object","Exported":"?Exported:","second":"Number"}},"kind":"AMD"}',
 			"define('afg', [], function() { var Exported = function() { this.a = 9; };\n return { Exported: Exported, second: 8 }; });", "a");
 	};
+	
 	
 	
 	return tests;
