@@ -1369,29 +1369,65 @@ define("esprimaJsContentAssist", [], function() {
 		return builtInTypes;
 	}
 	
+	function findUnreachable(currentTypeName, allTypes, alreadySeen) {
+		var currentType = allTypes[currentTypeName];
+		if (currentType) {
+			for(var prop in currentType) {
+				if (currentType.hasOwnProperty(prop)) {
+					var propType = currentType[prop];
+					while (propType.charAt(0) === '?') {
+						propType = extractReturnType(propType);					
+					}
+					if (!alreadySeen[propType]) {
+						alreadySeen[propType] = true;
+						findUnreachable(propType, allTypes, alreadySeen);
+					}
+				}
+			}
+		}
+	}
+	
 	/**
 	 * filters types from the environment that should not be exported
-	 * FIXADE should also walk through and remove all unreachable types
 	 */
-	function filterTypes(environment, builtInTypes, kind) {
+	function filterTypes(environment, builtInTypes, kind, moduleTypeName) {
+		var allTypes = environment._allTypes;
 		if (kind === "global") {
 			// for global dependencies must keep the global scope, but remove all builtin global variables
-			var global = environment._allTypes.Global;
+			var global = allTypes.Global;
 			delete global["this"];
 			delete global.Date;
 			delete global.Math;
 			delete global.JSON;
 			delete global.$$proto;
 		} else {
-			delete environment._allTypes.Global;
+			delete allTypes.Global;
 		}
 	
 		for (var i = 0; i < builtInTypes.length; i++) {
 			if (builtInTypes[i] !== "Global") {
-				delete environment._allTypes[builtInTypes[i]];
+				delete allTypes[builtInTypes[i]];
+			}
+		}
+		
+		// recursively walk the type tree to find unreachable types and delete them, too
+		var reachable = { };
+		// if we have a function, then the function return type is reachable in the module, so add it
+		if (moduleTypeName.charAt(0) === '?') {
+			var retType = moduleTypeName;
+			while (retType.charAt(0) === '?') {
+				retType = extractReturnType(retType);
+			}
+			reachable[retType] = true;
+		}
+		findUnreachable(moduleTypeName, allTypes, reachable);
+		for (var prop in allTypes) {
+			if (allTypes.hasOwnProperty(prop) && !reachable[prop]) {
+				delete allTypes[prop];
 			}
 		}
 	}
+	
 
 	/**
 	 * indexer is optional.  When there is no indexer passed in
@@ -1469,11 +1505,11 @@ define("esprimaJsContentAssist", [], function() {
 				
 				var provided;
 				var kind;
+				var modType;
 				if (environment.amdModule) {
 					// provide the exports of the AMD module
 					// the exports is the return value of the final argument
 					var args = environment.amdModule.arguments;
-					var modType;
 					if (args && args.length > 0) {
 						modType = extractReturnType(args[args.length-1].extras.inferredType);
 					} else {
@@ -1491,10 +1527,11 @@ define("esprimaJsContentAssist", [], function() {
 					// if not AMD module, then return everything that is in the global scope
 					provided = environment._allTypes.Global;
 					kind = "global";
+					modType = "Global";
 				}
 
 				// now filter the builtins since they are always available
-				filterTypes(environment, builtInTypes, kind);
+				filterTypes(environment, builtInTypes, kind, modType);
 				
 				return {
 					provided : provided,
