@@ -1279,9 +1279,6 @@ define("esprimaJsContentAssist", [], function() {
 				if (!targetType) {
 					targetType = this.scope();
 				}
-//				if (targetType.charAt(0) === '?') {
-//					targetType = "Function";
-//				}
 				var prop, propName, propType, proto, res, type = this._allTypes[targetType];
 				proto = type.$$proto;
 				
