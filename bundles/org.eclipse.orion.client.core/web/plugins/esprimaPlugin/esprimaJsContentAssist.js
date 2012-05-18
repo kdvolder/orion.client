@@ -53,7 +53,7 @@ define("esprimaJsContentAssist", [], function() {
 			concat : "?String:array",
 			indexOf : "?Number:searchString",
 			lastIndexOf : "?Number:searchString",
-			length : "?Number:",
+			length : "Number",
 			localeCompare : "?Number:Object",
 			match : "?Boolean:regexp",
 			replace : "?String:searchValue,replaceValue",
@@ -606,6 +606,42 @@ define("esprimaJsContentAssist", [], function() {
 	}
 	
 	/**
+	 * if this method call ast node is a call to require with a single string constant 
+	 * argument, then look that constant up in the indexer to get a summary
+	 * if a summary is found, then apply it to the current scope
+	 */
+	function extractRequireModule(call, env) {
+		if (!env.indexer) {
+			return;	
+		}
+		if (call.type === "CallExpression" && call.callee.type === "Identifier" && 
+			call.callee.name === "require" && call["arguments"].length === 1) {
+		
+			var arg = call["arguments"][0];
+			if (arg.type === "Literal" && typeof arg.value === "string") {
+				// we're in business
+				var summary = env.indexer.retrieveSummary(arg.value);
+				if (summary) {
+					var typeName;
+					if (typeof summary.provided === "string") {
+						// module provides a builtin type, just remember that type
+						typeName = summary.provided;
+					} else {
+						// module provides a composite type
+						// must create a type to add the summary to
+						typeName = env.newScope();
+						env.popScope();
+						env.mergeSummary(summary, typeName);
+					}
+					return typeName;
+				}
+			}
+		}
+		
+		return;
+	}
+	
+	/**
 	 * if the type passed in is a function type, extracts the return type
 	 * otherwise returns as is
 	 */
@@ -631,7 +667,7 @@ define("esprimaJsContentAssist", [], function() {
 				fnode.extras = {};
 			}
 			if (env.indexer && fnode.extras.amdDefn) {
-				var args = fnode.extras.amdDefn.arguments;
+				var args = fnode.extras.amdDefn["arguments"]; 
 				// the function definition must be the last argument of the call to define or require
 				if (args.length > 1 && args[args.length-1] === fnode) {
 					// the module names could be the first or second argument
@@ -831,7 +867,7 @@ define("esprimaJsContentAssist", [], function() {
 		case "CallExpression":
 			if (node.callee.name === "define" || node.callee.name === "require") {
 				// check for AMD definition
-				var args = node.arguments;
+				var args = node["arguments"];
 				if (args.length > 1 && 
 					args[args.length-1].type === "FunctionExpression" &&
 					args[args.length-2].type === "ArrayExpression") {
@@ -881,9 +917,14 @@ define("esprimaJsContentAssist", [], function() {
 			node.extras.inferredType = node.property ? node.property.extras.inferredType : node.object.extras.inferredType;
 			break;
 		case "CallExpression":
-			// apply the function
-			var fnType = node.callee.extras.inferredType;
-			fnType = extractReturnType(fnType);
+			// first check to see if this is a require call
+			var fnType = extractRequireModule(node, env);
+			
+			// otherwise, apply the function
+			if (!fnType) {
+				fnType = node.callee.extras.inferredType;
+				fnType = extractReturnType(fnType);
+			}
 			node.extras.inferredType = fnType;
 			break;
 		case "NewExpression":
@@ -1070,8 +1111,11 @@ define("esprimaJsContentAssist", [], function() {
 		return string.substring(prefix.length);
 	}
 	
-	/** Creates the environment object that stores type information*/
-	function createEnvironment(buffer, uid, completionKind, offset, prefix, indexer) {
+	/**
+	 * Creates the environment object that stores type information
+	 * Called differently depending on what job this content assistant is being called to do.
+	 */
+	function createEnvironment(buffer, uid, offset, indexer, completionKind, prefix) {
 		if (!offset) {
 			offset = buffer.length;
 		}
@@ -1271,14 +1315,15 @@ define("esprimaJsContentAssist", [], function() {
 			},
 			
 			createProposals : function(targetType) {
-				if (!this._completionKind) {
-					// not generating proposals.  just walking the file
-					return;
-				}
 			
 				if (!targetType) {
 					targetType = this.scope();
 				}
+				if (!this._completionKind) {
+					// not generating proposals.  just walking the file
+					throw targetType;
+				}
+				
 				var prop, propName, propType, proto, res, type = this._allTypes[targetType];
 				proto = type.$$proto;
 				
@@ -1330,14 +1375,22 @@ define("esprimaJsContentAssist", [], function() {
 			/**
 			 * creates a human readable type name from the name given
 			 */
-			createReadableType : function(typeName) {
+			createReadableType : function(typeName, showFunction) {
 				if (typeName.charAt(0) === "?") {
-					// a function, use the return type
-					var nameEnd = typeName.indexOf(":");
+					// a function
+					var nameEnd = typeName.lastIndexOf(":");
 					if (nameEnd === -1) {
 						nameEnd = typeName.length;
 					}
-					return typeName.substring(1, nameEnd);
+					var funType = typeName.substring(1, nameEnd);
+					if (showFunction) {
+						// convert into a function signature
+						var args = typeName.substring(nameEnd+1, typeName.length);
+						return "(" + args + ") -> " + this.createReadableType(funType, showFunction);
+					} else {
+						// use the return type
+						return funType;
+					}
 				} else if (typeName.indexOf("gen~") === 0) {
 					// a generated object
 					// create a summary
@@ -1345,10 +1398,13 @@ define("esprimaJsContentAssist", [], function() {
 					var res = "{ ";
 					for (var val in type) {
 						if (type.hasOwnProperty(val) && val !== "$$proto") {
-							res += val + " ";
+							if (res.length > 2) {
+								res += ", ";
+							}
+							res += val + ":" + this.createReadableType(type[val]);
 						}
 					}
-					return res + "}";
+					return res + " }";
 				} else {
 					return typeName;
 				}
@@ -1462,7 +1518,7 @@ define("esprimaJsContentAssist", [], function() {
 				// note that if selection has length > 0, then just ignore everything past the start
 				var completionKind = shouldVisit(root, offset, context.prefix, buffer);
 				if (completionKind) {
-					var environment = createEnvironment(buffer, "local", completionKind, offset, context.prefix, this.indexer);
+					var environment = createEnvironment(buffer, "local", offset, this.indexer, completionKind, context.prefix);
 					this._doVisit(root, environment);
 					environment.proposals.sort(function(l,r) {
 						if (l.description < r.description) {
@@ -1488,60 +1544,125 @@ define("esprimaJsContentAssist", [], function() {
 		},
 		
 		/**
+		 * Computes the hover information for the provided offset
+		 */
+		computeHover: function(buffer, offset) {
+			var toLookFor;
+			var root = parse(buffer);
+			var environment = createEnvironment(buffer, "local", offset, this.indexer);
+			try {
+				var findIdentifier = function(node) {
+					if (node.type === "Identifier" && inRange(offset, node.range)) {
+						toLookFor = node;
+						// cut visit short
+						throw "done";
+					}
+					if (node.range[0] >= offset) {
+						// not at a valid hover location
+						throw "no hover";
+					}
+					return true;
+				};
+				
+				try {
+					visit(root, {}, findIdentifier);
+				} catch (e) {
+					if (e === "no hover") {
+						// not at a valid hover location
+						return null;
+					} else if (e === "done") {
+						// valid hover...continue
+					} else {
+						// a real exception
+						throw e;
+					}
+				}
+				if (!toLookFor) {
+					// no hover target found
+					return null;
+				}
+				
+				this._doVisit(root, environment);
+			} catch (result) {
+				if (typeof result === "string") {
+					// success...lookup the name in the current scope
+					var maybeType = environment.lookupName(toLookFor.name, toLookFor.extras.target);
+					if (maybeType) {
+						return toLookFor.name + " :: " + environment.createReadableType(maybeType, true);
+					}
+				} else {
+					throw result;
+				}
+			}
+			return null;
+		},
+		
+		/**
 		 * Computes a summary of the file that is suitable to be stored locally and used as a dependency 
 		 * in another file
 		 */
 		computeSummary: function(buffer, fileName) {
+			var root = parse(buffer);
+			var environment = createEnvironment(buffer, fileName);
+			// keep track of built-in types so they can be removed later
+			var builtInTypes = getBuiltInTypes(environment);
 			try {
-				var root = parse(buffer);
-				var environment = createEnvironment(buffer, fileName);
-				// keep track of built-in types so they can be removed later
-				var builtInTypes = getBuiltInTypes(environment);
-				
 				this._doVisit(root, environment);
-				
-				var provided;
-				var kind;
-				var modType;
-				if (environment.amdModule) {
-					// provide the exports of the AMD module
-					// the exports is the return value of the final argument
-					var args = environment.amdModule.arguments;
-					if (args && args.length > 0) {
-						modType = extractReturnType(args[args.length-1].extras.inferredType);
-					} else {
-						modType = "Object";
-					}
-					if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
-						// this module provides a primitive type or a function
-						provided = modType;
-					} else {
-						// this module provides a composite type
-						provided = environment._allTypes[modType];
-					}
-					kind = "AMD";
+			} catch (e) {
+				if (typeof e === "string") {
+					// not a problem, a string is thrown at the end of the visit no matter what
 				} else {
-					// if not AMD module, then return everything that is in the global scope
-					provided = environment._allTypes.Global;
+					if (console && console.log) {
+						console.log(e.message);
+						console.log(e.stack);
+					}
+					throw (e);
+				}
+			}
+				
+			var provided;
+			var kind;
+			var modType;
+			if (environment.amdModule) {
+				// provide the exports of the AMD module
+				// the exports is the return value of the final argument
+				var args = environment.amdModule["arguments"];
+				if (args && args.length > 0) {
+					modType = extractReturnType(args[args.length-1].extras.inferredType);
+				} else {
+					modType = "Object";
+				}
+				if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
+					// this module provides a primitive type or a function
+					provided = modType;
+				} else {
+					// this module provides a composite type
+					provided = environment._allTypes[modType];
+				}
+				kind = "AMD";
+			} else {
+				// if not AMD module, might be a commonjs module
+				provided = environment._allTypes.Global;
+				if (provided.exports) {
+					kind = "commonjs";
+					modType = provided.exports;
+					provided = environment._allTypes[modType];
+					
+					// TODO filter unused types
+				} else {
 					kind = "global";
 					modType = "Global";
 				}
-
-				// now filter the builtins since they are always available
-				filterTypes(environment, builtInTypes, kind, modType);
-				
-				return {
-					provided : provided,
-					types : environment._allTypes,
-					kind : kind
-				};
-			} catch (e) {
-				if (console && console.log) {
-					console.log(e.message);
-					console.log(e.stack);
-				}
-				throw (e);
 			}
+
+			// now filter the builtins since they are always available
+			filterTypes(environment, builtInTypes, kind, modType);
+			
+			return {
+				provided : provided,
+				types : environment._allTypes,
+				kind : kind
+			};
 		}
 	};
 	return {
