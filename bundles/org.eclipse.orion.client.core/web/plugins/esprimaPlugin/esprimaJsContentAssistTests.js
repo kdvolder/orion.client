@@ -657,7 +657,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssist(
 		"var zz = {};\nzz.zz = zz;\nzz.zz.zz.z", "z");
 		testProposals("z", results, [
-			["zz", "zz : { zz } (esprima)"]
+			["zz", "zz : { zz : { zz : {...} } } (esprima)"]
 		]);
 	};
 	tests["test multi-dot inferencing 3"] = function() {
@@ -865,7 +865,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		"var ttt = { xxx : { yyy : { zzz : 1} } };\n" +
 		"ttt.xxx.y", "y");
 		testProposals("y", results, [
-			["yyy", "yyy : { zzz } (esprima)"]
+			["yyy", "yyy : { zzz : Number } (esprima)"]
 		]);
 	};
 	tests["test nested object expressions 2"] = function() {
@@ -938,14 +938,14 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test globals 1"] = function() {
 		var results = computeContentAssist("/*global faaa */\nfa", "fa");
 		testProposals("fa", results, [
-			["faaa", "faaa : Object (esprima)"]
+			["faaa", "faaa : {  } (esprima)"]
 		]);
 	};
 	tests["test globals 2"] = function() {
 		var results = computeContentAssist("/*global  \t\n faaa \t\t\n faaa2  */\nfa", "fa");
 		testProposals("fa", results, [
-			["faaa", "faaa : Object (esprima)"],
-			["faaa2", "faaa2 : Object (esprima)"]
+			["faaa", "faaa : {  } (esprima)"],
+			["faaa2", "faaa2 : {  } (esprima)"]
 		]);
 	};
 	tests["test globals 3"] = function() {
@@ -972,19 +972,19 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test complex name 3"] = function() {
 		var results = computeContentAssist("var ttt = { };\ntt", "tt");
 		testProposals("tt", results, [
-			["ttt", "ttt : { } (esprima)"]
+			["ttt", "ttt : {  } (esprima)"]
 		]);
 	};
 	tests["test complex name 4"] = function() {
 		var results = computeContentAssist("var ttt = { aa: 1, bb: 2 };\ntt", "tt");
 		testProposals("tt", results, [
-			["ttt", "ttt : { aa bb } (esprima)"]
+			["ttt", "ttt : { aa : Number, bb : Number } (esprima)"]
 		]);
 	};
 	tests["test complex name 5"] = function() {
 		var results = computeContentAssist("var ttt = { aa: 1, bb: 2 };\nttt.cc = 9;\ntt", "tt");
 		testProposals("tt", results, [
-			["ttt", "ttt : { aa bb cc } (esprima)"]
+			["ttt", "ttt : { aa : Number, bb : Number, cc : Number } (esprima)"]
 		]);
 	};
 	
@@ -1310,14 +1310,90 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
-
+	
+	///////////////////////////////////////////////
+	// Some tests for implicitly defined variables
+	///////////////////////////////////////////////
+	
+	// should see xxx as an object
+	tests["test implicit1"] = function() {
+		var results = computeContentAssist(
+			"xxx;\nxx", "xx");
+		testProposals("xx", results, [
+			["xxx", "xxx : {  } (esprima)"]
+		]);
+	};
+	
+	tests["test implicit2"] = function() {
+		var results = computeContentAssist(
+			"xxx.yyy = 0;\nxxx.yy", "yy");
+		testProposals("yy", results, [
+			["yyy", "yyy : Number (esprima)"]
+		]);
+	};
+	
+	tests["test implicit3"] = function() {
+		var results = computeContentAssist(
+			"xxx;\n xxx.yyy = 0;\nxxx.yy", "yy");
+		testProposals("yy", results, [
+			["yyy", "yyy : Number (esprima)"]
+		]);
+	};
+	
+	tests["test implicit4"] = function() {
+		var results = computeContentAssist(
+			"xxx = 0;\nxx", "xx");
+		testProposals("xx", results, [
+			["xxx", "xxx : Number (esprima)"]
+		]);
+	};
+	
+	// implicits are available in the global scope
+	tests["test implicit5"] = function() {
+		var results = computeContentAssist(
+			"function inner() { xxx = 0; }\nxx", "xx");
+		testProposals("xx", results, [
+			["xxx", "xxx : Number (esprima)"]
+		]);
+	};
+	
+	// implicits are available in the global scope
+	tests["test implicit6"] = function() {
+		var results = computeContentAssist(
+			"var obj = { foo : function inner() { xxx = 0; } }\nxx", "xx");
+		testProposals("xx", results, [
+			["xxx", "xxx : Number (esprima)"]
+		]);
+	};
+	
+	// should not see an implicit if it comes after the invocation location
+	tests["test implicit7"] = function() {
+		var results = computeContentAssist(
+			"xx/**/\nxxx", "xx");
+		testProposals("xx", results, [
+		]);
+	};
+	// should not see an implicit if it is defined at the location of content assists
+	tests["test implicit8"] = function() {
+		var results = computeContentAssist(
+			"var xxx;\nvar obj = { foo : function inner() { xxx = 0; } }\nxx", "xx");
+		testProposals("xx", results, [
+			["xxx", "xxx : Number (esprima)"]
+		]);
+	};
+	
+	
+	// not really an implicit variable, but
+	tests["test implicit9"] = function() {
+		var results = computeContentAssist(
+			"xxx", "xxx");
+		testProposals("xxx", results, [
+		]);
+	};
 	/*
 	 yet to do:
 	 1. with, function inside obj literal
-	 *  nested object literal suppport, correct typing of object literal keys
-	 *  function argument types
-	 5. parameterized types (eg- array of string, function that returns number)
-	 *  function expressions
+	 2. parameterized types (eg- array of string, function that returns number)
 	*/
 	return tests;
 });

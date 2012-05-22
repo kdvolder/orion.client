@@ -211,8 +211,8 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 				second: "define('second', [], function() { return { aaa : 9 } });"
 			}));
 		testProposals("f", results, [
-			["fa", "fa : { aaa } (esprima)"],
-			["fb", "fb : { aaa } (esprima)"],
+			["fa", "fa : { aaa : Number } (esprima)"],
+			["fb", "fb : { aaa : Number } (esprima)"],
 		]);
 	};
 	
@@ -285,7 +285,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	
 
 	//////////////////////////////////////////////////////////
-	// tests for NVP style modules
+	// tests for name-value pair (NVP) style modules
 	//////////////////////////////////////////////////////////
 	tests.testNVP1 = function() {
 		var results = computeContentAssist(
@@ -317,9 +317,11 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
-		
+	
 	//////////////////////////////////////////////////////////
-	// tests for the require function
+	// tests for async require function
+	// note that async require calls are typically either in 
+	// an html file or surrounded by a define
 	//////////////////////////////////////////////////////////
 	tests.testAMDRequire1Simple = function() {
 		var results = computeContentAssist(
@@ -379,9 +381,195 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
+	
+	//////////////////////////////////////////////////////////
+	// Commonjs
+	//////////////////////////////////////////////////////////
+	tests.testCommonJS1 = function() {
+		var results = computeContentAssist(
+			"require('first').toF", "toF", new MockIndexer(
+			[], {
+				first: "exports = 9;"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonJS2 = function() {
+		var results = computeContentAssist(
+			"var foo = require('first');\n" +
+			"foo.toF", "toF", new MockIndexer(
+			[], {
+				first: "exports = 9;"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonJS3 = function() {
+		var results = computeContentAssist(
+			"var foo = require('first');\n" +
+			"foo.first.toF", "toF", new MockIndexer(
+			[], {
+				first: "exports = { first : 9 };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonJS4 = function() {
+		var results = computeContentAssist(
+			"var foo = require('first');\n" +
+			"foo.first.toF", "toF", new MockIndexer(
+			[], {
+				first: "var first = 9;\nexports = { first : first };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonJS5 = function() {
+		var results = computeContentAssist(
+			"var foo = require('first');\n" +
+			"foo.first().toF", "toF", new MockIndexer(
+			[], {
+				first: "var first = function() { return 9; }\n" +
+				       "exports = { first : first };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonJS6 = function() {
+		var results = computeContentAssist(
+			"var Foo = require('first').First;\n" +
+			"new Foo().x.toF", "toF", new MockIndexer(
+			[], {
+				first: "var First = function() { this.x = 9 }\n" +
+				       "exports = { First : First };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	// I don't know if this one is valid syntax since jslint flags this with an error, 
+	// but we'll keep this test since esprima parses it properly and the result is correct
+	tests.testCommonJS7 = function() {
+		var results = computeContentAssist(
+			"var foo = new (require('first').First)();\n" +
+			"foo.x.toF", "toF", new MockIndexer(
+			[], {
+				first: "var First = function() { this.x = 9 }\n" +
+				       "exports = { First : First };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests.testCommonJS8 = function() {
+		var results = computeContentAssist(
+			"var foo = require('first');\n" +
+			"new foo.First().x.toF", "toF", new MockIndexer(
+			[], {
+				first: "var First = function() { this.x = 9 }\n" +
+				       "exports = { First : First };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonJS9 = function() {
+		var results = computeContentAssist(
+			"var foo = require('first').First;\n" +
+			"new foo().x.toF", "toF", new MockIndexer(
+			[], {
+				first: "var First = function() { this.x = 9 }\n" +
+				       "exports = { First : First };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	
+	tests.testCommonJS10 = function() {
+		var results = computeContentAssist(
+			"var a = require('first').a;\n" +
+			"new a.First().x.toF", "toF", new MockIndexer(
+			[], {
+				first: "var Foo = function() { this.x = 9 }\n" +
+				       "exports = { a : { First : Foo  } };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
 
-	// what's up with content assist on constructor calls...!!!!!!!!
-	// returns an object that refererences an object defined in module
-	// both global and module	
+	tests.testCommonJS11 = function() {
+		var results = computeContentAssist(
+			"var a = require('first').a;\n" +
+			"a.b.c.num.toF", "toF", new MockIndexer(
+			[], {
+				first:  "var c = { num : 8 };\n" +
+						"var b = { c : c }\n" +
+				        "exports = { a : { b : b } };"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+
+
+	//////////////////////////////////////////////////////////
+	// tests for sync require function in AMD
+	//////////////////////////////////////////////////////////
+	tests.testAMDSyncRequire1 = function() {
+		var results = computeContentAssist(
+			"define(['first'], function() {\n"+
+			"  var a = require('first').a;\n" +
+			"  a.b.c.num.toF/**/\n" +
+			"});", "toF", new MockIndexer(
+			[], {
+				first:  "define([], function() {\n" +
+						"  var c = { num : 8 };\n" +
+						"  var b = { c : c }\n" +
+				        "  return { a : { b : b } };\n" +
+				        "});"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);	
+	};
+	tests.testAMDSyncRequire2 = function() {
+		var results = computeContentAssist(
+			"define(['first'], function() {\n"+
+			"  var a = require('first');\n" +
+			"  a().toF/**/\n" +
+			"});", "toF", new MockIndexer(
+			[], {
+				first:  "define([], function() {\n" +
+				        "  return function() { return 9; };\n" +
+				        "});"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);	
+	};
+	tests.testAMDSyncRequire3 = function() {
+		var results = computeContentAssist(
+			"define(['first'], function() {\n"+
+			"  require('first')().toF/**/\n" +
+			"});", "toF", new MockIndexer(
+			[], {
+				first:  "define([], function() {\n" +
+				        "  return function() { return 9; };\n" +
+				        "});"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);	
+	};
+	
 	return tests;
 });

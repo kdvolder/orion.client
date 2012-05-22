@@ -212,7 +212,7 @@ define("esprimaJsContentAssist", [], function() {
 			// gather children to visit
 			children = [];
 			for (key in node) {
-				if (key !== "range" && key !== "errors" && key !== "target") {
+				if (key !== "range" && key !== "errors" && key !== "target" && key !== "extras") {
 					child = node[key];
 					if (child instanceof Array) {
 						for (i = 0; i < child.length; i++) {
@@ -350,6 +350,16 @@ define("esprimaJsContentAssist", [], function() {
 		return offset < range[0];
 	}
 	
+	/**
+	 * checks that offset is after the range
+	 */
+	function isAfter(offset, range) {
+		if (!range) {
+			return true;
+		}
+		return offset > range[1];
+	}
+
 	/**
 	 * Determines if the offset is inside this member expression, but after the '.' and before the 
 	 * start of the property.
@@ -763,7 +773,14 @@ define("esprimaJsContentAssist", [], function() {
 					// first just add as an object property.
 					// after finishing the ObjectExpression, go and update 
 					// all of the variables to reflect their final inferred type
+					// FIXADE should we use a generated type instead of Object?
 					env.addVariable(property.key.name, node, "Object");
+					if (!property.key.extras) {
+						property.key.extras = {};
+					}
+					// remember that this is the LHS so that we don't add the identifier to global scope
+					property.key.extras.isLHS = true;
+					
 					if (property.value.type === "FunctionExpression") {
 						if (!property.value.extras) {
 							property.value.extras = {};
@@ -826,12 +843,20 @@ define("esprimaJsContentAssist", [], function() {
 			}
 			break;
 		case "VariableDeclarator":
-			if (node.id.name && node.init && node.init.type === "FunctionExpression") {
-				// RHS is a function, remember the name in case it is a constructor
-				if (!node.init.extras) {
-					node.init.extras = {};
+			if (node.id.name) {
+				// remember that the identifier is an LHS
+				// so, don't create a type for it
+				if (!node.id.extras) {
+					node.id.extras = {};
 				}
-				node.init.extras.fname = node.id.name;
+				node.id.extras.isLHS = true;
+				if (node.init && node.init.type === "FunctionExpression") {
+					if (!node.init.extras) {
+						node.init.extras = {};
+					}
+					// RHS is a function, remember the name in case it is a constructor
+					node.init.extras.fname = node.id.name;
+				}
 			}
 			break;
 		case "AssignmentExpression":
@@ -841,6 +866,12 @@ define("esprimaJsContentAssist", [], function() {
 					node.right.extras = {};
 				}
 				node.right.extras.fname = node.left.name;
+				
+//				if (!node.left.extras) {
+//					node.left.extras = {};
+//				}
+//				// remember that we are LHS, so don't create a dummy type
+//				node.left.extras.isLHS = true;
 			}
 			break;
 		case "CatchClause":
@@ -1006,6 +1037,7 @@ define("esprimaJsContentAssist", [], function() {
 				inferredType = "Object";
 			}
 			node.extras.inferredType = inferredType;
+			node.id.extras.inferredType = inferredType;
 			env.addVariable(node.id.name, node.extras.target, inferredType);
 			break;
 		case "AssignmentExpression":
@@ -1014,6 +1046,7 @@ define("esprimaJsContentAssist", [], function() {
 			// when we have this.that.theOther.f need to find the right-most identifier
 			rightMost = findRightMost(node.left);
 			if (rightMost) {
+				rightMost.extras.inferredType = inferredType;
 				env.addOrSetVariable(rightMost.name, rightMost.extras.target, inferredType);
 			}
 			break;
@@ -1028,9 +1061,17 @@ define("esprimaJsContentAssist", [], function() {
 			if (newTypeName) {
 				// name already exists
 				node.extras.inferredType = newTypeName;
-			} else {
-				// If name doesn't already exist, then just assume "Object".
-				node.extras.inferredType = "Object";
+			} else if (!node.extras.target && !node.extras.isLHS && isAfter(env.offset, node.range)) {
+				// If name doesn't already exist, then create a new object for it
+				// and use that as the inferred type 
+				// only want to do this when accessing an unknown identifier.
+				// Should not be LHS of an assisgnment or variable declarator
+				// will be added to global scope
+				// Also, only add the variable if offset is after node range
+				// we don't want variables used after the fact appearing in content assist
+				node.extras.inferredType = env.addOrSetVariable(name, 
+				// FIXADE find a better way to get the global scope
+				{extras : { inferredType : "Global" }});
 			}
 			break;
 		case "ThisExpression":
@@ -1117,7 +1158,7 @@ define("esprimaJsContentAssist", [], function() {
 	 */
 	function createEnvironment(buffer, uid, offset, indexer, completionKind, prefix) {
 		if (!offset) {
-			offset = buffer.length;
+			offset = buffer.length+1;
 		}
 		if (!prefix) {
 			prefix = "";
@@ -1163,7 +1204,10 @@ define("esprimaJsContentAssist", [], function() {
 			newName: function() {
 				return namePrefix + this._typeCount++;
 			},
-			/** Creates a new empty scope and returns the name of the scope*/
+			/** 
+			 * Creates a new empty scope and returns the name of the scope
+			 * must call this.popScope() when finished with this scope
+			 */
 			newScope: function() {
 				// the prototype is always the currently top level scope
 				var targetType = this.scope();
@@ -1175,7 +1219,10 @@ define("esprimaJsContentAssist", [], function() {
 				return newScopeName;
 			},
 			
-			/** Creates a new empty object scope and returns the name of this object */
+			/**
+			 * Creates a new empty object scope and returns the name of this object 
+			 * must call this.popScope() when finished
+			 */
 			newObject: function(newObjectName) {
 				// object needs its own scope
 				this.newScope();
@@ -1188,6 +1235,18 @@ define("esprimaJsContentAssist", [], function() {
 				};
 				this.addVariable("this", null, newObjectName);
 				
+				return newObjectName;
+			},
+			
+			/**
+			 * like a call to this.newObject(), but the 
+			 * object created has not scope added to the scope stack
+			 */
+			newFleetingObject : function() {
+				var newObjectName = this.newName();
+				this._allTypes[newObjectName] = {
+					$$proto : "Object"
+				};
 				return newObjectName;
 			},
 			
@@ -1232,25 +1291,26 @@ define("esprimaJsContentAssist", [], function() {
 			 * like add variable, but first checks the prototype hierarchy
 			 * if exists in prototype hierarchy, then replace the type
 			 */
-			addOrSetVariable : function(name, target, type) {
+			addOrSetVariable : function(name, target, typeName) {
 				var targetType = this.scope(target);
 				var current = this._allTypes[targetType], found = false;
-				// if no type provided, assume object
-				type = type ? type : "Object";
+				// if no type provided, create a new type
+				typeName = typeName ? typeName : this.newFleetingObject();
 				while (current) {
 					if (current[name]) {
 						// found it, just overwrite
-						current[name] = type;
+						current[name] = typeName;
 						found = true;
 						break;
 					} else {
-						current = current.$$proto;
+						current = this._allTypes[current.$$proto];
 					}
 				}
 				if (!found) {
 					// not found, so just add to current scope
-					this._allTypes[targetType][name] = type;
+					this._allTypes[targetType][name] = typeName;
 				}
+				return typeName;
 			},
 						
 			/** looks up the name in the hierarchy */
@@ -1375,7 +1435,7 @@ define("esprimaJsContentAssist", [], function() {
 			/**
 			 * creates a human readable type name from the name given
 			 */
-			createReadableType : function(typeName, showFunction) {
+			createReadableType : function(typeName, showFunction, depth) {
 				if (typeName.charAt(0) === "?") {
 					// a function
 					var nameEnd = typeName.lastIndexOf(":");
@@ -1386,7 +1446,7 @@ define("esprimaJsContentAssist", [], function() {
 					if (showFunction) {
 						// convert into a function signature
 						var args = typeName.substring(nameEnd+1, typeName.length);
-						return "(" + args + ") -> " + this.createReadableType(funType, showFunction);
+						return "(" + args + ") -> " + this.createReadableType(funType, showFunction, 1);
 					} else {
 						// use the return type
 						return funType;
@@ -1401,7 +1461,14 @@ define("esprimaJsContentAssist", [], function() {
 							if (res.length > 2) {
 								res += ", ";
 							}
-							res += val + ":" + this.createReadableType(type[val]);
+							var name;
+							// don't show inner objects
+							if (!depth) {
+								name = this.createReadableType(type[val], false, 1);
+							} else {
+								name = "{...}";
+							}
+							res += val + " : " + name;
 						}
 					}
 					return res + " }";
@@ -1646,9 +1713,13 @@ define("esprimaJsContentAssist", [], function() {
 				if (provided.exports) {
 					kind = "commonjs";
 					modType = provided.exports;
-					provided = environment._allTypes[modType];
-					
-					// TODO filter unused types
+					if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
+						// this module provides a primitive type or a function
+						provided = modType;
+					} else {
+						// this module provides a composite type
+						provided = environment._allTypes[modType];
+					}
 				} else {
 					kind = "global";
 					modType = "Global";

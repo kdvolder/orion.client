@@ -170,5 +170,42 @@ define(["./esprimaJsContentAssist", "./indexerService", "orion/assert"], functio
 			"define([], function() { var Exported = function(a,b) { this.a = 9; };\n return new Exported(); });", "a");
 	};
 	
+	//////////////////////////////////////////////////////////
+	// common js modules are modules that have an exports variable in the global scope
+	//////////////////////////////////////////////////////////
+	tests.testCommonJS1 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","foo":"Number"},"types":{},"kind":"commonjs"}',
+			"/*global exports*/\nexports.foo = 9", "a");
+	};
+	
+	tests.testCommonJS2 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","foo":"Number"},"types":{},"kind":"commonjs"}',
+			"exports.foo = 9", "a");
+	};
+	
+	tests.testCommonJS3 = function() {
+		assertCreateSummary('{"provided":"Number","types":{},"kind":"commonjs"}',
+			"exports = 9", "a");
+	};
+	tests.testCommonJS4 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object"},"types":{},"kind":"commonjs"}',
+			"exports = { }", "a");
+	};
+	tests.testCommonJS5 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"gen~a~4"},"types":{"gen~a~4":{"$$proto":"Object","a":"gen~a~6"},"gen~a~6":{"$$proto":"Object","a":"gen~a~8"},"gen~a~8":{"$$proto":"Object"}},"kind":"commonjs"}',
+			"exports = { a : { a : { a : { } } } }", "a");
+	};
+	tests.testCommonJS6 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"gen~a~3"},"types":{"gen~a~3":{"$$proto":"Object","a":"gen~a~5"},"gen~a~5":{"$$proto":"Object","a":"gen~a~7"},"gen~a~7":{"$$proto":"Object"}},"kind":"commonjs"}',
+			"var a = { a : { a : { a : { } } } }\n exports = a;", "a");
+	};
+	
+	// not sure if this is right...an explicitly declared exports variable is the 
+	// same as an implicit one
+	tests.testCommonJS7 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"gen~a~3"},"types":{"gen~a~3":{"$$proto":"Object","a":"gen~a~5"},"gen~a~5":{"$$proto":"Object","a":"gen~a~7"},"gen~a~7":{"$$proto":"Object"}},"kind":"commonjs"}',
+			"var a = { a : { a : { a : { } } } }\n var exports = a;", "a");
+	};
+	
 	return tests;
 });
