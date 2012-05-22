@@ -984,20 +984,64 @@ define("esprimaJsContentAssist", [], function() {
 			}
 			env.popScope();
 			break;
-		case "BinaryExpression":
-			if (node.operator === "+" || node.operator === "-" || node.operator === "/" || 
-					node.operator === "*") {
-				// assume number for now
-				// rules are really much more complicated
-				node.extras.inferredType = "Number";
-			} else {
-				node.extras.inferredType = "Object";
+			
+		case 'LogicalExpression':
+		case 'BinaryExpression':
+			switch (node.operator) {
+				case '+':
+					// special case: if either side is a string, then result is a string
+					if (node.left.extras.inferredType === "String" ||
+						node.right.extras.inferredType === "String") {
+						
+						node.extras.inferredType = "String";
+					} else {
+						node.extras.inferredType = "Number";
+					}
+					break;
+				case '-':
+				case '/':
+				case '*':
+				case '%':
+				case '&':
+				case '|':
+				case '^':
+				case '<<':
+				case '>>':
+				case '>>>':
+					// Numeric and bitwise operations always return a number
+					node.extras.inferredType = "Number";
+					break;
+				case '&&':
+				case '||':
+					// will be the type of the left OR the right
+					// for now arbitrarily choose the left
+					node.extras.inferredType = node.left.extras.inferredType;
+					break;
+					
+				case '!==':
+				case '!=':
+				case '===':
+				case '==':
+				case '<':
+				case '<=':
+				case '>':
+				case '>=':
+					node.extras.inferredType = "Boolean";
+					break;
+				
+				default:
+					node.extras.inferredType = "Object";
 			}
 			break;
 		case "UpdateExpression":
 		case "UnaryExpression":
-			// assume number for now.  actual rules are much more complicated
-			node.extras.inferredType = "Number";
+			if (node.operator === '!') {
+				node.extras.inferredType = "Boolean";
+			} else {
+				// includes all unary operations and update operations
+				// ++ -- - and ~
+				node.extras.inferredType = "Number";
+			}
 			break;
 		case "FunctionDeclaration":
 		case "FunctionExpression":
@@ -1041,9 +1085,19 @@ define("esprimaJsContentAssist", [], function() {
 			env.addVariable(node.id.name, node.extras.target, inferredType);
 			break;
 		case "AssignmentExpression":
-			inferredType = node.right.extras.inferredType;
+			if (node.operator === '=') {
+				// standard assignment
+				inferredType = node.right.extras.inferredType;
+			} else {
+				// +=, -=, *=, /=, >>=, <<=, >>>=, &=, |=, or ^=.
+				if (node.operator === '+=' && node.left.extras.inferredType === 'String') {
+					inferredType = "String";	
+				} else {
+					inferredType = "Number";
+				}
+			}
 			node.extras.inferredType = inferredType;
-			// when we have this.that.theOther.f need to find the right-most identifier
+			// when we have 'this.that.theOther.f' need to find the right-most identifier
 			rightMost = findRightMost(node.left);
 			if (rightMost) {
 				rightMost.extras.inferredType = inferredType;
@@ -1449,7 +1503,7 @@ define("esprimaJsContentAssist", [], function() {
 						return "(" + args + ") -> " + this.createReadableType(funType, showFunction, 1);
 					} else {
 						// use the return type
-						return funType;
+						return this.createReadableType(funType);
 					}
 				} else if (typeName.indexOf("gen~") === 0) {
 					// a generated object

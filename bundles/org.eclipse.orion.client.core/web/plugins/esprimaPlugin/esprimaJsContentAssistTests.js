@@ -1310,6 +1310,52 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
 		]);
 	};
+	tests["test function return type obj literal 1"] = function() {
+		var results = computeContentAssist(
+			"function first() { return { a : 9, b : '' }; };\nfir", "fir");
+		testProposals("fir", results, [
+			["first()", "first() : { a : Number, b : String } (esprima)"]
+		]);
+	};
+	
+	// not sure I like this.  returning an object literal wrapped in a funtion looks no different from 
+	// returning an object literal
+	tests["test function return type obj literal 2"] = function() {
+		var results = computeContentAssist(
+			"function first () {" +
+			"	return function () {\n" +
+			"		var a = { a : 9, b : '' };\n" +
+			"		return a;\n" +
+			"	}\n" +
+			"}\nfir", "fir");
+		testProposals("fir", results, [
+			["first()", "first() : { a : Number, b : String } (esprima)"]
+		]);
+	};
+	tests["test function return type obj literal 3"] = function() {
+		var results = computeContentAssist(
+			"function first () {" +
+			"	return function () {\n" +
+			"		var a = { a : 9, b : '' };\n" +
+			"		return a;\n" +
+			"	}\n" +
+			"}\nfirst().ar", "ar");
+		testProposals("ar", results, [
+			["arguments", "arguments : Arguments (esprima)"]
+		]);
+	};
+	tests["test function return type obj literal 4"] = function() {
+		var results = computeContentAssist(
+			"function first () {" +
+			"	return function () {\n" +
+			"		var a = { aa : 9, b : '' };\n" +
+			"		return a;\n" +
+			"	}\n" +
+			"}\nfirst()().a", "a");
+		testProposals("a", results, [
+			["aa", "aa : Number (esprima)"]
+		]);
+	};
 	
 	///////////////////////////////////////////////
 	// Some tests for implicitly defined variables
@@ -1390,10 +1436,142 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		testProposals("xxx", results, [
 		]);
 	};
+	
+	
+	///////////////////////////////////////////////
+	// Binary and unary expressions
+	///////////////////////////////////////////////
+	tests["test binary expr1"] = function() {
+		var results = computeContentAssist(
+			"(1 + 2).toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr2"] = function() {
+		var results = computeContentAssist(
+			"(1 + '').char", "char");
+		testProposals("char", results, [
+			["charAt(index)", "charAt(index) : String (esprima)"],
+			["charCodeAt(index)", "charCodeAt(index) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr3"] = function() {
+		var results = computeContentAssist(
+			"('' + 2).char", "char");
+		testProposals("char", results, [
+			["charAt(index)", "charAt(index) : String (esprima)"],
+			["charCodeAt(index)", "charCodeAt(index) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr4"] = function() {
+		var results = computeContentAssist(
+			"('' + hucairz).char", "char");
+		testProposals("char", results, [
+			["charAt(index)", "charAt(index) : String (esprima)"],
+			["charCodeAt(index)", "charCodeAt(index) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr5"] = function() {
+		var results = computeContentAssist(
+			"(hucairz + hucairz).toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr6"] = function() {
+		var results = computeContentAssist(
+			"(hucairz - hucairz).toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr7"] = function() {
+		var results = computeContentAssist(
+			"('' - '').toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr8"] = function() {
+		var results = computeContentAssist(
+			"('' & '').toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr9"] = function() {
+		var results = computeContentAssist(
+			"({ a : 9 } && '').a.toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr10"] = function() {
+		var results = computeContentAssist(
+			"({ a : 9 } || '').a.toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr11"] = function() {
+		var results = computeContentAssist(
+			"var aaa = function() { return hucairz || hucairz; }\naa", "aa");
+		testProposals("aa", results, [
+			["aaa()", "aaa() : {  } (esprima)"]
+		]);
+	};
+	tests["test binary expr12"] = function() {
+		var results = computeContentAssist(
+			"var aaa = function() { return hucairz | hucairz; }\naa", "aa");
+		testProposals("aa", results, [
+			["aaa()", "aaa() : Number (esprima)"]
+		]);
+	};
+	tests["test binary expr12"] = function() {
+		var results = computeContentAssist(
+			"var aaa = function() { return hucairz == hucairz; }\naa", "aa");
+		testProposals("aa", results, [
+			["aaa()", "aaa() : Boolean (esprima)"]
+		]);
+	};
+
+	tests["test unary expr1"] = function() {
+		var results = computeContentAssist(
+			"(x += y).toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test unary expr2"] = function() {
+		var results = computeContentAssist(
+			"(x += 1).toF", "toF");
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests["test unary expr3"] = function() {
+		var results = computeContentAssist(
+			"var x = '';\n(x += 1).char", "char");
+		testProposals("char", results, [
+			["charAt(index)", "charAt(index) : String (esprima)"],
+			["charCodeAt(index)", "charCodeAt(index) : Number (esprima)"]
+		]);
+	};
+	tests["test unary expr4"] = function() {
+		var results = computeContentAssist(
+			"var aaa = function() { return !hucairz; }\naa", "aa");
+		testProposals("aa", results, [
+			["aaa()", "aaa() : Boolean (esprima)"]
+		]);
+	};
+
+
+	
 	/*
 	 yet to do:
 	 1. with, function inside obj literal
-	 2. parameterized types (eg- array of string, function that returns number)
+	 2. parameterized arrays
 	*/
 	return tests;
 });
