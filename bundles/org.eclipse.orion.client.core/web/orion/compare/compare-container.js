@@ -11,10 +11,10 @@
  *******************************************************************************/
 /*global define window dijit */
 /*jslint browser:true devel:true */
-define(['require', 'dojo', 'orion/compare/diff-parser', 'orion/compare/compare-rulers', 'orion/editor/contentAssist',
+define(['i18n!orion/compare/nls/messages', 'require', 'dojo', 'orion/compare/diff-parser', 'orion/compare/compare-rulers', 'orion/editor/contentAssist',
         'orion/editorCommands','orion/editor/editor','orion/editor/editorFeatures','orion/globalCommands', 'orion/breadcrumbs', 'orion/commands',
         'orion/textview/textModel','orion/textview/textView', 'orion/compare/compare-features', 'orion/compare/compareUtils', 'orion/compare/diff-provider', 'orion/compare/jsdiffAdapter', 'orion/highlight', 'orion/compare/diffTreeNavigator'], 
-		function(require, dojo, mDiffParser, mCompareRulers, mContentAssist, mEditorCommands, mEditor, mEditorFeatures, mGlobalCommands, mBreadcrumbs,
+		function(messages, require, dojo, mDiffParser, mCompareRulers, mContentAssist, mEditorCommands, mEditor, mEditorFeatures, mGlobalCommands, mBreadcrumbs,
 				mCommands, mTextModel, mTextView, mCompareFeatures, mCompareUtils, mDiffProvider, mJSDiffAdapter, Highlight, mDiffTreeNavigator) {
 
 var exports = {};
@@ -27,13 +27,13 @@ exports.DefaultDiffProvider = (function() {
 	DefaultDiffProvider.prototype = {
 		_resolveComplexDiff: function(complexURL, onlyDiff, errorCallback) {
 			if(!this._diffProvider){
-				console.log("A diff provider is needed for compound diff URL");
+				console.log("A diff provider is needed for compound diff URL"); //$NON-NLS-0$
 				return;
 			}
 			var that = this;
 			that._diffProvider.getDiffContent(complexURL).then(function(jsonData, secondArg) {
 				if (that._hasConflicts) {
-					that._diffContent = jsonData.split("diff --git")[1];
+					that._diffContent = jsonData.split("diff --git")[1]; //$NON-NLS-0$
 				} else {
 					that._diffContent = jsonData;
 				}
@@ -50,13 +50,13 @@ exports.DefaultDiffProvider = (function() {
 		//temporary
 		//TODO : get the file name from file service
 		_resolveFileName: function(fileURL){
-			var fileName = fileURL.split("?")[0];
+			var fileName = fileURL.split("?")[0]; //$NON-NLS-0$
 			return fileName;
 		},
 		
 		_getContentType: function(fileURL){
 			var filename = this._resolveFileName(fileURL);
-			return this.serviceRegistry.getService("orion.core.contenttypes").getFilenameContentType(filename);
+			return this.serviceRegistry.getService("orion.core.contenttypes").getFilenameContentType(filename); //$NON-NLS-0$
 		},
 		
 		_resolveComplexFileURL: function(complexURL, errorCallback) {
@@ -88,10 +88,21 @@ exports.CompareStyler = (function() {
 		this._syntaxHighlither = new Highlight.SyntaxHighlighter(registry);
 	}	
 	CompareStyler.prototype = {
-		highlight: function(fileName, contentType, editorWidget) {
-			this._syntaxHighlither.setup(contentType, editorWidget, 
+		highlight: function(fileName, contentType, editorWidget, compareWidget, loadingNumber) {
+			this._syntaxHighlither.setup(contentType, editorWidget.getTextView(), 
 										 null, //passing an AnnotationModel allows the styler to use it to annotate tasks/comment folding/etc, but we do not really need this in compare editor
-										 fileName);
+										 fileName,
+										 false /*bug 378193*/).then(function(){
+										 	if(compareWidget && loadingNumber){
+												editorWidget.highlightAnnotations();
+												editorWidget.setAnnotationRulerVisible(false);
+										 		compareWidget._highlighterLoaded++;
+										 		if(compareWidget._highlighterLoaded === loadingNumber){
+										 			compareWidget._diffNavigator.renderAnnotations();
+										 			compareWidget._diffNavigator.gotoBlock(compareWidget.options.blockNumber-1, compareWidget.options.changeNumber-1);
+										 		}
+										 	}
+										 });
 		}
 	};
 	return CompareStyler;
@@ -104,8 +115,8 @@ exports.CompareContainer = (function() {
 	CompareContainer.prototype = {
 		_clearOptions: function(){
 			this.options = {};
-			this.options.baseFile = {URL:"", Name:"", Type:""};
-			this.options.newFile = {URL:"", Name:"", Type:""};
+			this.options.baseFile = {URL:"", Name:"", Type:""}; //$NON-NLS-1$ //$NON-NLS-0$
+			this.options.newFile = {URL:"", Name:"", Type:""}; //$NON-NLS-1$ //$NON-NLS-0$
 			this.options.blockNumber = 1;
 			this.options.changeNumber = 0;
 		},
@@ -118,7 +129,10 @@ exports.CompareContainer = (function() {
 				//mapper is purely internal option
 				this.options.mapper = options.mapper ? options.mapper : this.options.mapper;
 				
-				this.options.commandSpanId = typeof(options.commandSpanId) === "string" ? options.commandSpanId : this.options.commandSpanId;
+				this.options.commandSpanId = typeof(options.commandSpanId) === "string" ? options.commandSpanId : this.options.commandSpanId; //$NON-NLS-0$
+				this.options.generateLink = (options.generateLink !== undefined &&  options.generateLink !== null) ? options.generateLink : this.options.generateLink;
+				this.options.editableInComparePage = (options.editableInComparePage !== undefined &&  options.editableInComparePage !== null) ? options.editableInComparePage : this.options.editableInComparePage;
+				this.options.navGridHolder = options.navGridHolder || this.options.navGridHolder;
 				this.options.readonly = (options.readonly !== undefined &&  options.readonly !== null) ? options.readonly : this.options.readonly;
 				this.options.wordLevelNav = (options.wordLevelNav !== undefined &&  options.wordLevelNav !== null) ? options.wordLevelNav : this.options.wordLevelNav;
 				this.options.charDiff = (options.charDiff !== undefined &&  options.charDiff !== null) ? options.charDiff : this.options.charDiff;
@@ -127,13 +141,13 @@ exports.CompareContainer = (function() {
 				this.options.complexURL = options.complexURL ?  options.complexURL : this.options.complexURL;
 				
 				this.options.baseFile.URL = (options.baseFile && options.baseFile.URL) ? options.baseFile.URL : this.options.baseFile.URL;
-				this.options.baseFile.Name = (options.baseFile && typeof(options.baseFile.Name) === "string") ? options.baseFile.Name : this.options.baseFile.Name;
+				this.options.baseFile.Name = (options.baseFile && typeof(options.baseFile.Name) === "string") ? options.baseFile.Name : this.options.baseFile.Name; //$NON-NLS-0$
 				this.options.baseFile.Type = (options.baseFile && options.baseFile.Type) ? options.baseFile.Type : this.options.baseFile.Type;
-				this.options.baseFile.Content = (options.baseFile && typeof(options.baseFile.Content) === "string") ? options.baseFile.Content : this.options.baseFile.Content;
+				this.options.baseFile.Content = (options.baseFile && typeof(options.baseFile.Content) === "string") ? options.baseFile.Content : this.options.baseFile.Content; //$NON-NLS-0$
 				this.options.newFile.URL = (options.newFile && options.newFile.URL) ? options.newFile.URL : this.options.newFile.URL;
-				this.options.newFile.Name = (options.newFile && typeof(options.newFile.Name) === "string") ? options.newFile.Name : this.options.newFile.Name;
+				this.options.newFile.Name = (options.newFile && typeof(options.newFile.Name) === "string") ? options.newFile.Name : this.options.newFile.Name; //$NON-NLS-0$
 				this.options.newFile.Type = (options.newFile && options.newFile.Type) ? options.newFile.Type : this.options.newFile.Type;
-				this.options.newFile.Content = (options.newFile && typeof(options.newFile.Content) === "string") ? options.newFile.Content : this.options.newFile.Content;
+				this.options.newFile.Content = (options.newFile && typeof(options.newFile.Content) === "string") ? options.newFile.Content : this.options.newFile.Content; //$NON-NLS-0$
 				
 				this.options.diffURL = options.diffURL ? options.diffURL : this.options.diffURL;
 				this.options.diffContent = options.diffContent ? options.diffContent : this.options.diffContent;
@@ -157,78 +171,90 @@ exports.CompareContainer = (function() {
 			}
 			var that = this;
 			var copyToLeftCommand = new mCommands.Command({
-				tooltip : "Copy current change from right to left",
-				imageClass : "core-sprite-leftarrow",
-				id: "orion.compare.copyToLeft",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Copy current change from right to left"],
+				imageClass : "core-sprite-leftarrow", //$NON-NLS-0$
+				id: "orion.compare.copyToLeft", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				callback : function(data) {
 					data.items.copyToLeft();
 			}});
 			var toggle2InlineCommand = new mCommands.Command({
-				tooltip : "Switch to unified diff",
-				name: "Unified",
-				imageClass : "core-sprite-link",
-				id: "orion.compare.toggle2Inline",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Switch to unified diff"],
+				name: messages["Unified"],
+				imageClass : "core-sprite-link", //$NON-NLS-0$
+				id: "orion.compare.toggle2Inline", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				visibleWhen: function(item) {
-					return item.options.toggler && item.options.toggler.widgetType === "twoWay";
+					return item.options.toggler && item.options.toggler.widgetType === "twoWay"; //$NON-NLS-0$
 				},
 				callback : function(data) {
 					data.items.options.toggler.toggle();
 			}});
 			var toggle2TwoWayCommand = new mCommands.Command({
-				tooltip : "Switch to side by side diff",
-				name: "Side by side",
-				imageClass : "core-sprite-link",
-				id: "orion.compare.toggle2TwoWay",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Switch to side by side diff"],
+				name: messages["Side by side"],
+				imageClass : "core-sprite-link", //$NON-NLS-0$
+				id: "orion.compare.toggle2TwoWay", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				visibleWhen: function(item) {
-					return item.options.toggler && item.options.toggler.widgetType === "inline";
+					return item.options.toggler && item.options.toggler.widgetType === "inline"; //$NON-NLS-0$
 				},
 				callback : function(data) {
 					data.items.options.toggler.toggle();
 			}});
 			var generateLinkCommand = new mCommands.Command({
-				tooltip : "Generate link of the current diff",
-				name: "Generate Link",
-				imageClass : "core-sprite-link",
-				id: "orion.compare.generateLink",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Generate link of the current diff"],
+				name: messages["Generate Link"],
+				imageClass : "core-sprite-link", //$NON-NLS-0$
+				id: "orion.compare.generateLink", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				visibleWhen: function(item) {
-					return item.options.complexURL;
+					return item.options.complexURL && item.options.generateLink;
 				},
 				callback : function(data) {
 					data.items.generateLink();
 			}});
+			var openComparePageCommand = new mCommands.Command({
+				tooltip : messages["Open the compare page"],
+				name: messages["Compare"],
+				imageClass : "core-sprite-link", //$NON-NLS-0$
+				id: "orion.compare.openComparePage", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
+				visibleWhen: function(item) {
+					return item.options.complexURL && !item.options.generateLink;
+				},
+				hrefCallback: function(data) {
+					return data.items.openComparePage();
+			}});
 			var nextDiffCommand = new mCommands.Command({
-				tooltip : "Next diff block",
-				imageClass : "core-sprite-move_down",
-				id: "orion.compare.nextDiff",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Next diff block"],
+				imageClass : "core-sprite-move_down", //$NON-NLS-0$
+				id: "orion.compare.nextDiff", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				callback : function(data) {
 					data.items.nextDiff();
 			}});
 			var prevDiffCommand = new mCommands.Command({
-				tooltip : "Previous diff block",
-				imageClass : "core-sprite-move_up",
-				id: "orion.compare.prevDiff",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Previous diff block"],
+				imageClass : "core-sprite-move_up", //$NON-NLS-0$
+				id: "orion.compare.prevDiff", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				callback : function(data) {
 					data.items.prevDiff();
 			}});
 			var nextChangeCommand = new mCommands.Command({
-				tooltip : "Next diff change",
-				imageClass : "core-sprite-move_down",
-				id: "orion.compare.nextChange",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Next diff change"],
+				imageClass : "core-sprite-move_down", //$NON-NLS-0$
+				id: "orion.compare.nextChange", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				callback : function(data) {
 					data.items.nextChange();
 			}});
 			var prevChangeCommand = new mCommands.Command({
-				tooltip : "Previous diff change",
-				imageClass : "core-sprite-move_up",
-				id: "orion.compare.prevChange",
-				groupId: "orion.compareGroup",
+				tooltip : messages["Previous diff change"],
+				imageClass : "core-sprite-move_up", //$NON-NLS-0$
+				id: "orion.compare.prevChange", //$NON-NLS-0$
+				groupId: "orion.compareGroup", //$NON-NLS-0$
 				callback : function(data) {
 					data.items.prevChange(data);
 			}});
@@ -236,6 +262,7 @@ exports.CompareContainer = (function() {
 			this._commandService.addCommand(toggle2TwoWayCommand);
 			this._commandService.addCommand(toggle2InlineCommand);
 			this._commandService.addCommand(generateLinkCommand);
+			this._commandService.addCommand(openComparePageCommand);
 			this._commandService.addCommand(nextDiffCommand);
 			this._commandService.addCommand(prevDiffCommand);
 			if(this.options.wordLevelNav){
@@ -244,17 +271,18 @@ exports.CompareContainer = (function() {
 			}
 				
 			// Register command contributions
-			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.generateLink", 108);
+			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.openComparePage", 107); //$NON-NLS-0$
+			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.generateLink", 108); //$NON-NLS-0$
 			if (!this.options.readonly) {
-				this._commandService.registerCommandContribution(commandSpanId, "orion.compare.copyToLeft", 109);
+				this._commandService.registerCommandContribution(commandSpanId, "orion.compare.copyToLeft", 109); //$NON-NLS-0$
 			}
-			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.toggle2Inline", 110);
-			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.toggle2TwoWay", 111);
-			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.nextDiff", 112);
-			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.prevDiff", 113);
+			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.toggle2Inline", 110); //$NON-NLS-0$
+			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.toggle2TwoWay", 111); //$NON-NLS-0$
+			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.nextDiff", 112); //$NON-NLS-0$
+			this._commandService.registerCommandContribution(commandSpanId, "orion.compare.prevDiff", 113); //$NON-NLS-0$
 			if(this.options.wordLevelNav){
-				this._commandService.registerCommandContribution(commandSpanId, "orion.compare.nextChange", 114);
-				this._commandService.registerCommandContribution(commandSpanId, "orion.compare.prevChange", 115);
+				this._commandService.registerCommandContribution(commandSpanId, "orion.compare.nextChange", 114); //$NON-NLS-0$
+				this._commandService.registerCommandContribution(commandSpanId, "orion.compare.prevChange", 115); //$NON-NLS-0$
 			}
 		},
 		
@@ -272,18 +300,29 @@ exports.CompareContainer = (function() {
 				return;
 			}
 			dojo.empty(commandSpanId);
-			this._commandService.renderCommands(commandSpanId, commandSpanId, this, this, "button");
+			this._commandService.renderCommands(commandSpanId, commandSpanId, this, this, "button", null, this.options.navGridHolder); //$NON-NLS-0$
 		},
 		
 		generateLink: function(){	
 			var diffPos = this.getCurrentDiffPos();
 			var href = mCompareUtils.generateCompareHref(this.options.complexURL, {
 				readonly: this.options.readonly,
-				conflict: this._conflict,
+				conflict: this.options.hasConflicts,
 				block: diffPos.block ? diffPos.block : 1, 
 				change: diffPos.change ? diffPos.change : 0 
 			});
-			prompt("Copy the link URL:", href);
+			prompt(messages["Copy the link URL:"], href);
+		},
+		
+		openComparePage: function(){	
+			var diffPos = this.getCurrentDiffPos();
+			var href = mCompareUtils.generateCompareHref(this.options.complexURL, {
+				readonly: !this.options.editableInComparePage,
+				conflict: this.options.hasConflicts,
+				block: diffPos.block ? diffPos.block : 1, 
+				change: diffPos.change ? diffPos.change : 0 
+			});
+			return href;
 		},
 		
 		getCurrentDiffPos: function(){	
@@ -316,29 +355,29 @@ exports.CompareContainer = (function() {
 		},
 		
 		_getLineDelim: function(input , diff){	
-			var delim = "\n";
+			var delim = "\n"; //$NON-NLS-0$
 			return delim;
 		},
 
 		resolveComplexDiff: function(onsave) {
 			if(!this.options.diffProvider){
-				console.log("A diff provider is needed for Complex diff URL");
+				console.log("A diff provider is needed for Complex diff URL"); //$NON-NLS-0$
 				return;
 			}
 			var that = this;
 			that.options.diffProvider.provide(that.options.complexURL, onsave, that.options.hasConflicts, function(diffParam){
-				that.options.baseFile.URL = (diffParam.baseFile && typeof(diffParam.baseFile.URL) === "string") ? diffParam.baseFile.URL : that.options.baseFile.URL;
-				that.options.baseFile.Name = (diffParam.baseFile && typeof(diffParam.baseFile.Name) === "string") ? diffParam.baseFile.Name : that.options.baseFile.Name;
-				that.options.baseFile.Type = (diffParam.baseFile && typeof(diffParam.baseFile.Type) === "object") ? diffParam.baseFile.Type : that.options.baseFile.Type;
-				that.options.baseFile.Content = (diffParam.baseFile && typeof(diffParam.baseFile.Content) === "string") ? diffParam.baseFile.Content : that.options.baseFile.Content;
+				that.options.baseFile.URL = (diffParam.baseFile && typeof(diffParam.baseFile.URL) === "string") ? diffParam.baseFile.URL : that.options.baseFile.URL; //$NON-NLS-0$
+				that.options.baseFile.Name = (diffParam.baseFile && typeof(diffParam.baseFile.Name) === "string") ? diffParam.baseFile.Name : that.options.baseFile.Name; //$NON-NLS-0$
+				that.options.baseFile.Type = (diffParam.baseFile && typeof(diffParam.baseFile.Type) === "object") ? diffParam.baseFile.Type : that.options.baseFile.Type; //$NON-NLS-0$
+				that.options.baseFile.Content = (diffParam.baseFile && typeof(diffParam.baseFile.Content) === "string") ? diffParam.baseFile.Content : that.options.baseFile.Content; //$NON-NLS-0$
 				
-				that.options.newFile.URL = (diffParam.newFile && typeof(diffParam.newFile.URL) === "string") ? diffParam.newFile.URL : that.options.newFile.URL;
-				that.options.newFile.Name = (diffParam.newFile && typeof(diffParam.newFile.Name) === "string") ? diffParam.newFile.Name : that.options.newFile.Name;
-				that.options.newFile.Type = (diffParam.newFile && typeof(diffParam.newFile.Type) === "object") ? diffParam.newFile.Type : that.options.newFile.Type;
-				that.options.newFile.Content = (diffParam.newFile && typeof(diffParam.newFile.Content) === "string") ? diffParam.newFile.Content : that.options.newFile.Content;
+				that.options.newFile.URL = (diffParam.newFile && typeof(diffParam.newFile.URL) === "string") ? diffParam.newFile.URL : that.options.newFile.URL; //$NON-NLS-0$
+				that.options.newFile.Name = (diffParam.newFile && typeof(diffParam.newFile.Name) === "string") ? diffParam.newFile.Name : that.options.newFile.Name; //$NON-NLS-0$
+				that.options.newFile.Type = (diffParam.newFile && typeof(diffParam.newFile.Type) === "object") ? diffParam.newFile.Type : that.options.newFile.Type; //$NON-NLS-0$
+				that.options.newFile.Content = (diffParam.newFile && typeof(diffParam.newFile.Content) === "string") ? diffParam.newFile.Content : that.options.newFile.Content; //$NON-NLS-0$
 				
-				that.options.diffContent = typeof(diffParam.diff) === "string" ? diffParam.diff : that.options.diffContent;
-				if (onsave || typeof(that.options.baseFile.Content) === "string"){
+				that.options.diffContent = typeof(diffParam.diff) === "string" ? diffParam.diff : that.options.diffContent; //$NON-NLS-0$
+				if (onsave || typeof(that.options.baseFile.Content) === "string"){ //$NON-NLS-0$
 					that.setEditor(onsave);
 				} else {
 					if(that.options.callback)
@@ -349,9 +388,9 @@ exports.CompareContainer = (function() {
 		},
 		
 		resolveDiffByContents: function(onsave) {
-			if (typeof(this.options.baseFile.Content) === "string" && typeof(this.options.newFile.Content) === "string"){
+			if (typeof(this.options.baseFile.Content) === "string" && typeof(this.options.newFile.Content) === "string"){ //$NON-NLS-1$ //$NON-NLS-0$
 				if(!this.options.diffContent && !this._mapper){
-					this.options.diffContent = "";//SomeDiffEngine.createPatch(this.options.baseFile.Name, this.options.baseFile.Content, this.options.newFile.Content, "", "") ;
+					this.options.diffContent = "";//SomeDiffEngine.createPatch(this.options.baseFile.Name, this.options.baseFile.Content, this.options.newFile.Content, "", "") ; //$NON-NLS-0$
 				}
 				this.setEditor(onsave);
 				return true;
@@ -362,7 +401,7 @@ exports.CompareContainer = (function() {
 		
 		getFileContent: function(files, currentIndex) {
 			if(!this._fileClient){
-				console.log("A file client is needed for getting file content");
+				console.log("A file client is needed for getting file content"); //$NON-NLS-0$
 				return;
 			}
 			var that = this;
@@ -371,9 +410,9 @@ exports.CompareContainer = (function() {
 				if(currentIndex < (files.length - 1)){
 					that.getFileContent(files, currentIndex+1);
 				} else {
-					that.setEditor();
+					var viewHeight = that.setEditor();
 					if(that._onLoadContents){
-						that._onLoadContents();
+						that._onLoadContents(viewHeight);
 					}
 				}
 			}, function(error, ioArgs) {
@@ -382,9 +421,9 @@ exports.CompareContainer = (function() {
 					if(currentIndex < (files.length - 1)){
 						that.getFileContent(files, currentIndex+1);
 					} else {
-						that.setEditor();
+						var viewHeight = that.setEditor();
 						if(that._onLoadContents){
-							that._onLoadContents();
+							that._onLoadContents(viewHeight);
 						}
 					}
 				} else if (that.errorCallback) {
@@ -437,10 +476,10 @@ exports.TwoWayCompareContainer = (function() {
 	 * Constructs a new side by side compare container. 
 	 */
 	function TwoWayCompareContainer(serviceRegistry, parentDivId, uiFactory, options) {
-		this._diffNavigator = new mDiffTreeNavigator.DiffTreeNavigator("word");
+		this._diffNavigator = new mDiffTreeNavigator.DiffTreeNavigator("word"); //$NON-NLS-0$
 		this._registry = serviceRegistry;
-		this._commandService = this._registry.getService("orion.page.command");
-		this._fileClient = this._registry.getService("orion.core.file");
+		this._commandService = this._registry.getService("orion.page.command"); //$NON-NLS-0$
+		this._fileClient = this._registry.getService("orion.core.file"); //$NON-NLS-0$
 		this._uiFactory = uiFactory;
 		if(!this._uiFactory){
 			this._uiFactory = new mCompareFeatures.TwoWayCompareUIFactory({
@@ -458,8 +497,8 @@ exports.TwoWayCompareContainer = (function() {
 		if(!this.options.callback){
 			this.options.callback = function(baseFileName, newFileName) {
 				if (that._uiFactory.getTitleDivId(true) && that._uiFactory.getTitleDivId(false)) {
-					dojo.place(document.createTextNode(newFileName), that._uiFactory.getTitleDivId(true), "only");
-					dojo.place(document.createTextNode(baseFileName), that._uiFactory.getTitleDivId(false), "only");
+					dojo.place(document.createTextNode(newFileName), that._uiFactory.getTitleDivId(true), "only"); //$NON-NLS-0$
+					dojo.place(document.createTextNode(baseFileName), that._uiFactory.getTitleDivId(false), "only"); //$NON-NLS-0$
 				}
 			};
 		}
@@ -467,11 +506,11 @@ exports.TwoWayCompareContainer = (function() {
 		if(!this._errorCallback){
 			this._errorCallback = function(errorResponse, ioArgs) {
 				if (that._uiFactory.getTitleDivId(true) && that._uiFactory.getTitleDivId(false)) {
-					var message = typeof (errorResponse.message) === "string" ? errorResponse.message : ioArgs.xhr.statusText;
-					dojo.place(document.createTextNode(message), that._uiFactory.getTitleDivId(true), "only");
-					dojo.place(document.createTextNode(message), that._uiFactory.getTitleDivId(false), "only");
-					dojo.style(uiFactory.getTitleDivId(true), "color", "red");
-					dojo.style(uiFactory.getTitleDivId(false), "color", "red");
+					var message = typeof (errorResponse.message) === "string" ? errorResponse.message : ioArgs.xhr.statusText; //$NON-NLS-0$
+					dojo.place(document.createTextNode(message), that._uiFactory.getTitleDivId(true), "only"); //$NON-NLS-0$
+					dojo.place(document.createTextNode(message), that._uiFactory.getTitleDivId(false), "only"); //$NON-NLS-0$
+					dojo.style(uiFactory.getTitleDivId(true), "color", "red"); //$NON-NLS-1$ //$NON-NLS-0$
+					dojo.style(uiFactory.getTitleDivId(false), "color", "red"); //$NON-NLS-1$ //$NON-NLS-0$
 				}
 			};
 		}
@@ -488,11 +527,11 @@ exports.TwoWayCompareContainer = (function() {
 			},
 			setDirty: function(dirty) {
 				if (dirty) {
-					if (this._lastTitle && this._lastTitle.charAt(0) !== '*') {
-						this.setTitle('*'+ this._lastTitle);
+					if (this._lastTitle && this._lastTitle.charAt(0) !== '*') { //$NON-NLS-0$
+						this.setTitle('*'+ this._lastTitle); //$NON-NLS-0$
 					}
 				} else {
-					if (this._lastTitle && this._lastTitle.charAt(0) === '*') {
+					if (this._lastTitle && this._lastTitle.charAt(0) === '*') { //$NON-NLS-0$
 						this.setTitle(this._lastTitle.substring(1));
 					}
 				}
@@ -509,7 +548,7 @@ exports.TwoWayCompareContainer = (function() {
 								this.setTitle(title);
 							}),
 							dojo.hitch(this, function(error) {
-								console.error("Error loading file metadata: " + error.message);
+								console.error("Error loading file metadata: " + error.message); //$NON-NLS-0$
 								this.setTitle(fileURI);
 							})
 					);
@@ -520,7 +559,7 @@ exports.TwoWayCompareContainer = (function() {
 							this.setTitle(metadata.Location);
 						}),
 						dojo.hitch(this, function(error) {
-							console.error("Error loading file metadata: " + error.message);
+							console.error("Error loading file metadata: " + error.message); //$NON-NLS-0$
 							this.setTitle(fileURI);
 						})
 					);
@@ -529,23 +568,23 @@ exports.TwoWayCompareContainer = (function() {
 			},
 			
 			setTitle : function(title) {
-				var indexOfSlash = title.lastIndexOf("/");
+				var indexOfSlash = title.lastIndexOf("/"); //$NON-NLS-0$
 				var shortTitle = title;
 				if (indexOfSlash !== -1) {
-					shortTitle = "Compare " + shortTitle.substring(indexOfSlash + 1);
-					if (title.charAt(0) === '*') {
-						shortTitle = '*' + shortTitle;
+					shortTitle = messages["Compare"] + " " + shortTitle.substring(indexOfSlash + 1);
+					if (title.charAt(0) === '*') { //$NON-NLS-0$
+						shortTitle = '*' + shortTitle; //$NON-NLS-0$
 					}
 				}
 				this._lastTitle = shortTitle;
 				window.document.title = shortTitle;
-				var location = dojo.byId("location");
+				var location = dojo.byId("location"); //$NON-NLS-0$
 				if (location && this._fileMetadata) {
 					dojo.empty(location);
-					new mBreadcrumbs.BreadCrumbs({container: "location", resource: this._fileMetadata});
-					if (title.charAt(0) === '*') {
-						var dirty = dojo.create('b', null, location, "last");
-						dirty.innerHTML = '*';
+					new mBreadcrumbs.BreadCrumbs({container: "location", resource: this._fileMetadata}); //$NON-NLS-0$
+					if (title.charAt(0) === '*') { //$NON-NLS-0$
+						var dirty = dojo.create('b', null, location, "last"); //$NON-NLS-1$ //$NON-NLS-0$
+						dirty.innerHTML = '*'; //$NON-NLS-0$
 					}
 				}
 			},
@@ -566,7 +605,7 @@ exports.TwoWayCompareContainer = (function() {
 		this._highlighter = [];
 		this._highlighter.push( new exports.CompareStyler(this._registry));//left side styler
 		this._highlighter.push( new exports.CompareStyler(this._registry));//right side styler
-		this.initEditorContainers("\n" , "fetching..." , "fetching..." , []);
+		this.initEditorContainers("\n" , messages['fetching...'] , messages["fetching..."] , []); //$NON-NLS-0$
 	}
 	TwoWayCompareContainer.prototype = new exports.CompareContainer();
 	
@@ -577,13 +616,13 @@ exports.TwoWayCompareContainer = (function() {
 		this._rightEditor = this.createEditorContainer(rightContent , delim , mapper ,1 , this._rightEditorDivId , this._uiFactory.getStatusDivId(false) ,true, createLineStyler , this.options.baseFile);
 		this._rightTextView = this._rightEditor.getTextView();
 		var that = this;
-		this._overviewRuler  = new mCompareRulers.CompareOverviewRuler("right", {styleClass: "ruler overview"} , null,
+		this._overviewRuler  = new mCompareRulers.CompareOverviewRuler("right", {styleClass: "ruler overview"} , null, //$NON-NLS-1$ //$NON-NLS-0$
 				                    function(lineIndex, ruler){that._diffNavigator.matchPositionFromOverview(lineIndex);});
 		this._rightTextView.addRuler(this._overviewRuler);
 		var that = this;
 		window.onbeforeunload = function() {
 			if (that._leftEditor.isDirty()) {
-				return "There are unsaved changes.";
+				return messages["There are unsaved changes."];
 			}
 		};
 		
@@ -630,7 +669,7 @@ exports.TwoWayCompareContainer = (function() {
 			if(that.onLoad){
 				that.onLoad();
 			}
-			dojo.connect(editorContainer, "resize", dojo.hitch(this, function (e){
+			dojo.connect(editorContainer, "resize", dojo.hitch(this, function (e){ //$NON-NLS-0$
 				view.resize();
 			}));
 			return view;
@@ -639,7 +678,7 @@ exports.TwoWayCompareContainer = (function() {
 		var contentAssistFactory = {
 			createContentAssistMode: function(editor) {
 				var contentAssist = new mContentAssist.ContentAssist(editor.getTextView());
-				var widget = new mContentAssist.ContentAssistWidget(contentAssist, "contentassist");
+				var widget = new mContentAssist.ContentAssistWidget(contentAssist, "contentassist"); //$NON-NLS-0$
 				return new mContentAssist.ContentAssistMode(contentAssist, widget);
 			}
 		};
@@ -647,10 +686,10 @@ exports.TwoWayCompareContainer = (function() {
 		var keyBindingFactory = function(editor, keyModeStack, undoStack, contentAssist) {
 			// Create keybindings for generic editing
 			if(readOnly){//In readonly mode we need to somehow initialize the pageAction
-				that._commandService.addCommandGroup("pageActions", "orion.editorActions.unlabeled", 200);
+				that._commandService.addCommandGroup("pageActions", "orion.editorActions.unlabeled", 200); //$NON-NLS-1$ //$NON-NLS-0$
 				return;
 			}
-			var commandGenerator = new mEditorCommands.EditorCommandFactory(that._registry, that._commandService,that._fileClient , that._inputManager, "pageActions");
+			var commandGenerator = new mEditorCommands.EditorCommandFactory(that._registry, that._commandService,that._fileClient , that._inputManager, "pageActions"); //$NON-NLS-0$
 			commandGenerator.generateEditorCommands(editor);
 			var genericBindings = new mEditorFeatures.TextActions(editor, undoStack);
 			keyModeStack.push(genericBindings);
@@ -667,13 +706,13 @@ exports.TwoWayCompareContainer = (function() {
 			if(!statusDivId)
 				return;
 			if (isError) {
-				status =  "ERROR: " + message;
+				status =  messages["ERROR: "] + message;
 			} else {
 				status = message;
 			}
 			dojo.byId(statusDivId).innerHTML = dirtyIndicator +  status;
 		};
-		var undoStackFactory = readOnly ? new mEditorFeatures.UndoFactory() : new mEditorCommands.UndoCommandFactory(that._registry, that._commandService, "pageActions");
+		var undoStackFactory = readOnly ? new mEditorFeatures.UndoFactory() : new mEditorCommands.UndoCommandFactory(that._registry, that._commandService, "pageActions"); //$NON-NLS-0$
 		var annotationFactory = new mEditorFeatures.AnnotationFactory();
 		var editor = new mEditor.Editor({
 			textViewFactory: textViewFactory,
@@ -690,20 +729,20 @@ exports.TwoWayCompareContainer = (function() {
 		editor.setOverviewRulerVisible(false);
 		if(!readOnly){
 			var inputManager = this._inputManager;
-			editor.addEventListener("DirtyChanged", function(evt) {
+			editor.addEventListener("DirtyChanged", function(evt) { //$NON-NLS-0$
 				inputManager.setDirty(editor.isDirty());
 			});
 		}
 			
 		var textView = editor.getTextView();
-		if(createLineStyler && fileObj && typeof(fileObj.Name) === "string"  && typeof(fileObj.Type) === "string"){
+		if(createLineStyler && fileObj && typeof(fileObj.Name) === "string"  && typeof(fileObj.Type) === "string"){ //$NON-NLS-1$ //$NON-NLS-0$
 			editor.setInput(fileObj.Name);
 			this._highlighter[columnIndex].highlight(fileObj.Name , fileObj.Type, editor);
 		}
 			
-		textView.addRuler(new mCompareRulers.LineNumberCompareRuler(this._diffNavigator, 0, "left", {styleClass: "ruler lines"}, {styleClass: "rulerLines odd"}, {styleClass: "rulerLines even"}));
+		textView.addRuler(new mCompareRulers.LineNumberCompareRuler(this._diffNavigator, 0, "left", {styleClass: "ruler lines"}, {styleClass: "rulerLines odd"}, {styleClass: "rulerLines even"})); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 
-		textView.addEventListener("Selection", function(evt) {
+		textView.addEventListener("Selection", function(evt) { //$NON-NLS-0$
 			if(evt.newValue){
 				if(evt.newValue.start !== evt.newValue.end){
 					return;
@@ -717,10 +756,10 @@ exports.TwoWayCompareContainer = (function() {
 		}); 
 		
 		if(columnIndex === 0){
-			textView.getModel().addEventListener("Changed", function(e) {
+			textView.getModel().addEventListener("Changed", function(e) { //$NON-NLS-0$
 				that._curveRuler.onChanged(e);
 			});
-			textView.addEventListener("Scroll", function(scrollEvent) {
+			textView.addEventListener("Scroll", function(scrollEvent) { //$NON-NLS-0$
 				if(that._curveRuler){
 					that._curveRuler.matchPositionFrom(true);
 					that._curveRuler.render();
@@ -730,7 +769,7 @@ exports.TwoWayCompareContainer = (function() {
 				}
 			}); 
 		} else {
-			textView.addEventListener("Scroll", function(scrollEvent) {
+			textView.addEventListener("Scroll", function(scrollEvent) { //$NON-NLS-0$
 				if(that._curveRuler){
 					that._curveRuler.render();
 				}
@@ -760,6 +799,7 @@ exports.TwoWayCompareContainer = (function() {
 			result = this.parseMapper(input , output, diff , this.options.hasConflicts, onsave);
 			output = result.output;
 		}
+		this._highlighterLoaded = 0;
 		var that = this;
 		if(!this._leftEditor){
 			this.initEditorContainers(result.delim , output , input ,  result.mapper , true);
@@ -772,44 +812,42 @@ exports.TwoWayCompareContainer = (function() {
 		}else {
 			var rFeeder = new mDiffTreeNavigator.TwoWayDiffBlockFeeder(this._rightTextView.getModel(), result.mapper, 1);
 			var lFeeder = new mDiffTreeNavigator.TwoWayDiffBlockFeeder(this._leftTextView.getModel(), result.mapper, 0);
-			this._diffNavigator.initAll(this.options.charDiff ? "char" : "word", this._rightEditor, this._leftEditor, rFeeder, lFeeder, this._overviewRuler, this._curveRuler);
+			this._diffNavigator.initAll(this.options.charDiff ? "char" : "word", this._rightEditor, this._leftEditor, rFeeder, lFeeder, this._overviewRuler, this._curveRuler); //$NON-NLS-1$ //$NON-NLS-0$
 			this._curveRuler.init(result.mapper ,this._leftEditor , this._rightEditor, this._diffNavigator);
 			this._inputManager.filePath = this.options.newFile.URL;
 			this._rightEditor.setInput(this.options.baseFile.Name, null, input);
-			this._highlighter[1].highlight(this.options.baseFile.Name, this.options.baseFile.Type, this._rightTextView);
-			this._rightEditor.highlightAnnotations();
-			this._rightEditor.setAnnotationRulerVisible(false);
 			this._leftEditor.setInput(this.options.newFile.Name, null, output);
-			this._highlighter[0].highlight(this.options.newFile.Name, this.options.newFile.Type, this._leftTextView);
-			this._leftEditor.highlightAnnotations();
-			this._leftEditor.setAnnotationRulerVisible(false);
+			this._highlighter[0].highlight(this.options.newFile.Name, this.options.newFile.Type, this._leftEditor, this, 2);
+			this._highlighter[1].highlight(this.options.baseFile.Name, this.options.baseFile.Type, this._rightEditor, this, 2);
 			this.renderCommands();
 			if(!this.options.readonly)
 				this._inputManager.setInput(this.options.newFile.URL , this._leftEditor);
 		}
-		this._diffNavigator.renderAnnotations();
 		if(this._viewLoadedCounter > 1){
 			this._diffNavigator.gotoBlock(this.options.blockNumber-1, this.options.changeNumber-1);
 		}
+		var leftViewHeight = this._leftTextView.getModel().getLineCount() * this._leftTextView.getLineHeight(); + 5;
+		var rightViewHeight = this._rightTextView.getModel().getLineCount() * this._rightTextView.getLineHeight(); +5;
+		return leftViewHeight > rightViewHeight ? leftViewHeight : rightViewHeight;
 	};
 	return TwoWayCompareContainer;
 }());
 
 exports.InlineCompareContainer = (function() {
 	function InlineCompareContainer(serviceRegistry, editorDivId, options ) {
-		this._diffNavigator = new mDiffTreeNavigator.DiffTreeNavigator("word");
+		this._diffNavigator = new mDiffTreeNavigator.DiffTreeNavigator("word"); //$NON-NLS-0$
 		this._registry = serviceRegistry;
-		this._commandService = this._registry.getService("orion.page.command");
-		this._fileClient = this._registry.getService("orion.core.file");
-		this._statusService = this._registry.getService("orion.page.message");
+		this._commandService = this._registry.getService("orion.page.command"); //$NON-NLS-0$
+		this._fileClient = this._registry.getService("orion.core.file"); //$NON-NLS-0$
+		this._statusService = this._registry.getService("orion.page.message"); //$NON-NLS-0$
 		this.setOptions(options, true);
 		this.setOptions({readonly: true});
 
 		var that = this;
 		if(!this.options.callback){
 			this.options.callback = function(baseFileName, newFileName) {
-				dojo.place(document.createTextNode(that._diffTitle), "fileNameInViewer", "only");
-				dojo.style("fileNameInViewer", "color", "#6d6d6d");
+				dojo.place(document.createTextNode(that._diffTitle), "fileNameInViewer", "only"); //$NON-NLS-1$ //$NON-NLS-0$
+				dojo.style("fileNameInViewer", "color", "#6d6d6d"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 				that._statusService.setProgressMessage("");
 			};
 		}
@@ -817,14 +855,14 @@ exports.InlineCompareContainer = (function() {
 		if(!this._errorCallback){
 			this._errorCallback = function(errorResponse, ioArgs) {
 				var display = [];
-				display.Severity = "Error";
+				display.Severity = "Error"; //$NON-NLS-0$
 				display.HTML = false;
 				
 				try{
 					var resp = JSON.parse(errorResponse.responseText);
 					display.Message = resp.DetailedMessage ? resp.DetailedMessage : resp.Message;
 				}catch(Exception){
-					display.Message =  typeof(errorResponse.message) === "string" ? errorResponse.message : ioArgs.xhr.statusText;
+					display.Message =  typeof(errorResponse.message) === "string" ? errorResponse.message : ioArgs.xhr.statusText; //$NON-NLS-0$
 				}
 				
 				this._statusService.setProgressResult(display);
@@ -835,7 +873,7 @@ exports.InlineCompareContainer = (function() {
 		this._highlighter = [];
 		this._highlighter.push( new exports.CompareStyler(this._registry));
 		this._editorDivId = editorDivId;
-		this.initEditorContainers("" , "\n" , [],[]);
+		this.initEditorContainers("" , "\n" , [],[]); //$NON-NLS-0$
 		this.hasContent = false;
 	}
 	InlineCompareContainer.prototype = new exports.CompareContainer();
@@ -888,7 +926,7 @@ exports.InlineCompareContainer = (function() {
 				readonly: true,
 				tabSize: 4
 			});
-			dojo.connect(editorContainer, "resize", dojo.hitch(this, function (e){
+			dojo.connect(editorContainer, "resize", dojo.hitch(this, function (e){ //$NON-NLS-0$
 				textView.resize();
 			}));
 			return textView;
@@ -920,13 +958,13 @@ exports.InlineCompareContainer = (function() {
 			
 		var textView = editor.getTextView();
 			
-		this._rulerOrigin = new mCompareRulers.LineNumberCompareRuler(this._diffNavigator, 1,"left", {styleClass: "ruler lines"}, {styleClass: "rulerLines odd"}, {styleClass: "rulerLines even"});
-		this._rulerNew = new mCompareRulers.LineNumberCompareRuler(this._diffNavigator, 0,"left", {styleClass: "ruler lines"}, {styleClass: "rulerLines odd"}, {styleClass: "rulerLines even"});
+		this._rulerOrigin = new mCompareRulers.LineNumberCompareRuler(this._diffNavigator, 1,"left", {styleClass: "ruler lines"}, {styleClass: "rulerLines odd"}, {styleClass: "rulerLines even"}); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+		this._rulerNew = new mCompareRulers.LineNumberCompareRuler(this._diffNavigator, 0,"left", {styleClass: "ruler lines"}, {styleClass: "rulerLines odd"}, {styleClass: "rulerLines even"}); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 		var that = this;
-		this._overviewRuler  = new mCompareRulers.CompareOverviewRuler("right", {styleClass: "ruler overview"} , null,
+		this._overviewRuler  = new mCompareRulers.CompareOverviewRuler("right", {styleClass: "ruler overview"} , null, //$NON-NLS-1$ //$NON-NLS-0$
                 function(lineIndex, ruler){that._diffNavigator.matchPositionFromOverview(lineIndex);});
 		
-		textView.addEventListener("Selection", function(evt) {
+		textView.addEventListener("Selection", function(evt) { //$NON-NLS-0$
 			if(evt.newValue){
 				if(evt.newValue.start !== evt.newValue.end){
 					return;
@@ -976,6 +1014,7 @@ exports.InlineCompareContainer = (function() {
 			output = result.output;
 		}
 		var that = this;
+		this._highlighterLoaded = 0;
 		if(!this._textView){
 			this.initEditorContainers(result.delim , input ,  result.mapper , result.diffArray , true);
 		}else {
@@ -986,11 +1025,9 @@ exports.InlineCompareContainer = (function() {
 			mCompareUtils.mergeDiffBlocks(this._textView.getModel(), lFeeder.getDiffBlocks(), result.mapper, result.diffArray.array, result.diffArray.index, this._diffParser._lineDelimiter);
 			rFeeder.setModel(this._textView.getModel());
 			lFeeder.setModel(this._textView.getModel());
-			this._diffNavigator.initAll(this.options.charDiff ? "char" : "word", this._editor, this._editor, rFeeder, lFeeder, this._overviewRuler);
-			this._highlighter[0].highlight(this.options.baseFile.Name, this.options.baseFile.Type, this._textView);
-			this._editor.highlightAnnotations();
+			this._diffNavigator.initAll(this.options.charDiff ? "char" : "word", this._editor, this._editor, rFeeder, lFeeder, this._overviewRuler); //$NON-NLS-1$ //$NON-NLS-0$
+			this._highlighter[0].highlight(this.options.baseFile.Name, this.options.baseFile.Type, this._editor, this, 1);
 			this.renderCommands();
-			this._diffNavigator.renderAnnotations();
 			this.addRulers();
 			var drawLine = this._textView.getTopIndex() ;
 			this._textView.redrawLines(drawLine , drawLine+  1 , this._overviewRuler);
@@ -998,6 +1035,7 @@ exports.InlineCompareContainer = (function() {
 			this._textView.redrawLines(drawLine , drawLine+  1 , this._rulerNew);
 			this._diffNavigator.gotoBlock(this.options.blockNumber-1, this.options.changeNumber-1);
 		}
+		return this._textView.getLineHeight() * this._textView.getModel().getLineCount() + 5;
 	};
 	
 	InlineCompareContainer.prototype.setConflicting =  function(conflicting){	
@@ -1012,11 +1050,11 @@ exports.toggleableCompareContainer = (function() {
 		if(options){
 			options.toggler = this;
 		}
-		if(startWith === "inline"){
-			this.widgetType = "inline";
+		if(startWith === "inline"){ //$NON-NLS-0$
+			this.widgetType = "inline"; //$NON-NLS-0$
 			this._widget = new exports.InlineCompareContainer(serviceRegistry, parentDivId, options);
 		} else {
-			this.widgetType = "twoWay";
+			this.widgetType = "twoWay"; //$NON-NLS-0$
 			this._widget = new exports.TwoWayCompareContainer(serviceRegistry, parentDivId, null, options);
 		}
 		this._parentDivId = parentDivId;
@@ -1034,11 +1072,11 @@ exports.toggleableCompareContainer = (function() {
 			options.changeNumber = diffPos.change;
 			this._widget.destroy();
 			dojo.empty(this._parentDivId);
-			if(this.widgetType === "inline"){
-				this.widgetType = "twoWay";
+			if(this.widgetType === "inline"){ //$NON-NLS-0$
+				this.widgetType = "twoWay"; //$NON-NLS-0$
 				this._widget = new exports.TwoWayCompareContainer(this._serviceRegistry, this._parentDivId, null, options);
 			} else {
-				this.widgetType = "inline";
+				this.widgetType = "inline"; //$NON-NLS-0$
 				this._widget = new exports.InlineCompareContainer(this._serviceRegistry, this._parentDivId, options);
 			}
 			this._widget.setEditor();

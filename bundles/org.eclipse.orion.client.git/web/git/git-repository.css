@@ -26,7 +26,6 @@
 @import "css/git.css";
 
 .tag-description {
-	font-size: 13px;
 	white-space: normal;
 	padding-right: 10px;
 	min-width: 100px;
@@ -46,11 +45,6 @@
 	position: relative;
 	white-space:normal;
 	max-width:700px;
-}
-
-.plugin-settings {
-    overflow-x: hidden;
-    width: 100%;
 }
 
 .activeBranch {

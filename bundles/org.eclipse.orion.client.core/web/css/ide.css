@@ -6,7 +6,8 @@ html {
 html, body {
 	margin: 0;
 	padding: 0;
-	font: 9pt Verdana,Arial,Helvetica,Myriad,Tahoma,clean,sans-serif; 
+	font: 8pt Verdana,Arial,Helvetica,Myriad,Tahoma,clean,sans-serif; 
+	min-width:900px;
 }
 
 .orionPage {
@@ -37,21 +38,21 @@ h2 {
 a {
 	cursor: hand;
 	text-decoration: none;
-	color: #024892;
+	color: #3087B3;
 }
 
 a:visited {
-	color: #024892;
+	color: #3087B3;
 }
 
 a:active {
-	color: #024892;
+	color: #3087B3;
 }
 
 a:hover {
 	cursor: hand;
 	text-decoration: underline;
-	color: #024892;
+	color: #3087B3;
 }
 
 .layoutBlock {
@@ -64,6 +65,9 @@ a:hover {
 	vertical-align: baseline;
 }
 
+/* These classes are used pervasively in the UI to achieve left/right floats.  Please do not add extra styling to
+   to these classes, but rather add additional classes as needed for non-float needs.
+*/
 .layoutLeft {
 	float: left;
 	margin: 0;
@@ -96,53 +100,52 @@ a:hover {
 	margin: 4px;
 }
 
-.navlinkonpage {
-	color: #024892;
-	cursor: hand;
-	text-decoration: none;
+.navlink {
+	display: inline-block;
+	padding: 2px;
 }
 
-.navlinkonpage:visited {
-	color: #024892;
+.navlinkonpage {
+	text-decoration: none;
+	padding: 2px;
 }
 
 .navlinkonpage:active {
-	color: #024892;
-	cursor: hand;
 	text-decoration: none;
 }
 
 .navlinkonpage:hover {
-	color: #024892;
-	cursor: hand;
 	text-decoration: none;
 	border-bottom: 1px dotted;
 }
 
 .logo {
-	padding-top: 2px;
+	padding-top: 6px;
+	padding-right:5px;
 }
 
 .primaryNav {
-	font-size: 8pt;
-	color: #bfbfbf;
-	padding-top: 4px;
+	font-size: 10px;
+	font-weight:bold;
+	color: #BFBFBF;
+	padding-top: 8px;
 	vertical-align: baseline;
 }
 
 .primaryNav a {
-	font-size: 8pt;
-	color: #bfbfbf;
+	font-size: 10px;
+	color: #BFBFBF;
 	margin-right: 6px;
-	margin-left: 6px;
-	padding-top: 4px;
+	margin-left: 6px; 
 	vertical-align: baseline;
+	text-decoration: none;
 }
 
 .primaryNav a:hover {
 	color: #bfbfbf;
 	cursor: hand;
-	text-decoration: underline;
+	color: white;
+	font-weight:bolder;
 }
 
 .pageNav {
@@ -151,9 +154,8 @@ a:hover {
 }
 
 .pageActions {
-	font: 9pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
-	min-height: 30px;
-	margin-top: 4px;
+	min-height: 28px;
+	margin-top: 7px;
 }
 
 /* 4px margin used by toolbar, plus 4px of border/padding */
@@ -166,10 +168,29 @@ a:hover {
 .toolComposite {
 }
 
+.taskTitle {
+	color:  #3087B3 !important;  /* overriding command framework values */
+	text-align: left !important;
+	font-weight: bold !important;
+	border: 1px solid transparent !important;
+}
+
+.taskDescription {
+	font: 8pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
+	padding: 8px;
+}
+
 .sectionActions {
 	font: 8pt Verdana, Arial,Helvetica,Myriad,Tahoma,clean,sans-serif;
 	margin-top: 2px;
 	vertical-align: baseline;
+}
+
+.sectionAnchor{
+	line-height:16px;
+	font-size:10pt;
+	color: #444;
+	font-weight:normal;
 }
 
 .pageNavigationActions {
@@ -193,28 +214,41 @@ a:hover {
 .parametersDismiss {
 	color: #404040;
 	vertical-align: middle;
+	font-weight: normal;
 }
 
 .dismiss {
 	border: 1px solid transparent;
+    border-radius: 2px;
 	cursor: pointer;
 	padding: 1px;
 	font-size: 8pt;
+	margin: 0;
 	margin-left: 8px;
 	vertical-align: middle;
 }
 .dismiss:hover {
 	background-color: #e6e6e6;
 	border: 1px solid #808080;
-    border-radius: 2px;
 }
 
 .parameterInput {
-	margin-left: 4px;
+	margin-right: 16px;
+	font-weight: normal;
+	vertical-align: baseline;
 }
 
 .parameterInputurl {
 	width: 30em;
+}
+
+.parameterInputcheckbox {
+	width: auto;
+}
+
+.parameterInputtextarea {
+	vertical-align: top;
+	width: 50em;
 }
 
 .navTableHeading {
@@ -225,6 +259,23 @@ a:hover {
 .navColumn {
 	min-width: 150px;
 	padding-right: 8px;
+	vertical-align: baseline;
+}
+
+.navRow {
+	vertical-align: baseline;
+	border-spacing: 8px;
+}
+
+.mainNavColumn {
+	display: inline-block;
+	padding: 4px;
+	vertical-align: baseline;
+}
+
+.singleNavColumn {
+	width: 100%;
+	white-space: nowrap;
 }
 
 .actionsColumn {
@@ -258,8 +309,8 @@ a:hover {
 @media all and (min-device-width: 1025px) {
 	.modelDecorationSprite { 	
 		padding: 0;
-		padding-left: 4px;
-		padding-right: 4px;
+		padding-left: 2px;
+		padding-right: 2px;
 		margin: 0;
 		margin-right: 2px;
 	}
@@ -291,70 +342,23 @@ a:hover {
     min-width: 300px;
 }
 
-.paneHeadingToolbar {
-	text-align: right;
-	vertical-align: middle;
-	margin-left: 16px;
-}
-
-.paneHeadingCommands {
-	text-align: right;
-}
-
 .userEditBoxPrompt {
 	background: white;
 	color: black;
 }
 
-.landingHeading {
-	font-size: 2.0em;
-	color: #666666;
-	padding-bottom: 8px;
-}
-
-.landingDescription {
-	font-size: 1.6em;
-	color: #404040;
-}
-
-.landingImage {
-	border: 1px solid #6d6d6d;
-}
-
-.landingLink {
-	font-size: 1.2em;
-	color: #404040;
-	padding-left: 24px;
-	padding-bottom: 8px;
-}
-
-.landingPanelContainer {
-	background: #EDEDED;
-	padding: 0;
-	margin: 0;
-	border-left: 1px solid white;
-	border-right: 2px solid white;
-}
-
-.landingPanel {
-	background: #EDEDED;
-	border-left: 1px solid white;
-	border-right: 1px solid #cccccc;
-	padding: 0;
-	margin: 0;
-}
-
 .auxpane {
 	border: 0;
-	border-top: 1px solid #e4e4e4;
-    background: #f8f8f8;
+    background: #fbfbfb;
     overflow-x: auto;
     min-width: 200px;
+    padding-top: 16px;
 }
 
 .auxPadding {
 	padding-left: 8px;
-	padding-top: 4px;
+	padding-top: 2px;
+    padding-bottom: 8px;
 }
 
 .claro .dijitBorderContainer {
@@ -406,7 +410,6 @@ a:hover {
 }
  
 .mainpane {
-	border-top: 1px solid #ebebeb;
     background: #FFFFFF;
 	overflow: auto;
 }
@@ -495,7 +498,8 @@ a:hover {
 	vertical-align: middle;
 	min-height: 32px;
 	width: 100%;
-	color: #222222;
+	color: #222;
+	border-bottom: 1px solid whitesmoke;
 }
 
 .auxToolbar {
@@ -503,16 +507,20 @@ a:hover {
  	min-height: 32px;
 	width: 100%;
 	color: #222222;
+	border-bottom: 1px solid #e4e4e4;
 }
 
 .mainToolbar {
  	min-height: 30px;
  	background: #ffffff;
+	border-bottom: 1px solid #ebebeb;
 }
 
 .pageTitle {
-	font-size: 12pt;
+	font-size: 13px;
 	vertical-align: top;
+	margin-top:4px;
+	font-weight:bold;
 	color: #666666;
 }
 
@@ -521,7 +529,6 @@ a:hover {
 	width: 100%;
 	border: 0;
 	padding: 0;
-	font-size: 0.9em;
 	min-height: 2.5em; 
 	border-top: 1px solid #dbdbdb
 }
@@ -534,61 +541,33 @@ a:hover {
 	margin: 0;
 	border: 0;
 	background-color: #2e2e2e;
-	height: 22px;
+/*	background: -webkit-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);
+	background: -moz-linear-gradient(top, #7D7E7D 0%, #0E0E0E 100%);	Not sure about gradient - Linda to advise */
+	height: 28px;
 }
 
 .titleArea {
     margin: 0;
+    margin-top:5px;
     border: 0;
-    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f7f7f7'); /* IE */
-    background: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#f7f7f7));
-    background: -moz-linear-gradient(top,  #ffffff,  #f7f7f7);
-    border-bottom: 1px solid #bfbfbf;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f6f6f6'); /* IE */
+    background: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#f6f6f6));
+    background: -moz-linear-gradient(top,  #ffffff,  #f6f6f6);
+    border-bottom: 1px solid #EEE;
+    min-height:20px;
 }
 
-.paneTitle {
-	padding-top: 2px;
-	padding-left: 2px;
-	vertical-align: baseline;
-}
-
-.paneHeading {
-	background-color: #f8f8f8;
-	vertical-align: middle;
-	border-bottom: 1px solid #ebebeb;
-	border-top: 1px solid #ebebeb;
-	min-height: 26px;
-	width: 100%;
-	font-size: 9pt;
-	font-weight: bold;
-	color: #808080;
-}
-
-.paneHeadingFixed {
-	min-width: 300px;
-}
-
-.auxpaneHeading {
-	background-color: #fafafa;
-	border-bottom: 1px solid #ebebeb;
-	border-top: 1px solid #ebebeb;
-	vertical-align: middle;
-	min-height: 26px;
-	width: 100%;
-	font-size: 9pt;
-	font-weight: bold;
-	color: #808080;
-}
 .slideContainer {
 	height: auto;
 	width: 97%;
 	clear: both;
 	float: left;
 	border-radius: 2px;
-	margin-left: 4px;
-	margin-right: 4px;
-	margin: 2px;
+	margin: 8px;
 	display: none;
+	vertical-align:middle;
+	font-size:11px;
+	font-weight:bold;
 }
 
 .slideParameters {
@@ -603,7 +582,7 @@ a:hover {
 .slide {
 	text-align: left;
 	vertical-align: middle;
-	float: left;
+	clear: both;
 	opacity: 0;
 	height: 0;
  	transition: opacity .5s ease-out;
@@ -622,17 +601,53 @@ a:hover {
 }
 
 .slideActive {
-	padding: 8px;
 	opacity: 1;
 	height: auto;
 }
 
+.bannerMenu {
+	margin: 0;
+	margin-left: 8px;
+	margin-right: 8px;
+	font-size: 7pt;
+	display: inline-block;
+	padding-tp:0 !important;
+	vertical-align: baseline;
+}
+
+.bannerButton {
+	border: 1px solid transparent;
+	text-align: center;
+	vertical-align: baseline;
+    cursor: pointer;
+    display: inline-block;
+    border-radius:3px;
+    margin: 2px;
+    padding: 2px;
+}
+
+.bannerButton:hover {
+	background-color: #e6e6e6;
+	border: 1px solid #808080;
+}
+
 .searchbox {
-	background: transparent;
-	border: 1px solid #a6a6a6;
-	font-size: 8pt;
-	min-width: 15em;
-	margin-top: 2px;
+	background: url('../images/glass.png') no-repeat #777 4px 4px;
+	border: 1px solid #555;
+	font-size: 11px;
+	width: 15em;
+	height: 18px;
+	border-radius: 10px;
+	color:#444;
+	padding:0;
+	padding-left:17px;
+	margin-left:5px;
+	margin-top:4px;
+}
+
+.searchbox:focus{
+	color: white;
+	outline:none;
 }
 
 .toolbarButton {
@@ -703,7 +718,7 @@ a:hover {
 }
 
 .checkedRow {
-	background-color: #e3e3e3 !important;
+	background-color: #fee49a !important; /* was e3e3e3 */
 }
 
 .testResult {
@@ -726,6 +741,8 @@ a:hover {
 .treetable {
 	border-spacing: 0;
 	min-width: 600px;
+	width:100%;
+	padding-right:4px;
 }
 
 .favoritesTable {
@@ -749,11 +766,11 @@ a:hover {
 }
 
 .lightTreeTableRow > td {
-	border-bottom: 1px solid #e6e6e6;
+	border-bottom: 1px solid whiteSmoke;
 }
 
 .darkTreeTableRow > td {
-	border-bottom: 1px solid #e6e6e6;
+	border-bottom: 1px solid whiteSmoke;
 }
 
 .testNavTreetable {
@@ -794,10 +811,24 @@ a:hover {
 	background-color: #EAF2FE;
 }
 
-.treeIterationCursor {
-	background-color: #EAF2FE !important;
+.selectionModelContainer {
+	outline: none;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 
+.treeIterationCursor {
+	outline: #CCC 1px dotted;
+	border-radius:4px;
+}
+
+.treeIterationCursorRow {
+	background-color: #f3f6fe;
+}
 .searchCmdGroupMargin {
 	margin-left: 16px;
 }
@@ -834,6 +865,7 @@ a:hover {
 }
 
 #outline li {
+	padding-bottom: 2px;
 	list-style-type: none;
 	white-space: nowrap; /*wrapping makes indented list hard to read*/
 }
