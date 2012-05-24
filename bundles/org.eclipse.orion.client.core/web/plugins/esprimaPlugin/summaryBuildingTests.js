@@ -206,6 +206,24 @@ define(["./esprimaJsContentAssist", "./indexerService", "orion/assert"], functio
 		assertCreateSummary('{"provided":{"$$proto":"Object","a":"gen~a~3"},"types":{"gen~a~3":{"$$proto":"Object","a":"gen~a~5"},"gen~a~5":{"$$proto":"Object","a":"gen~a~7"},"gen~a~7":{"$$proto":"Object"}},"kind":"commonjs"}',
 			"var a = { a : { a : { a : { } } } }\n var exports = a;", "a");
 	};
-	
+
+
+	tests.testWrappedCommonJS1 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"gen~a~7"},"types":{"gen~a~7":{"$$proto":"Object","a":"gen~a~9"},"gen~a~9":{"$$proto":"Object","a":"gen~a~11"},"gen~a~11":{"$$proto":"Object","a":"gen~a~13"},"gen~a~13":{"$$proto":"Object"}}}',
+			"define(function(require, exports, module) {\n" +
+			"  var a = { a : { a : { a : { } } } };\n" +
+			"  exports.a = a; });", "a");
+	};
+	tests.testWrappedCommonJS2 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"Number"},"types":{}}',
+			"define(function(require, exports, module) {\n" +
+			"  exports.a = 7; });", "a");
+	};
+	tests.testWrappedCommonJS3 = function() {
+		assertCreateSummary('{"provided":{"$$proto":"Object","a":"gen~a~7"},"types":{"gen~a~7":{"$$proto":"Object","flart":"?String:a,b"}}}',
+			"define(function(require, exports, module) {\n" +
+			"  exports.a = { flart: function(a,b) { return ''; } }\n" +
+			"});", "a");
+	};
 	return tests;
 });

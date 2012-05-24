@@ -97,6 +97,10 @@ define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAss
 	function checkCache(deps) {
 		var needsUpdating = [];
 		for (var i = 0; i < deps.length; i++) {
+			if (!deps[i].path) {
+				// could not resolve dependency
+				continue;
+			}
 			var tsCache = localStorage[deps[i].path + "-summary-ts"];
 			var tsDep = deps[i].timestamp;
 			// only update the local cache if it 

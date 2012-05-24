@@ -568,7 +568,46 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			}));
 		testProposals("toF", results, [
 			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
-		]);	
+		]);
+	};
+	
+	tests.testCommonjsWrapped1 = function() {
+		var results = computeContentAssist(
+			"define(function(require, exports, module) {\n"+
+			"  require('first').a.flart().toF/**/\n" +
+			"});", "toF", new MockIndexer(
+			[], {
+				first:  "define(function(require, exports, module) {\n" +
+						"  exports.a = { flart: function(a,b) { return 1; } }\n" +
+						"});"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonjsWrapped2 = function() {
+		var results = computeContentAssist(
+			"  require('first').a.flart().toF/**/", "toF", new MockIndexer(
+			[], {
+				first:  "define(function(require, exports, module) {\n" +
+						"  exports.a = { flart: function(a,b) { return 1; } }\n" +
+						"});"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
+	};
+	tests.testCommonjsWrapped3 = function() {
+		var results = computeContentAssist(
+			"define(function(require, exports, module) {\n"+
+			"  require('first').a.flart().toF/**/\n" +
+			"});", "toF", new MockIndexer(
+			[], {
+				first:  "  exports.a = { flart: function(a,b) { return 1; } }\n"
+			}));
+		testProposals("toF", results, [
+			["toFixed(digits)", "toFixed(digits) : Number (esprima)"]
+		]);
 	};
 	
 	return tests;

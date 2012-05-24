@@ -614,6 +614,40 @@ define("esprimaJsContentAssist", [], function() {
 		}
 		return null;
 	}
+	/**
+	 * checks to see if this file looks like a wrapped commonjs module
+	 * Assumes that there are one or more calls to define at the top level
+	 * and the first statement is a define call
+	 * @return true iff there is a top-level call to 'define'
+	 */
+	function checkForCommonjs(node) {
+		var body = node.body;
+		if (body && body.length >= 1) {
+			for (var i = 0; i < body.length; i++) {
+				if (body[i].type === "ExpressionStatement" && 
+					body[i].expression.type === "CallExpression" && 
+					body[i].expression.callee.name === "define") {
+					
+					var callee = body[i].expression;
+					if (callee["arguments"] && 
+						callee["arguments"].length === 1 && 
+						callee["arguments"][0].type === "FunctionExpression" &&
+						callee["arguments"][0].params.length === 3) {
+						
+						var params = callee["arguments"][0].params;
+						if (params[0].name === "require" &&
+							params[1].name === "exports" &&
+							params[2].name === "module") {
+
+							// found it.
+							return body[i].expression;
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
 	
 	/**
 	 * if this method call ast node is a call to require with a single string constant 
@@ -706,7 +740,7 @@ define("esprimaJsContentAssist", [], function() {
 									}
 									paramTypes.push(typeName);
 								} else {
-									paramTypes.push("Object");
+									paramTypes.push(env.newFleetingObject());
 								}
 							} else {
 								paramTypes.push("Object");
@@ -714,12 +748,11 @@ define("esprimaJsContentAssist", [], function() {
 						}
 					}
 				}
-			} 
-			
-			if (params.length === 0) {
-				for (i = 0; i < params.length; i++) {
-					paramTypes.push("Object");
-				}
+			}
+		}
+		if (paramTypes.length === 0) {
+			for (i = 0; i < params.length; i++) {
+				paramTypes.push(env.newFleetingObject());
 			}
 		}
 		return paramTypes;
@@ -747,8 +780,12 @@ define("esprimaJsContentAssist", [], function() {
 		
 		switch(type) {
 		case "Program":
-			// check for potential AMD module.  Can add other module kinds later
-			env.amdModule = checkForAMD(node);
+			// check for module kind
+			env.commonjsModule = checkForCommonjs(node);
+			if (!env.commonjsModule) {
+				// can't be both amd and commonjs
+				env.amdModule = checkForAMD(node);
+			}
 			break;
 		case "BlockStatement":
 			node.extras.inferredType = env.newScope();
@@ -984,14 +1021,12 @@ define("esprimaJsContentAssist", [], function() {
 			}
 			env.popScope();
 			break;
-			
-		case 'LogicalExpression':
-		case 'BinaryExpression':
+		case "BinaryExpression":
 			switch (node.operator) {
 				case '+':
 					// special case: if either side is a string, then result is a string
 					if (node.left.extras.inferredType === "String" ||
-						node.right.extras.inferredType === "String") {
+						node.left.extras.inferredType === "String") {
 						
 						node.extras.inferredType = "String";
 					} else {
@@ -1028,6 +1063,7 @@ define("esprimaJsContentAssist", [], function() {
 				case '>=':
 					node.extras.inferredType = "Boolean";
 					break;
+				
 				
 				default:
 					node.extras.inferredType = "Object";
@@ -1190,6 +1226,9 @@ define("esprimaJsContentAssist", [], function() {
 	}
 	
 	function isMember(val, inArray) {
+		if (val === 'Global') {
+			return false;
+		}
 		for (var i = 0; i < inArray.length; i++) {
 			if (inArray[i] === val) {
 				return true;
@@ -1232,6 +1271,8 @@ define("esprimaJsContentAssist", [], function() {
 			_allTypes : new Types(),
 			/** if this is an AMD module, then the value of this property is the 'define' call expression */
 			amdModule : null,	
+			/** if this is a wrapped commonjs module, then the value of this property is the 'define' call expression */
+			commonjsModule : null,	
 			/** a counter used for creating unique names for object literals and scopes */
 			_typeCount : 0,
 			/** 
@@ -1503,7 +1544,7 @@ define("esprimaJsContentAssist", [], function() {
 						return "(" + args + ") -> " + this.createReadableType(funType, showFunction, 1);
 					} else {
 						// use the return type
-						return this.createReadableType(funType);
+						return funType;
 					}
 				} else if (typeName.indexOf("gen~") === 0) {
 					// a generated object
@@ -1753,32 +1794,37 @@ define("esprimaJsContentAssist", [], function() {
 				} else {
 					modType = "Object";
 				}
-				if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
-					// this module provides a primitive type or a function
-					provided = modType;
-				} else {
-					// this module provides a composite type
-					provided = environment._allTypes[modType];
-				}
 				kind = "AMD";
+			} else if (environment.commonjsModule) {
+				// a wrapped commonjs module
+				// we have already checked the correctness of this function
+				var exportsParam = environment.commonjsModule["arguments"][0].params[1];
+				modType = exportsParam.extras.inferredType;
+				provided = provided = environment._allTypes[modType];
+					
 			} else {
-				// if not AMD module, might be a commonjs module
+				// assume a non-module
 				provided = environment._allTypes.Global;
+				
 				if (provided.exports) {
+					// actually, commonjs
 					kind = "commonjs";
 					modType = provided.exports;
-					if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
-						// this module provides a primitive type or a function
-						provided = modType;
-					} else {
-						// this module provides a composite type
-						provided = environment._allTypes[modType];
-					}
 				} else {
 					kind = "global";
 					modType = "Global";
 				}
 			}
+			
+			// simplify the exported type
+			if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
+				// this module provides a primitive type or a function
+				provided = modType;
+			} else {
+				// this module provides a composite type
+				provided = environment._allTypes[modType];
+			}
+
 
 			// now filter the builtins since they are always available
 			filterTypes(environment, builtInTypes, kind, modType);
