@@ -286,10 +286,10 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
-			["a", "a : Object (esprima)"],
+			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
-			["b", "b : Object (esprima)"],
-			["c", "c : Object (esprima)"],
+			["b", "b : {  } (esprima)"],
+			["c", "c : {  } (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
@@ -308,10 +308,10 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
-			["a", "a : Object (esprima)"],
+			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
-			["b", "b : Object (esprima)"],
-			["c", "c : Object (esprima)"],
+			["b", "b : {  } (esprima)"],
+			["c", "c : {  } (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
@@ -333,8 +333,8 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test in function 4"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(aa, ab, c) {a/**/}", "a");
 		testProposals("a", results, [
-			["aa", "aa : Object (esprima)"],
-			["ab", "ab : Object (esprima)"],
+			["aa", "aa : {  } (esprima)"],
+			["ab", "ab : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"]
 		]);
 	};
@@ -342,8 +342,8 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		// should not see 'aaa' since that is declared later
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(aa, ab, c) {var abb;\na/**/\nvar aaa}", "a");
 		testProposals("a", results, [
-			["aa", "aa : Object (esprima)"],
-			["ab", "ab : Object (esprima)"],
+			["aa", "aa : {  } (esprima)"],
+			["ab", "ab : {  } (esprima)"],
 			["abb", "abb : Object (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"]
 		]);
@@ -355,9 +355,9 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		"function other(aa, ab, c) {\n"+
 		"var abb;\na/**/\nvar aaa\n}\n}", "a");
 		testProposals("a", results, [
-			["a", "a : Object (esprima)"],
-			["aa", "aa : Object (esprima)"],
-			["ab", "ab : Object (esprima)"],
+			["a", "a : {  } (esprima)"],
+			["aa", "aa : {  } (esprima)"],
+			["ab", "ab : {  } (esprima)"],
 			["abb", "abb : Object (esprima)"],
 			// FIXADE Yikes!  getting arguments twice for nested function
 			["arguments", "arguments : Arguments (esprima)"],
@@ -374,10 +374,10 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
-			["a", "a : Object (esprima)"],
+			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
-			["b", "b : Object (esprima)"],
-			["c", "c : Object (esprima)"],
+			["b", "b : {  } (esprima)"],
+			["c", "c : {  } (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
@@ -399,10 +399,10 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 			["Date()", "Date() : Date (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
-			["a", "a : Object (esprima)"],
+			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
-			["b", "b : Object (esprima)"],
-			["c", "c : Object (esprima)"],
+			["b", "b : {  } (esprima)"],
+			["c", "c : {  } (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],

@@ -624,7 +624,9 @@ define("esprimaJsContentAssist", [], function() {
 		var body = node.body;
 		if (body && body.length >= 1) {
 			for (var i = 0; i < body.length; i++) {
-				if (body[i].type === "ExpressionStatement" && 
+				if (body[i] && 
+					body[i].type === "ExpressionStatement" && 
+					body[i].expression &&
 					body[i].expression.type === "CallExpression" && 
 					body[i].expression.callee.name === "define") {
 					
@@ -1021,12 +1023,13 @@ define("esprimaJsContentAssist", [], function() {
 			}
 			env.popScope();
 			break;
+		case "LogicalExpression":
 		case "BinaryExpression":
 			switch (node.operator) {
 				case '+':
 					// special case: if either side is a string, then result is a string
 					if (node.left.extras.inferredType === "String" ||
-						node.left.extras.inferredType === "String") {
+						node.right.extras.inferredType === "String") {
 						
 						node.extras.inferredType = "String";
 					} else {
@@ -1544,7 +1547,7 @@ define("esprimaJsContentAssist", [], function() {
 						return "(" + args + ") -> " + this.createReadableType(funType, showFunction, 1);
 					} else {
 						// use the return type
-						return funType;
+						return this.createReadableType(funType, showFunction, 0);
 					}
 				} else if (typeName.indexOf("gen~") === 0) {
 					// a generated object
