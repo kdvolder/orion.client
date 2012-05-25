@@ -36,9 +36,10 @@
 		  }
 		});
 		window.onload = function() {
-			require(["orion/test","esprimaJsContentAssistTests.js", "esprimaJsContentAssist.js"], function(test, testcase) {
-				test.run(testcase);			
-			});
+			require(["orion/test","plugins/esprimaPlugin/esprimaJsContentAssistTests", "plugins/esprimaPlugin/esprimaJsContentAssist", "plugins/esprimaPlugin/types", "plugins/esprimaPlugin/esprimaVisitor"], 
+				function(test, testcase) {
+					test.run(testcase);			
+				});
 		};
 	</script>
 </head>

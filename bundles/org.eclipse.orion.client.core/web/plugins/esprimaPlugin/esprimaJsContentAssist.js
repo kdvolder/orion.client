@@ -12,266 +12,7 @@
  *******************************************************************************/
 
 /*global define require eclipse esprima window console inTest localStorage*/
-define("esprimaJsContentAssist", [], function() {
-
-	/**
-	 * A prototype of that contains the common built-in types
-	 * Types that begin with '?' are functions.  The values after the ':' are the 
-	 * argument names.
-	 */
-	var Types = function() {
-		/**
-		 * Properties common to all objects - ECMA 262, section 15.2.4.
-		 */
-		this.Object = {
-			// Can't use the real propoerty name here because would override the real methods of that name
-			$_$prototype : "Object",
-			$_$toString: "?String:",
-			$_$toLocaleString : "?String:",
-			$_$valueOf: "?Object:",
-			$_$hasOwnProperty: "?boolean:property",
-			$_$isPrototypeOf: "?boolean:object",
-			$_$propertyIsEnumerable: "?boolean:property"
-		};
-		
-		// the global object
-		this.Global = {
-			// the global 'this'
-			"this": "Global",  
-			Math: "Math",
-			JSON: "JSON",
-			Date: "?Date:",
-			$$proto : "Object"
-		};
-		
-		/**
-		 * Properties common to all Strings - ECMA 262, section 15.5.4
-		 */
-		this.String = {
-			charAt : "?String:index",
-			charCodeAt : "?Number:index",
-			concat : "?String:array",
-			indexOf : "?Number:searchString",
-			lastIndexOf : "?Number:searchString",
-			length : "Number",
-			localeCompare : "?Number:Object",
-			match : "?Boolean:regexp",
-			replace : "?String:searchValue,replaceValue",
-			search : "?String:regexp",
-			slice : "?String:start,end",
-			split : "?Array:separator,[limit]",  // Array of string
-			substring : "?String:start,end",
-			toLocaleUpperCase : "?String:",
-			toLowerCase : "?String:",
-			toUpperCase : "?String:",
-			trim : "?String:",
-
-			$$proto : "Object"
-		};
-		
-		/**
-		 * Properties common to all arrays.  may be incomplete
-		 */
-		this.Array = {
-			length : "Number",
-			sort : "?Array:[sorter]",
-			concat : "?Array:left,right",
-			slice : "?Array:start,end",
-			push : "?Object:val",
-			$$proto : "Object"
-		};
-		
-		/**
-		 * Properties common to all dates.  may be incomplete
-		 */
-		this.Date = {
-			getDay : "?Number:",
-			getFullYear : "?Number:",
-			getHours : "?Number:",
-			getMinutes : "?Number:",
-			setDay : "?Number:dayOfWeek",
-			setFullYear : "?Number:year",
-			setHours : "?Number:hour",
-			setMinutes : "?Number:minute",
-			setTime : "?Number:millis",
-			$$proto : "Object"
-		};
-		
-		this.Boolean = {
-			$$proto : "Object"
-		};
-		
-		this.Number = {
-			toExponential : "?Number:digits",
-			toFixed : "?Number:digits",
-			toPrecision : "?Number:digits",
-			// do we want to include NaN, MAX_VALUE, etc?	
-		
-			$$proto : "Object"
-		};
-		
-		this.Function = {
-			apply : "?Object:func,[args]",
-			"arguments" : "Arguments",
-			bind : "?Object:",
-			call : "?Object:func,args",
-			caller : "Function",
-			length : "Number",
-			name : "String",
-			$$proto : "Object"
-		};
-
-		this.Arguments = {
-			callee : "Function",
-			length : "Number",
-			
-			$$proto : "Object"
-		};
-
-		this.RegExp = {
-			g : "Object",
-			i : "Object",
-			gi : "Object",
-			m : "Object",
-			exec : "?Array:str",
-			test : "?Array:str",
-			
-			$$proto : "Object"
-		};
-		
-		this.Error = {
-			name : "String",
-			message : "String",
-			stack : "String",
-			$$proto : "Object"
-		};
-		
-		
-		this.Math = {
-		
-			// properties
-			E : "Number",
-			LN2 : "Number",
-			LN10 : "Number",
-			LOG2E : "Number",
-			LOG10E : "Number",
-			PI : "Number",
-			SQRT1_2 : "Number",
-			SQRT2 : "Number",
-		
-			// Methods
-			abs : "?Number:val",
-			acos : "?Number:val",
-			asin : "?Number:val",
-			atan : "?Number:val",
-			atan2 : "?Number:val1,val2",
-			ceil : "?Number:val",
-			cos : "?Number:val",
-			exp : "?Number:val",
-			floor : "?Number:val",
-			log : "?Number:val",
-			max : "?Number:val1,val2",
-			min : "?Number:val1,val2",
-			pow : "?Number:x,y",
-			random : "?Number:",
-			round : "?Number:val",
-			sin : "?Number:val",
-			sqrt : "?Number:val",
-			tan : "?Number:val",
-			$$proto : "Object"
-		};
-
-		this.JSON = {
-			parse : "?Object:str",
-			stringify : "?String:obj",
-			$$proto : "Object"
-		};
-
-	};
-
-	/**
-	 * Generic AST visitor.  Visits all children in source order, if they have a range property.  Children with
-	 * no range property are visited first.
-	 * 
-	 * @param node The AST node to visit
-	 * @param context any extra data (is this strictly necessary, or should it be folded into the operation?).
-	 * @param operation function(node, context, [isInitialOp]) an operation on the AST node and the data.  Return falsy if
-	 * the visit should no longer continue. Return truthy to continue.
-	 * @param [postoperation] (optional) function(node, context) an operation that is exectuted after visiting the current node's children.
-	 * will only be invoked if operation returns true for the current node
-	 */
-	function visit(node, context, operation, postoperation) {
-		var i, key, child, children;
-		
-		// uncomment to test that stack heights are consistent
-//		var cnt;
-//		if (context && context._scopeStack) { 
-//			cnt = context._scopeStack.length;
-//		}
-		if (operation(node, context, true)) {
-			// gather children to visit
-			children = [];
-			for (key in node) {
-				if (key !== "range" && key !== "errors" && key !== "target" && key !== "extras") {
-					child = node[key];
-					if (child instanceof Array) {
-						for (i = 0; i < child.length; i++) {
-							if (child[i] && child[i].hasOwnProperty("type")) {
-								children.push(child[i]);
-							} else if (key === "properties") {
-								// might be key-value pair of an object expression
-								// don't visit the key since it doesn't have an sloc
-								// and it is handle later by inferencing
-
-								// FIXADE - I don't know if this is still necessary since it looks like esprima has changed the
-								// way it handles properties in object expressions and they may now be proper AST nodes
-								if (child[i].hasOwnProperty("key") && child[i].hasOwnProperty("value")) {
-									children.push(child[i].key);
-									children.push(child[i].value);
-								}
-							}
-						}
-					} else {
-						if (child && child.hasOwnProperty("type")) {
-							children.push(child);
-						}
-					}
-				}
-			}
-			
-			if (children.length > 0) {
-				// sort children by source location
-				children.sort(function(left, right) {
-					if (left.range && right.range) {
-						return left.range[0] - right.range[0];	
-					} else if (left.range) {
-						return 1;
-					} else if (right.range) {
-						return -1;
-					} else {
-						return 0;
-					}
-				});
-				
-				// visit children in order
-				for (i = 0; i < children.length; i++) {
-					visit(children[i], context, operation, postoperation);
-				}
-			}
-			if (postoperation) {
-				postoperation(node, context, false);
-			}
-
-			// uncomment to test that stack heights are consistent before and after visit
-//			if (context && context._scopeStack) { 
-//				if (cnt !== context._scopeStack.length) {
-//					console.error("Uh oh");
-//					console.error(node);
-//					console.error(context._scopeStack);
-//				}
-//			}
-		}
-	}
+define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/esprimaVisitor", "plugins/esprimaPlugin/types"], function(mVisitor, mTypes) {
 
 	/**
 	 * finds the right-most segment of a dotted MemberExpression
@@ -457,7 +198,7 @@ define("esprimaJsContentAssist", [], function() {
 		};
 		var parents = [];
 		try {
-			visit(root, parents, findParent, findParent);
+			mVisitor.visit(root, parents, findParent, findParent);
 		} catch (done) {
 			if (done !== "done") {
 				// a real error
@@ -765,7 +506,7 @@ define("esprimaJsContentAssist", [], function() {
 	 * @param node the AST node to visit
 	 * @param env the context for the visitor.  See computeProposals below for full description of contents
 	 */
-	function proposalGenerator(node, env) {
+	function inferencer(node, env) {
 		var type = node.type, oftype, name, i, property, params, newTypeName;
 		
 		// extras prop is where we stuff everything that we have added
@@ -905,12 +646,6 @@ define("esprimaJsContentAssist", [], function() {
 					node.right.extras = {};
 				}
 				node.right.extras.fname = node.left.name;
-				
-//				if (!node.left.extras) {
-//					node.left.extras = {};
-//				}
-//				// remember that we are LHS, so don't create a dummy type
-//				node.left.extras.isLHS = true;
 			}
 			break;
 		case "CatchClause":
@@ -958,21 +693,21 @@ define("esprimaJsContentAssist", [], function() {
 	 * called as the post operation for the proposalGenerator visitor.
 	 * Finishes off the inferencing and adds all proposals
 	 */
-	function proposalGeneratorPostOp(node, env) {
+	function inferencerPostOp(node, env) {
 		var type = node.type, name, inferredType, newTypeName, rightMost, kvps, i;
 		
 		switch(type) {
 		case "Program":
 			// if we've gotten here and we are still in range, then 
 			// we are completing as a top-level entity with no prefix
-			env.createProposals();
+			env.shortcutVisit();
 			break;
 		case "BlockStatement":
 		case "CatchClause":
 			if (inRange(env.offset, node.range)) {
 				// if we've gotten here and we are still in range, then 
 				// we are completing as a top-level entity with no prefix
-				env.createProposals();
+				env.shortcutVisit();
 			}
 		
 			env.popScope();
@@ -980,7 +715,7 @@ define("esprimaJsContentAssist", [], function() {
 		case "MemberExpression":
 			if (afterDot(env.offset, node, env.contents)) {
 				// completion after a dot with no prefix
-				env.createProposals(env.scope(node.object));
+				env.shortcutVisit(env.scope(node.object));
 			}
 			// inferred type is the type of the property expression
 			// node.propery will be null for mal-formed asts
@@ -998,7 +733,7 @@ define("esprimaJsContentAssist", [], function() {
 			node.extras.inferredType = fnType;
 			break;
 		case "NewExpression":
-			// FIXADE we have a slight problem here.
+			// FIXADE we have a problem here.
 			// constructors that are called like this: new foo.Bar()  should have an inferred type of foo.Bar,
 			// This ensures that another constructor new baz.Bar() doesn't conflict.  However, 
 			// we are only taking the final prefix and assuming that it is unique.
@@ -1146,7 +881,7 @@ define("esprimaJsContentAssist", [], function() {
 		case 'Identifier':
 			if (inRange(env.offset, node.range)) {
 				// We're finished compute all the proposals
-				env.createProposals(env.scope(node.extras.target));
+				env.shortcutVisit(env.scope(node.extras.target));
 			}
 			
 			name = node.name;
@@ -1228,18 +963,6 @@ define("esprimaJsContentAssist", [], function() {
 		} 
 	}
 	
-	function isMember(val, inArray) {
-		if (val === 'Global') {
-			return false;
-		}
-		for (var i = 0; i < inArray.length; i++) {
-			if (inArray[i] === val) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	/**
 	 * the prefix of a completion should not be included in the completion itself
 	 * must explicitly remove it
@@ -1248,16 +971,59 @@ define("esprimaJsContentAssist", [], function() {
 		return string.substring(prefix.length);
 	}
 	
+		/**
+	 * creates a human readable type name from the name given
+	 */
+	function createReadableType(typeName, env, useFunctionSig, depth) {
+		if (typeName.charAt(0) === "?") {
+			// a function
+			var nameEnd = typeName.lastIndexOf(":");
+			if (nameEnd === -1) {
+				nameEnd = typeName.length;
+			}
+			var funType = typeName.substring(1, nameEnd);
+			if (useFunctionSig) {
+				// convert into a function signature
+				var args = typeName.substring(nameEnd+1, typeName.length);
+				return "(" + args + ") -> " + createReadableType(funType, env, useFunctionSig, 1);
+			} else {
+				// use the return type
+				return createReadableType(funType, env, useFunctionSig, 0);
+			}
+		} else if (typeName.indexOf("gen~") === 0) {
+			// a generated object
+			// create a summary
+			var type = env.findType(typeName);
+			var res = "{ ";
+			for (var val in type) {
+				if (type.hasOwnProperty(val) && val !== "$$proto") {
+					if (res.length > 2) {
+						res += ", ";
+					}
+					var name;
+					// don't show inner objects
+					if (!depth) {
+						name = createReadableType(type[val], env, false, 1);
+					} else {
+						name = "{...}";
+					}
+					res += val + " : " + name;
+				}
+			}
+			return res + " }";
+		} else {
+			return typeName;
+		}
+	}
+
+	
 	/**
 	 * Creates the environment object that stores type information
 	 * Called differently depending on what job this content assistant is being called to do.
 	 */
-	function createEnvironment(buffer, uid, offset, indexer, completionKind, prefix) {
+	function createEnvironment(buffer, uid, offset, indexer) {
 		if (!offset) {
 			offset = buffer.length+1;
-		}
-		if (!prefix) {
-			prefix = "";
 		}
 		// prefix for generating local types
 		// need to add a unique id for each file so that types defined in dependencies don't clash with types
@@ -1271,32 +1037,17 @@ define("esprimaJsContentAssist", [], function() {
 			 * a map of all the types and their properties currently known 
 			 * when an indexer exists, local storage will be checked for extra type information
 			 */
-			_allTypes : new Types(),
+			_allTypes : new mTypes.Types(),
+			/** a counter used for creating unique names for object literals and scopes */
+			_typeCount : 0,
 			/** if this is an AMD module, then the value of this property is the 'define' call expression */
 			amdModule : null,	
 			/** if this is a wrapped commonjs module, then the value of this property is the 'define' call expression */
 			commonjsModule : null,	
-			/** a counter used for creating unique names for object literals and scopes */
-			_typeCount : 0,
-			/** 
-			 * "member" or "top" or null
-			 * if Member, completion occurs after a dotted member expression.  
-			 * if top, completion occurs as the start of a new expression.
-			 * if null, then this environment is not for completion, but for building a summary
-			 */
-			_completionKind : completionKind,
 			/** the indexer for thie content assist invocation.  Used to track down dependencies */
 			indexer: indexer,
-			/** an array of proposals generated */
-			proposals : [], 
 			/** the offset of content assist invocation */
 			offset : offset, 
-			/** 
-			 * the location of the start of the area that will be replaced 
-			 */
-			replaceStart : offset - prefix.length, 
-			/** the prefix of the invocation */
-			prefix : prefix, 
 			/** the entire contents being completed on */
 			contents : buffer,
 			newName: function() {
@@ -1358,7 +1109,7 @@ define("esprimaJsContentAssist", [], function() {
 			},
 			
 			/**
-			 * returns the type for the current scope
+			 * returns the type name for the current scope
 			 * if a target is passed in (optional), then use the
 			 * inferred type of the target instead (if it exists)
 			 */
@@ -1376,13 +1127,21 @@ define("esprimaJsContentAssist", [], function() {
 			 * if target is passed in then use the type corresponding to 
 			 * the target, otherwise use the current scope
 			 */
-			addVariable : function(name, target, type) {
-				this._allTypes[this.scope(target)][name] = type ? type : "Object";
+			addVariable : function(name, target, typeName) {
+				var type = this._allTypes[this.scope(target)];
+				// do not allow augmenting built in types
+				if (!type.$$isBuiltin) {
+					type[name] = typeName ? typeName : "Object";
+				}
 			},
 			
 			/** removes the variable from the current type */
 			removeVariable : function(name, target) {
-				delete this._allTypes[this.scope(target)][name];
+				// do not allow deleting properties of built in types
+				var type = this._allTypes[this.scope(target)];
+				if (!type.$$isBuiltin) {
+					delete [name];
+				}
 			},
 			
 			/** 
@@ -1397,16 +1156,24 @@ define("esprimaJsContentAssist", [], function() {
 				while (current) {
 					if (current[name]) {
 						// found it, just overwrite
-						current[name] = typeName;
+						if (!current.$$isBuiltin) {
+							// do not allow overwriting of built in types
+							current[name] = typeName;
+						}
 						found = true;
 						break;
 					} else {
 						current = this._allTypes[current.$$proto];
 					}
 				}
+				
 				if (!found) {
 					// not found, so just add to current scope
-					this._allTypes[targetType][name] = typeName;
+					// do not allow overwriting of built in types
+					var type = this._allTypes[targetType];
+					if (!type.$$isBuiltin) {
+						type[name] = typeName;
+					}
 				}
 				return typeName;
 			},
@@ -1472,126 +1239,83 @@ define("esprimaJsContentAssist", [], function() {
 				}
 			},
 			
-			createProposals : function(targetType) {
+			findType : function(typeName) {
+				return this._allTypes[typeName];
+			},
 			
-				if (!targetType) {
-					targetType = this.scope();
-				}
-				if (!this._completionKind) {
-					// not generating proposals.  just walking the file
-					throw targetType;
-				}
-				
-				var prop, propName, propType, proto, res, type = this._allTypes[targetType];
-				proto = type.$$proto;
-				
-				for (prop in type) {
-					if (type.hasOwnProperty(prop)) {
-						if (prop === "$$proto") {
-							continue;
-						}
-						if (!proto && prop.indexOf("$_$") === 0) {
-							// no prototype that means we must decode the property name
-							propName = prop.substring(3);
-						} else {
-							propName = prop;
-						}
-						if (propName === "this" && this._completionKind === "member") {
-							// don't show "this" proposals for non-top-level locations
-							// (eg- this.this is wrong)
-							continue;
-						}
-						if (propName.indexOf(this.prefix) === 0) {
-							propType = type[prop];
-							if (propType.charAt(0) === '?') {
-								// we have a function
-								res = calculateFunctionProposal(propName, 
-										propType, this.replaceStart - 1);
-								this.proposals.push({ 
-									proposal: removePrefix(this.prefix, res.completion), 
-									description: res.completion + " : " + this.createReadableType(propType) + " (esprima)", 
-									positions: res.positions, 
-									escapePosition: this.replaceStart + res.completion.length 
-								});
-							} else {
-								this.proposals.push({ 
-									proposal: removePrefix(this.prefix, propName),
-									description: propName + " : " + this.createReadableType(propType) + " (esprima)"
-								});
-							}
-						}
-					}
-				}
-				// walk up the prototype hierarchy
-				if (proto) {
-					this.createProposals(proto);
-				}
-				// We're done!
-				throw "done";
+			getAllTypes : function() {
+				return this._allTypes;
 			},
 			
 			/**
-			 * creates a human readable type name from the name given
+			 * call this function to end the visit
+			 * all visits end with calling this method
 			 */
-			createReadableType : function(typeName, showFunction, depth) {
-				if (typeName.charAt(0) === "?") {
-					// a function
-					var nameEnd = typeName.lastIndexOf(":");
-					if (nameEnd === -1) {
-						nameEnd = typeName.length;
-					}
-					var funType = typeName.substring(1, nameEnd);
-					if (showFunction) {
-						// convert into a function signature
-						var args = typeName.substring(nameEnd+1, typeName.length);
-						return "(" + args + ") -> " + this.createReadableType(funType, showFunction, 1);
-					} else {
-						// use the return type
-						return this.createReadableType(funType, showFunction, 0);
-					}
-				} else if (typeName.indexOf("gen~") === 0) {
-					// a generated object
-					// create a summary
-					var type = this._allTypes[typeName];
-					var res = "{ ";
-					for (var val in type) {
-						if (type.hasOwnProperty(val) && val !== "$$proto") {
-							if (res.length > 2) {
-								res += ", ";
-							}
-							var name;
-							// don't show inner objects
-							if (!depth) {
-								name = this.createReadableType(type[val], false, 1);
-							} else {
-								name = "{...}";
-							}
-							res += val + " : " + name;
-						}
-					}
-					return res + " }";
-				} else {
-					return typeName;
+			shortcutVisit : function(targetType) {
+				if (!targetType) {
+					targetType = this.scope();
 				}
+				throw targetType;
 			}
 		};
 	}
 	
-	function getBuiltInTypes(environment) {
-		var builtInTypes = [];
-		for (var prop in environment._allTypes) {
-			if (environment._allTypes.hasOwnProperty(prop)) {
-				builtInTypes.push(prop);
+	
+	function createProposals(targetTypeName, env, completionKind, prefix, replaceStart) {
+		var prop, propName, propType, proto, res, type = env.findType(targetTypeName),
+			proposals = [];
+		proto = type.$$proto;
+		
+		for (prop in type) {
+			if (type.hasOwnProperty(prop)) {
+				if (prop.charAt(0) === "$" && prop.charAt(1) === "$") {
+					// special property
+					continue;
+				}
+				if (!proto && prop.indexOf("$_$") === 0) {
+					// no prototype that means we must decode the property name
+					propName = prop.substring(3);
+				} else {
+					propName = prop;
+				}
+				if (propName === "this" && completionKind === "member") {
+					// don't show "this" proposals for non-top-level locations
+					// (eg- this.this is wrong)
+					continue;
+				}
+				if (propName.indexOf(prefix) === 0) {
+					propType = type[prop];
+					if (propType.charAt(0) === '?') {
+						// we have a function
+						res = calculateFunctionProposal(propName, 
+								propType, replaceStart - 1);
+						proposals.push({ 
+							proposal: removePrefix(prefix, res.completion), 
+							description: res.completion + " : " + createReadableType(propType, env) + " (esprima)", 
+							positions: res.positions, 
+							escapePosition: replaceStart + res.completion.length 
+						});
+					} else {
+						proposals.push({ 
+							proposal: removePrefix(prefix, propName),
+							description: propName + " : " + createReadableType(propType, env) + " (esprima)"
+						});
+					}
+				}
 			}
 		}
-		return builtInTypes;
+		// walk up the prototype hierarchy
+		if (proto) {
+			proposals = proposals.concat(createProposals(proto, env, completionKind, prefix, replaceStart));
+		}
+		return proposals;
 	}
 	
 	function findUnreachable(currentTypeName, allTypes, alreadySeen) {
 		var currentType = allTypes[currentTypeName];
 		if (currentType) {
 			for(var prop in currentType) {
-				if (currentType.hasOwnProperty(prop)) {
+				if (currentType.hasOwnProperty(prop) && prop.substring(0,2) !== '$$' ) {
 					var propType = currentType[prop];
 					while (propType.charAt(0) === '?') {
 						propType = extractReturnType(propType);					
@@ -1608,26 +1332,15 @@ define("esprimaJsContentAssist", [], function() {
 	/**
 	 * filters types from the environment that should not be exported
 	 */
-	function filterTypes(environment, builtInTypes, kind, moduleTypeName) {
-		var allTypes = environment._allTypes;
+	function filterTypes(environment, kind, moduleTypeName) {
+		var allTypes = environment.getAllTypes();
 		if (kind === "global") {
 			// for global dependencies must keep the global scope, but remove all builtin global variables
-			var global = allTypes.Global;
-			delete global["this"];
-			delete global.Date;
-			delete global.Math;
-			delete global.JSON;
-			delete global.$$proto;
+			allTypes.clearDefaultGlobal();
 		} else {
 			delete allTypes.Global;
 		}
-	
-		for (var i = 0; i < builtInTypes.length; i++) {
-			if (builtInTypes[i] !== "Global") {
-				delete allTypes[builtInTypes[i]];
-			}
-		}
-		
+
 		// recursively walk the type tree to find unreachable types and delete them, too
 		var reachable = { };
 		// if we have a function, then the function return type is reachable in the module, so add it
@@ -1665,13 +1378,15 @@ define("esprimaJsContentAssist", [], function() {
 			addJSLintGlobals(root, environment);
 			addIndexedGlobals(environment);
 			try {
-				visit(root, environment, proposalGenerator, proposalGeneratorPostOp);
+				mVisitor.visit(root, environment, inferencer, inferencerPostOp);
 			} catch (done) {
-				if (done !== "done") {
+				if (typeof done !== "string") {
 					// a real error
 					throw done;
 				}
+				return done;
 			}
+			throw new Error("The visit function should always end with a throwable");
 		},
 		
 		/**
@@ -1683,9 +1398,10 @@ define("esprimaJsContentAssist", [], function() {
 				// note that if selection has length > 0, then just ignore everything past the start
 				var completionKind = shouldVisit(root, offset, context.prefix, buffer);
 				if (completionKind) {
-					var environment = createEnvironment(buffer, "local", offset, this.indexer, completionKind, context.prefix);
-					this._doVisit(root, environment);
-					environment.proposals.sort(function(l,r) {
+					var environment = createEnvironment(buffer, "local", offset, this.indexer);
+					var target = this._doVisit(root, environment);
+					var proposals = createProposals(target, environment, completionKind, context.prefix, offset - context.prefix.length);
+					proposals.sort(function(l,r) {
 						if (l.description < r.description) {
 							return -1;
 						} else if (r.description < l.description) {
@@ -1694,10 +1410,10 @@ define("esprimaJsContentAssist", [], function() {
 							return 0;
 						}
 					});
-					return environment.proposals;
+					return proposals;
 				} else {
 					// invalid completion location
-					return {};
+					return [];
 				}
 			} catch (e) {
 				if (console && console.log) {
@@ -1715,49 +1431,41 @@ define("esprimaJsContentAssist", [], function() {
 			var toLookFor;
 			var root = parse(buffer);
 			var environment = createEnvironment(buffer, "local", offset, this.indexer);
+			var findIdentifier = function(node) {
+				if (node.type === "Identifier" && inRange(offset, node.range)) {
+					toLookFor = node;
+					// cut visit short
+					throw "done";
+				}
+				if (node.range[0] >= offset) {
+					// not at a valid hover location
+					throw "no hover";
+				}
+				return true;
+			};
+			
 			try {
-				var findIdentifier = function(node) {
-					if (node.type === "Identifier" && inRange(offset, node.range)) {
-						toLookFor = node;
-						// cut visit short
-						throw "done";
-					}
-					if (node.range[0] >= offset) {
-						// not at a valid hover location
-						throw "no hover";
-					}
-					return true;
-				};
-				
-				try {
-					visit(root, {}, findIdentifier);
-				} catch (e) {
-					if (e === "no hover") {
-						// not at a valid hover location
-						return null;
-					} else if (e === "done") {
-						// valid hover...continue
-					} else {
-						// a real exception
-						throw e;
-					}
-				}
-				if (!toLookFor) {
-					// no hover target found
+				mVisitor.visit(root, {}, findIdentifier);
+			} catch (e) {
+				if (e === "no hover") {
+					// not at a valid hover location
 					return null;
-				}
-				
-				this._doVisit(root, environment);
-			} catch (result) {
-				if (typeof result === "string") {
-					// success...lookup the name in the current scope
-					var maybeType = environment.lookupName(toLookFor.name, toLookFor.extras.target);
-					if (maybeType) {
-						return toLookFor.name + " :: " + environment.createReadableType(maybeType, true);
-					}
+				} else if (e === "done") {
+					// valid hover...continue
 				} else {
-					throw result;
+					// a real exception
+					throw e;
 				}
+			}
+			if (!toLookFor) {
+				// no hover target found
+				return null;
+			}
+			
+			this._doVisit(root, environment);
+			var maybeType = environment.lookupName(toLookFor.name, toLookFor.extras.target);
+			if (maybeType) {
+				return toLookFor.name + " :: " + createReadableType(maybeType, environment, true);
 			}
 			return null;
 		},
@@ -1769,20 +1477,14 @@ define("esprimaJsContentAssist", [], function() {
 		computeSummary: function(buffer, fileName) {
 			var root = parse(buffer);
 			var environment = createEnvironment(buffer, fileName);
-			// keep track of built-in types so they can be removed later
-			var builtInTypes = getBuiltInTypes(environment);
 			try {
 				this._doVisit(root, environment);
 			} catch (e) {
-				if (typeof e === "string") {
-					// not a problem, a string is thrown at the end of the visit no matter what
-				} else {
-					if (console && console.log) {
-						console.log(e.message);
-						console.log(e.stack);
-					}
-					throw (e);
+				if (console && console.log) {
+					console.log(e.message);
+					console.log(e.stack);
 				}
+				throw (e);
 			}
 				
 			var provided;
@@ -1803,11 +1505,11 @@ define("esprimaJsContentAssist", [], function() {
 				// we have already checked the correctness of this function
 				var exportsParam = environment.commonjsModule["arguments"][0].params[1];
 				modType = exportsParam.extras.inferredType;
-				provided = provided = environment._allTypes[modType];
+				provided = provided = environment.findType(modType);
 					
 			} else {
 				// assume a non-module
-				provided = environment._allTypes.Global;
+				provided = environment.findType("Global");
 				
 				if (provided.exports) {
 					// actually, commonjs
@@ -1820,21 +1522,21 @@ define("esprimaJsContentAssist", [], function() {
 			}
 			
 			// simplify the exported type
-			if (isMember(modType, builtInTypes) || modType.charAt(0) === '?') {
-				// this module provides a primitive type or a function
+			if (modType.charAt(0) === '?' || environment.findType(modType).$$isBuiltin) {
+				// this module provides a built in type or a function
 				provided = modType;
 			} else {
 				// this module provides a composite type
-				provided = environment._allTypes[modType];
+				provided = environment.findType(modType);
 			}
 
 
 			// now filter the builtins since they are always available
-			filterTypes(environment, builtInTypes, kind, modType);
+			filterTypes(environment, kind, modType);
 			
 			return {
 				provided : provided,
-				types : environment._allTypes,
+				types : environment.getAllTypes(),
 				kind : kind
 			};
 		}

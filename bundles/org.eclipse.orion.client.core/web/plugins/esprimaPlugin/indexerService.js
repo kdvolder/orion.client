@@ -18,7 +18,7 @@
  *   retrieveSummaries(file)  grabs the summaries for files that depend on the file file passed in
  *   performIndex(file)   calculates the dependencies of the file and updates the summaries of all of these dependencies
  */
-define("indexerService", ["esprimaJsContentAssist"], function(mEsprimaContentAssist) {
+define("plugins/esprimaPlugin/indexerService", ["plugins/esprimaPlugin/esprimaJsContentAssist"], function(mEsprimaContentAssist) {
 	// for each file, there are 4 things put in local storage:
 	// <file-name>-deps : dependency list for file
 	// <file-name>-deps-ts : timestamp for dependency list  (not sure if this is necessary)

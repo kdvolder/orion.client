@@ -8,7 +8,7 @@
 <script type="text/javascript" src="esprima.js"></script>
 <script>
 /*global eclipse require */
-require(["esprimaJsContentAssist", "indexerService"], function(esprimaContentAssistPlugin, mIndexerService) {
+require(["plugins/esprimaPlugin/esprimaJsContentAssist", "plugins/esprimaPlugin/indexerService"], function(esprimaContentAssistPlugin, mIndexerService) {
 
 	var provider = new eclipse.PluginProvider();
 	var indexer = new mIndexerService.Indexer();

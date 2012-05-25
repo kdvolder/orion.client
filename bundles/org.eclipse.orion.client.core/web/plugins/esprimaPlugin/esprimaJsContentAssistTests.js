@@ -11,7 +11,7 @@
  *******************************************************************************/
 
 /*global define esprima console setTimeout esprimaContentAssistant*/
-define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, assert) {
+define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, assert) {
 	
 	//////////////////////////////////////////////////////////
 	// helpers
@@ -150,11 +150,23 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test Empty File Content Assist"] = function() {
 		var results = computeContentAssist("");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -166,11 +178,23 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test Single Var Content Assist"] = function() {
 		var results = computeContentAssist("var zzz = 9;\n");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -183,11 +207,23 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test Single Var Content Assist 2"] = function() {
 		var results = computeContentAssist("var zzz;\n");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -200,11 +236,23 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test multi var content assist 1"] = function() {
 		var results = computeContentAssist("var zzz;\nvar xxx, yyy;\n");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -226,12 +274,24 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test single function content assist"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\n");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -243,13 +303,25 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test multi function content assist 1"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {}\n");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["other(a, b, c)", "other(a, b, c) : Object (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -283,17 +355,29 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test in function 1"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {/**/}", "");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
 			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
 			["b", "b : {  } (esprima)"],
 			["c", "c : {  } (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["other(a, b, c)", "other(a, b, c) : Object (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -305,17 +389,29 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test in function 2"] = function() {
 		var results = computeContentAssist("function fun(a, b, c) {}\nfunction other(a, b, c) {\n/**/nuthin}", "");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
 			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
 			["b", "b : {  } (esprima)"],
 			["c", "c : {  } (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["other(a, b, c)", "other(a, b, c) : Object (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -371,16 +467,28 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n}\n}");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
 			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
 			["b", "b : {  } (esprima)"],
 			["c", "c : {  } (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -396,17 +504,29 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		"function other(aa, ab, ac) {\n"+
 		"var abb;\na\nvar aaa\n} /**/\n}");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
 			["a", "a : {  } (esprima)"],
 			["arguments", "arguments : Arguments (esprima)"],
 			["b", "b : {  } (esprima)"],
 			["c", "c : {  } (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["fun(a, b, c)", "fun(a, b, c) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
 			["other(aa, ab, ac)", "other(aa, ab, ac) : Object (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -442,6 +562,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test Simple Date inferencing"] = function() {
 		var results = computeContentAssist("new Date().setD", "setD");
 		testProposals("setD", results, [
+			["setDate(date)", "setDate(date) : Number (esprima)"],
 			["setDay(dayOfWeek)", "setDay(dayOfWeek) : Number (esprima)"]
 		]);
 	};
@@ -589,7 +710,9 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 	tests["test catch clause 1"] = function() {
 		var results = computeContentAssist("try { } catch (eee) {e/**/  }", "e");
 		testProposals("e", results, [
-			["eee", "eee : Error (esprima)"]
+			["eee", "eee : Error (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"]
 		]);
 	};
 	tests["test catch clause 2"] = function() {
@@ -784,11 +907,23 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(/**/)");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -803,11 +938,23 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(ttt, /**/)");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -822,11 +969,23 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssist(
 		"var ttt, uuu;\nttt(ttt, /**/, uuu)");
 		testProposals("", results, [
-			["Date()", "Date() : Date (esprima)"],
+			["Array([val])", "Array([val]) : Array (esprima)"],
+			["Boolean([val])", "Boolean([val]) : Boolean (esprima)"],
+			["Date([val])", "Date([val]) : Date (esprima)"],
+			["Error([err])", "Error([err]) : Error (esprima)"],
+			["Function()", "Function() : Function (esprima)"],
 			["JSON", "JSON : JSON (esprima)"],
 			["Math", "Math : Math (esprima)"],
+			["Number([val])", "Number([val]) : Number (esprima)"],
+			["Object([val])", "Object([val]) : Object (esprima)"],
+			["RegExp([val])", "RegExp([val]) : RegExp (esprima)"],
+			["decodeURI(uri)", "decodeURI(uri) : String (esprima)"],
+			["encodeURI(uri)", "encodeURI(uri) : String (esprima)"],
+			["eval(toEval)", "eval(toEval) : Object (esprima)"],
 			["hasOwnProperty(property)", "hasOwnProperty(property) : boolean (esprima)"],
 			["isPrototypeOf(object)", "isPrototypeOf(object) : boolean (esprima)"],
+			["parseFloat(str, [radix])", "parseFloat(str, [radix]) : Number (esprima)"],
+			["parseInt(str, [radix])", "parseInt(str, [radix]) : Number (esprima)"],
 			["propertyIsEnumerable(property)", "propertyIsEnumerable(property) : boolean (esprima)"],
 			["prototype", "prototype : Object (esprima)"],
 			["this", "this : Global (esprima)"],
@@ -931,7 +1090,7 @@ define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, as
 		var results = computeContentAssist(
 		"var uuu = {	flart : function (a,b) { } };\nhhh = uuu.flart;\nhhh.app", "app");
 		testProposals("app", results, [
-			["apply(func, [args])", "apply(func, [args]) : Object (esprima)"]
+			["apply(func, [argArray])", "apply(func, [argArray]) : Object (esprima)"]
 		]);
 	};
 	

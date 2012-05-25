@@ -12,7 +12,7 @@
 
 // tests for javascript content assist where dependencies are provided
 /*global define esprima console setTimeout esprimaContentAssistant*/
-define(["./esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, assert) {
+define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], function(mEsprimaPlugin, assert) {
 	
 	//////////////////////////////////////////////////////////
 	// helpers

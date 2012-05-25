@@ -11,7 +11,7 @@
  *******************************************************************************/
 
 /*global define esprima console setTimeout esprimaContentAssistant*/
-define(["./esprimaJsContentAssist", "./indexerService", "orion/assert"], function(mEsprimaPlugin, mIndexerServicem, assert) {
+define(["plugins/esprimaPlugin/esprimaJsContentAssist", "plugins/esprimaPlugin/indexerService", "orion/assert"], function(mEsprimaPlugin, mIndexerServicem, assert) {
 	//////////////////////////////////////////////////////////
 	// helpers
 	//////////////////////////////////////////////////////////
