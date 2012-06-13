@@ -10,7 +10,7 @@
  *     Andrew Eisenberg (vmware) - implemented visitor pattern
  *******************************************************************************/
 
-/*global define require console localStorage FileReader window XMLHttpRequest ActiveXObject */
+/*global define require console localStorage FileReader window XMLHttpRequest ActiveXObject setTimeout */
 
 /**
  * this module defines the indexing service
@@ -174,7 +174,36 @@ define("plugins/esprimaPlugin/indexerService", ["plugins/esprimaPlugin/esprimaJs
 						summary.name = dep.name;
 						summary.kind = dep.kind;
 						return summary;
+					} else {
+						// dependency exists, but cannot be resolved
+						return null;
 					}
+				}
+			}
+			return null;
+		};
+		
+		/**
+		 * looks for a dependency with the given module name
+		 * returns the path to that dependency
+		 */
+		this.hasDependency = function(name) {
+			if (!indexTargetFile) {
+				return null;
+			}
+			// check local storage for file
+			var deps = localStorage[indexTargetFile + "-deps"];
+			if (!deps) {
+				return null;
+			}
+			deps = JSON.parse(deps);
+			
+			// look through the dependencies until the name is found
+			for (var i = 0; i < deps.length; i++) {
+				var dep = deps[i];
+				if (dep.name === name) {
+					// dependency exists...path will be null if not resolved
+					return dep.path;
 				}
 			}
 			return null;
@@ -186,8 +215,10 @@ define("plugins/esprimaPlugin/indexerService", ["plugins/esprimaPlugin/esprimaJs
 		 *    summary = { provided : { name -> typeName }, types : { typeName -> { name -> typeName }, timestamp : long }
 		 * 
 		 * Performs the index asynchronously
+		 * 
+		 * optional callback is called after dependencies are retrieved
 		 */
-		this.performIndex = function(fileName) {
+		this.performIndex = function(fileName, callback) {
 			indexTargetFile = fileName;
 			
 			// asynchronously ask server for dependencies of fileName
@@ -198,9 +229,13 @@ define("plugins/esprimaPlugin/indexerService", ["plugins/esprimaPlugin/esprimaJs
 				// for each dependency, check local storage to see if still valid
 				var needsUpdating = checkCache(deps);
 				
+				
 				// ask server for contents of each stale dependency
 				for (var i = 0; i < needsUpdating.length; i++) {
 					createSummary(needsUpdating[i]);
+				}
+				if (callback) {
+					callback(deps);
 				}
 			});
 			

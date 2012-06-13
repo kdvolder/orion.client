@@ -10,10 +10,33 @@
  *     Andrew Eisenberg (vmware) - initial API and implementation
  *******************************************************************************/
 
-/*global define */
+/*global define esprima*/
 define("plugins/esprimaPlugin/esprimaVisitor", [], function() {
 
+
+
 	return {
+	
+		/**
+		 * parses the contents with options that are appropriate for inferencing
+		 */
+		parse : function(contents, extraOptions) {
+			if (!extraOptions) {
+				extraOptions = {};
+			}
+			if (!extraOptions.range) {
+				extraOptions.range = true;
+			}
+			if (!extraOptions.tolerant) {
+				extraOptions.tolerant = true;
+			}
+			if (!extraOptions.comment) {
+				extraOptions.comment = true;
+			}
+			var parsedProgram = esprima.parse(contents, extraOptions);
+			return parsedProgram;
+		},
+
 		/**
 		 * Generic AST visitor.  Visits all children in source order, if they have a range property.  Children with
 		 * no range property are visited first.

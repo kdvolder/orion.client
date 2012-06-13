@@ -12,7 +12,7 @@
  *******************************************************************************/
 
 /*global define require eclipse esprima window console inTest localStorage*/
-define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/esprimaVisitor", "plugins/esprimaPlugin/types"], function(mVisitor, mTypes) {
+define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/esprimaVisitor", "plugins/esprimaPlugin/types", "plugins/esprimaPlugin/esprima"], function(mVisitor, mTypes) {
 
 	/**
 	 * finds the right-most segment of a dotted MemberExpression
@@ -344,8 +344,9 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 	 */
 	function checkForAMD(node) {
 		var body = node.body;
-		if (body && body.length >= 1) {
+		if (body && body.length >= 1 && body[0]) {
 			if (body[0].type === "ExpressionStatement" && 
+				body[9].expression &&
 				body[0].expression.type === "CallExpression" && 
 				body[0].expression.callee.name === "define") {
 				
@@ -399,7 +400,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 	 */
 	function extractRequireModule(call, env) {
 		if (!env.indexer) {
-			return null;	
+			return;	
 		}
 		if (call.type === "CallExpression" && call.callee.type === "Identifier" && 
 			call.callee.name === "require" && call["arguments"].length === 1) {
@@ -424,7 +425,8 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 				}
 			}
 		}
-		return null;
+		
+		return;
 	}
 	
 	/**
@@ -916,14 +918,6 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 		}
 	}
 
-	function parse(contents) {
-		var parsedProgram = esprima.parse(contents, {
-			range: true,
-			tolerant: true,
-			comment: true
-		});
-		return parsedProgram;
-	}
 	
 	/**
 	 * add variable names from inside a jslint global directive
@@ -1393,7 +1387,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 		 */
 		computeProposals: function(buffer, offset, context) {
 			try {
-				var root = parse(buffer);
+				var root = mVisitor.parse(buffer);
 				// note that if selection has length > 0, then just ignore everything past the start
 				var completionKind = shouldVisit(root, offset, context.prefix, buffer);
 				if (completionKind) {
@@ -1428,7 +1422,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 		 */
 		computeHover: function(buffer, offset) {
 			var toLookFor;
-			var root = parse(buffer);
+			var root = mVisitor.parse(buffer);
 			var environment = createEnvironment(buffer, "local", offset, this.indexer);
 			var findIdentifier = function(node) {
 				if (node.type === "Identifier" && inRange(offset, node.range)) {
@@ -1474,7 +1468,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 		 * in another file
 		 */
 		computeSummary: function(buffer, fileName) {
-			var root = parse(buffer);
+			var root = mVisitor.parse(buffer);
 			var environment = createEnvironment(buffer, fileName);
 			try {
 				this._doVisit(root, environment);
