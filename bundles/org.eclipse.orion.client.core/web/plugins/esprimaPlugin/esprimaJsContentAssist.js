@@ -399,7 +399,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 	 */
 	function extractRequireModule(call, env) {
 		if (!env.indexer) {
-			return;	
+			return null;	
 		}
 		if (call.type === "CallExpression" && call.callee.type === "Identifier" && 
 			call.callee.name === "require" && call["arguments"].length === 1) {
@@ -424,8 +424,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 				}
 			}
 		}
-		
-		return;
+		return null;
 	}
 	
 	/**

@@ -69,8 +69,6 @@ define("plugins/esprimaPlugin/types", [], function() {
 			for (var i = 0; i < initialGlobalProperties.length; i++) {
 				delete this.Global[initialGlobalProperties[i]];
 			}
-
-		
 		};
 	};
 
