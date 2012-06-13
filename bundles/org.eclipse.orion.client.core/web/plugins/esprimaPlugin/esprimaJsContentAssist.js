@@ -346,7 +346,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 		var body = node.body;
 		if (body && body.length >= 1 && body[0]) {
 			if (body[0].type === "ExpressionStatement" && 
-				body[9].expression &&
+				body[0].expression &&
 				body[0].expression.type === "CallExpression" && 
 				body[0].expression.callee.name === "define") {
 				
