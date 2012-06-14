@@ -16,14 +16,14 @@
 /**
  * @namespace The global container for orion APIs.
  */ 
-define(['i18n!orion/edit/nls/messages', 'dojo', 'orion/commands', 'orion/globalCommands', 'orion/extensionCommands', 'orion/contentTypes', 'orion/textview/keyBinding', 'orion/textview/undoStack'], 
-	function(messages, dojo, mCommands, mGlobalCommands, mExtensionCommands, mContentTypes, mKeyBinding, mUndoStack) {
+define(['i18n!orion/edit/nls/messages', 'dojo', 'orion/commands', 'orion/globalCommands', 'orion/extensionCommands', 'orion/contentTypes', 'orion/textview/keyBinding', 'orion/textview/undoStack', 'orion/searchUtils'], 
+	function(messages, dojo, mCommands, mGlobalCommands, mExtensionCommands, mContentTypes, mKeyBinding, mUndoStack, mSearchUtils) {
 
 var exports = {};
 
-var contentTypesCache = null;;
+var contentTypesCache = null;
 exports.EditorCommandFactory = (function() {
-	function EditorCommandFactory (serviceRegistry, commandService, fileClient, inputManager, toolbarId, isReadOnly, navToolbarId) {
+	function EditorCommandFactory (serviceRegistry, commandService, fileClient, inputManager, toolbarId, isReadOnly, navToolbarId, searcher) {
 		this.serviceRegistry = serviceRegistry;
 		this.commandService = commandService;
 		this.fileClient = fileClient;
@@ -31,6 +31,7 @@ exports.EditorCommandFactory = (function() {
 		this.toolbarId = toolbarId;
 		this.pageNavId = navToolbarId;
 		this.isReadOnly = isReadOnly;
+		this._searcher = searcher;
 	}
 	EditorCommandFactory.prototype = {
 		/**
@@ -63,11 +64,11 @@ exports.EditorCommandFactory = (function() {
 	
 			// create commands common to all editors
 			if (!this.isReadOnly) {
-				editor.getTextView().setKeyBinding(new mKeyBinding.KeyBinding('s', true), messages["Save"]); //$NON-NLS-0$
+				editor.getTextView().setKeyBinding(new mKeyBinding.KeyBinding('s', true), "save"); //$NON-NLS-1$ //$NON-NLS-0$
 				//If we are introducing other file system to provide save action, we need to define an onSave function in the input manager
 				//That way the file system knows how to implement their save mechanism
 				if(this.inputManager.onSave){
-					editor.getTextView().setAction(messages['Save'], dojo.hitch(this, function () {
+					editor.getTextView().setAction("save", dojo.hitch(this, function () { //$NON-NLS-0$
 						var contents = editor.getText();
 						this.inputManager.onSave(this.inputManager.getInput(), contents,
 												dojo.hitch(this, function(result) {
@@ -81,9 +82,9 @@ exports.EditorCommandFactory = (function() {
 												})
 						);
 						return true;
-					}));
+					}), {name: messages['Save']});
 				} else {
-					editor.getTextView().setAction(messages['Save'], dojo.hitch(this, function () {
+					editor.getTextView().setAction("save", dojo.hitch(this, function () { //$NON-NLS-0$
 						var contents = editor.getText();
 						var etag = this.inputManager.getFileMetadata().ETag;
 						var args = { "ETag" : etag }; //$NON-NLS-0$
@@ -119,14 +120,14 @@ exports.EditorCommandFactory = (function() {
 								})
 						);
 						return true;
-					}));
+					}), {name: messages['Save']});
 				}
 				var saveCommand = new mCommands.Command({
 					name: messages['Save'],
 					tooltip: messages["Save this file"],
 					id: "orion.save", //$NON-NLS-0$
 					callback: function(data) {
-						data.items.getTextView().invokeAction(messages['Save']);
+						data.items.getTextView().invokeAction("save"); //$NON-NLS-0$
 					}});
 				this.commandService.addCommand(saveCommand);
 				this.commandService.registerCommandContribution(this.toolbarId, "orion.save", 1, null, false, new mCommands.CommandKeyBinding('s', true)); //$NON-NLS-1$ //$NON-NLS-0$
@@ -166,7 +167,69 @@ exports.EditorCommandFactory = (function() {
 				editor.getTextView().setAction("gotoLine", dojo.hitch(this, function () { //$NON-NLS-0$
 					this.commandService.runCommand("orion.gotoLine"); //$NON-NLS-0$
 					return true;
-				}));
+				}), gotoLineCommand);
+
+				// find&&replace commands (find)
+				var findParameter = new mCommands.ParametersDescription([new mCommands.CommandParameter('find', 'text', 'Find:')], {clientCollect: true}, //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+																		function() {
+																			var selection = editor.getSelection();
+																			var searchString = "";
+																			if (selection.end > selection.start) {
+																				var model = editor.getModel();
+																				searchString = model.getText(selection.start, selection.end);
+																			}
+																			return [new mCommands.CommandParameter('find', 'text', 'Find:', searchString)]; //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+																		});
+				var that = this;
+				var findCommand =  new mCommands.Command({
+					name: "Find",
+					tooltip: "Find",
+					id: "orion.editor.find", //$NON-NLS-0$
+					parameters: findParameter,
+					callback: function(data) {
+						if (that._searcher) {
+							var searchString = "";
+							var parsedParam = null;
+							var selection = editor.getSelection();
+							if (selection.end > selection.start) {//If there is selection from editor, we want to use it as the default keyword
+								var model = editor.getModel();
+								searchString = model.getText(selection.start, selection.end);
+								fromSelection = true;
+							} else {//If there is no selection from editor, we want to parse the parameter from URL binding
+								if (data.parameters && data.parameters.valueFor('find')) { //$NON-NLS-0$
+									var findParam = data.parameters.valueFor('find');
+									var parsedParam = mSearchUtils.parseFindURLBinding(findParam);
+									searchString = parsedParam.searchStr;
+								}
+							}
+							if(parsedParam){
+								that._searcher.setOptions({useRegExp: parsedParam.useRegExp});
+								if(parsedParam.lineNumber){
+									var offset = editor.getModel().getLineStart(parsedParam.lineNumber-1);
+									editor.moveSelection(offset, offset, function(){
+										that._searcher.buildToolBar(searchString, parsedParam ? parsedParam.replaceStr : null);
+										that._searcher.findNext(true);
+										}, 
+									focus);
+								} else {
+									that._searcher.buildToolBar(searchString, parsedParam ? parsedParam.replaceStr : null);
+									that._searcher.findNext(true);
+								}
+							} else {
+								that._searcher.buildToolBar(searchString);
+							}
+							return true;
+						}
+						return false;
+					}});
+				this.commandService.addCommand(findCommand);
+				this.commandService.registerCommandContribution(this.pageNavId, "orion.editor.find", 2, null, true, new mCommands.CommandKeyBinding('f', true), new mCommands.URLBinding("find", "find")); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+				// override the editor binding 
+				editor.getTextView().setKeyBinding(new mKeyBinding.KeyBinding('f', true), "find"); //$NON-NLS-1$ //$NON-NLS-0$
+				editor.getTextView().setAction("find", dojo.hitch(this, function () { //$NON-NLS-0$
+					this.commandService.runCommand("orion.editor.find"); //$NON-NLS-0$
+					return true;
+				}), findCommand);
 
 				// add the commands generated by plug-ins who implement the "orion.edit.command" extension.
 		
@@ -229,6 +292,7 @@ exports.EditorCommandFactory = (function() {
 					return new mCommands.Command(options);
 				};
 				dojo.when(getContentTypes(this.serviceRegistry), dojo.hitch(this, function() {
+					var deferreds = [];
 					for (var i=0; i<actionReferences.length; i++) {
 						var serviceReference = actionReferences[i];
 						var service = this.serviceRegistry.getService(actionReferences[i]);
@@ -238,25 +302,31 @@ exports.EditorCommandFactory = (function() {
 							info[propertyNames[j]] = actionReferences[i].getProperty(propertyNames[j]);
 						}
 						info.forceSingleItem = true;  // for compatibility with mExtensionCommands._createCommandOptions
-						var command = makeCommand(info, service, 
-							mExtensionCommands._createCommandOptions(info, serviceReference, this.serviceRegistry, contentTypesCache, false, function(items) {
-								// items is the editor and we care about the file metadata for validation
-								return input.getFileMetadata();
-							}));
-						this.commandService.addCommand(command);
-						this.commandService.registerCommandContribution(this.toolbarId, command.id, 100+i);
-						if (info.key) {
-							// add it to the editor as a keybinding
-							var textView = editor.getTextView();
-							textView.setKeyBinding(createKeyBinding(info.key), command.id);
-							textView.setAction(command.id, command.callback);
-						}				
+						
+						var deferred = mExtensionCommands._createCommandOptions(info, serviceReference, this.serviceRegistry, contentTypesCache, false, function(items) {
+							// items is the editor and we care about the file metadata for validation
+							return input.getFileMetadata();
+						});
+						deferreds.push(deferred);	
+						deferred.then(dojo.hitch(this, function(commandOptions){
+							var command = makeCommand(info, service, commandOptions);
+							this.commandService.addCommand(command);
+							this.commandService.registerCommandContribution(this.toolbarId, command.id, 100+i);
+							if (info.key) {
+								// add it to the editor as a keybinding
+								var textView = editor.getTextView();
+								textView.setKeyBinding(createKeyBinding(info.key), command.id);
+								textView.setAction(command.id, command.callback, command);
+							}				
+						}));
 					}
-					// In the editor, we generate page level commands to the banner.  Don't bother if we don't know the input
-					// metadata, because we'll generate again once we know.
-					if (input.getFileMetadata()) {
-						mGlobalCommands.generateDomCommandsInBanner(this.commandService, editor);
-					}
+					new dojo.DeferredList(deferreds).addBoth(dojo.hitch(this, function(){
+						// In the editor, we generate page level commands to the banner.  Don't bother if we don't know the input
+						// metadata, because we'll generate again once we know.
+						if (input.getFileMetadata()) {
+							mGlobalCommands.generateDomCommandsInBanner(this.commandService, editor);
+						}
+					}));
 				}));
 			}
 		}
@@ -273,34 +343,33 @@ exports.UndoCommandFactory = (function() {
 	UndoCommandFactory.prototype = {
 		createUndoStack: function(editor) {
 			var undoStack =  new mUndoStack.UndoStack(editor.getTextView(), 200);
-			editor.getTextView().setKeyBinding(new mKeyBinding.KeyBinding('z', true), messages["Undo"]); //$NON-NLS-0$
-			editor.getTextView().setAction(messages['Undo'], function() {
-				undoStack.undo();
-				return true;
-			});
 			var undoCommand = new mCommands.Command({
 				name: messages['Undo'],
 				id: "orion.undo", //$NON-NLS-0$
 				callback: function(data) {
-					data.items.getTextView().invokeAction(messages['Undo']);
+					data.items.getTextView().invokeAction("undo");
 				}});
+			editor.getTextView().setKeyBinding(new mKeyBinding.KeyBinding('z', true), "undo"); //$NON-NLS-1$ //$NON-NLS-0$
+			editor.getTextView().setAction("undo", function() { //$NON-NLS-0$
+				undoStack.undo();
+				return true;
+			}, undoCommand);
 			this.commandService.addCommand(undoCommand);
 			
 			var isMac = navigator.platform.indexOf("Mac") !== -1; //$NON-NLS-0$
 			var binding = isMac ? new mKeyBinding.KeyBinding('z', true, true) : new mKeyBinding.KeyBinding('y', true); //$NON-NLS-1$ //$NON-NLS-0$
-			editor.getTextView().setKeyBinding(binding, messages["Redo"]);
-			
-			editor.getTextView().setAction(messages['Redo'], function() {
-				undoStack.redo();
-				return true;
-			});
-	
 			var redoCommand = new mCommands.Command({
 				name: messages['Redo'],
 				id: "orion.redo", //$NON-NLS-0$
 				callback: function(data) {
-					data.items.getTextView().invokeAction(messages['Redo']);
+					data.items.getTextView().invokeAction("redo"); //$NON-NLS-0$
 				}});
+			editor.getTextView().setKeyBinding(binding, "redo"); //$NON-NLS-0$
+			editor.getTextView().setAction("redo", function() { //$NON-NLS-0$
+				undoStack.redo();
+				return true;
+			}, redoCommand);
+	
 			this.commandService.addCommand(redoCommand);
 	
 			this.commandService.registerCommandContribution(this.toolbarId, "orion.undo", 400, null, true, new mCommands.CommandKeyBinding('z', true)); //$NON-NLS-1$ //$NON-NLS-0$

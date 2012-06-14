@@ -87,13 +87,46 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 	/**
 	 * Override the dijit MenuItem so that the inherited click behavior is not used.
 	 * This is done when the command is defined with a link, so that the normal browser
-	 * link behavior (and interpretations of various mouse clicks) is used.
+	 * link behavior (and interpretations of various mouse clicks) is used.  We also style
+	 * link specially (padding, etc.) to help reduce the difference in perceived
+	 * responsive area (the menu item) with the actual area (the link)
 	 * 
 	 * See https://bugs.eclipse.org/bugs/show_bug.cgi?id=350584
+	 * See https://bugs.eclipse.org/bugs/show_bug.cgi?id=371265
 	 */
 	var CommandMenuItem = dojo.declare(dijit.MenuItem, {
+		constructor: function() {
+			var options = arguments[0] || {};
+			options.onKeyDown = dojo.hitch(this, function(evt) {
+				if (evt.keyCode === dojo.keys.ENTER || evt.keyCode === dojo.keys.SPACE) {
+					if(this._anchorLocation) { 
+						if(evt.ctrlKey) {
+							window.open(this._anchorLocation);
+						} else {
+							window.location=this._anchorLocation;
+						}
+					}
+				}
+			});
+			this.inherited(arguments || [options]);
+		},
+	
+		// if it has a link and the anchor is already in the dom, style it with some padding.
+		postCreate: function() {
+			var anchor = dojo.query("a", this.domNode)[0]; //$NON-NLS-0$
+			if (anchor) {
+				dojo.addClass(anchor, "commandMenuItemAnchor"); //$NON-NLS-0$
+				this._anchorLocation = anchor.href;
+			}
+		},
+		
+		setLink: function(href, name) {
+			this.set("label", "<a class='commandMenuItemAnchor' href='"+href+"'>"+name+"</a>"); //$NON-NLS-0$ //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+			this._anchorLocation = href;
+		},
+		
 		_onClick: function(evt) {
-			if (!this.hrefCallback) {
+			if (!this.hasLink) {
 				this.inherited(arguments);
 			}
 		}
@@ -440,8 +473,14 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 							onBlur: function() {dijit.popup.close(tooltipDialog);}
 						});		
 						var parameterArea = dojo.create("div"); //$NON-NLS-0$
+						var originalFocusNode = window.document.activeElement;
 						var focusNode = this._parameterCollector.getFillFunction(commandInvocation, function() {
-							dijit.popup.close(tooltipDialog);})(parameterArea);
+							dijit.popup.close(tooltipDialog);
+							tooltipDialog.destroyRecursive();
+							if (originalFocusNode) {
+								originalFocusNode.focus();
+							}
+						})(parameterArea);
 						tooltipDialog.set("content", parameterArea); //$NON-NLS-0$
 						var menu = dijit.byId(commandInvocation.domParent.id);
 						var pos;
@@ -494,10 +533,32 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 		 * @param targetNode {DOMElement} the dom node where the key bindings should be shown.
 		 */
 		showKeyBindings: function(targetNode) {
-			for (var binding in this._activeBindings) {
-				if (this._activeBindings[binding] && this._activeBindings[binding].keyBinding && this._activeBindings[binding].command) {
-					dojo.place("<span role='listitem'>"+mUtil.getUserKeyString(this._activeBindings[binding].keyBinding)+" = "+this._activeBindings[binding].command.name+"<br></span>", targetNode, "last"); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+			var scopes = {};
+			var bindingString, binding;
+			for (var aBinding in this._activeBindings) {
+				binding = this._activeBindings[aBinding];
+				if (binding && binding.keyBinding && binding.command) {
+					// skip scopes and process at end
+					if (binding.keyBinding.scopeName) {
+						if (!scopes[binding.keyBinding.scopeName]) {
+							scopes[binding.keyBinding.scopeName] = [];
+						}
+						scopes[binding.keyBinding.scopeName].push(binding);
+					} else {
+						bindingString = mUtil.getUserKeyString(binding.keyBinding);
+						dojo.place("<span role='listitem'>"+bindingString+" = "+binding.command.name+"<br></span>", targetNode, "last"); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+					}
 				}
+			}
+			for (var scopedBinding in scopes) {
+				if (scopes[scopedBinding].length && scopes[scopedBinding].length > 0) {
+					dojo.place("<h2>"+scopedBinding+"</h2>", targetNode, "last"); //$NON-NLS-1$ //$NON-NLS-0$ //$NON-NLS-3$ 
+					for (var i=0; i<scopes[scopedBinding].length; i++) {
+						binding = scopes[scopedBinding][i];
+						bindingString = mUtil.getUserKeyString(binding.keyBinding);
+						dojo.place("<span role='listitem'>"+bindingString+" = "+binding.command.name+"<br></span>", targetNode, "last"); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+					}
+				}	
 			}
 		},
 		
@@ -576,7 +637,7 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 			if (!this._contributionsByScopeId[scopeId]) {
 				this._contributionsByScopeId[scopeId] = {};
 			}
-			this._contributionsByScopeId.localSelectionService = selectionService;
+			this._contributionsByScopeId[scopeId].localSelectionService = selectionService;
 		},
 		
 		/**
@@ -698,6 +759,27 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 			}
 		},
 		
+		/**
+		 * Destroy all DOM nodes and any other resources used by rendered commands.
+		 * This call does not remove the commands from the command registry.  Clients typically call this
+		 * function to empty a command area when a client wants to render the commands again due to some 
+		 * change in state.  
+		 * @param {String|DOMElement} parent The id or DOM node that should be emptied.
+		 */
+		destroy: function(parent) {
+			if (typeof(parent) === "string") { //$NON-NLS-0$
+				parent = dojo.byId(parent);
+			}
+			if (!parent) { 
+				throw "no parent";  //$NON-NLS-0$
+			}
+			var widgets = dijit.findWidgets(parent);
+			dojo.forEach(widgets, function(w) {
+				w.destroyRecursive();
+			});
+			dojo.empty(parent);
+		},
+		
 		_render: function(contributions, parent, items, handler, renderType, userData, domNodeWrapperList) {
 			// sort the items
 			var sortedByPosition = contributions.sortedContributions;
@@ -770,6 +852,13 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 							newMenu.eclipseScopeId = parent.eclipseScopeId || parent.id;
 							// render the children asynchronously
 							window.setTimeout(dojo.hitch({contributions: childContributions, emptyGroupMessage: group.emptyGroupMessage}, function() {
+								// it is possible that commands were destroyed by the time we get here.  Bail out if
+								// the parent menu has been destroyed.  We are reaching into the widget to make this
+								// determination.
+								// See https://bugs.eclipse.org/bugs/show_bug.cgi?id=382394
+								if (newMenu._destroyed) {
+									return;
+								}
 								commandService._render(this.contributions, newMenu, items, handler, "menu", userData, domNodeWrapperList);  //$NON-NLS-0$
 								// special post-processing when we've created a menu in an image bar.  We want to get rid 
 								// of a trailing separator in the menu first, and then decide if our menu is necessary
@@ -787,16 +876,22 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 											//Show the empty group message.
 											var tooltipDialog = new dijit.TooltipDialog({
 												content: "<p>"+this.emptyGroupMessage+"</p>",
-												onMouseLeave: function() {dijit.popup.close(tooltipDialog);}
+												onMouseLeave: function() {
+													dijit.popup.close(tooltipDialog);
+													tooltipDialog.destroyRecursive();
+												}
 											});		
 											dijit.popup.open({popup: tooltipDialog, around: menuButton.domNode});
 											// in case the user's mouse never entered this popup and thus couldn't leave
-											window.setTimeout(function() {dijit.popup.close(tooltipDialog);}, 15000);
+											window.setTimeout(function() {
+												dijit.popup.close(tooltipDialog);
+												tooltipDialog.destroyRecursive();
+											}, 15000);
 										});
 										dojo.style(menuButton.domNode, "visibility", "visible"); //$NON-NLS-1$ //$NON-NLS-0$
 									} else {
 										if(domNodeWrapperList){
-											mUtil.removeNavGrid(domNodeWrapperList, menuButton.domNode);
+											mNavUtils.removeNavGrid(domNodeWrapperList, menuButton.domNode);
 										}
 										menuButton.destroyRecursive();
 									}
@@ -1144,20 +1239,7 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 				labelType: this.hrefCallback ? "html" : "text", //$NON-NLS-1$ //$NON-NLS-0$
 				label: this.name,
 				iconClass: this.imageClass,
-				hrefCallback: !!this.hrefCallback,
-				onKeyDown: function(evt) {
-					if(this.hrefCallback && (evt.keyCode === dojo.keys.ENTER || evt.keyCode === dojo.keys.SPACE)) {
-						var link = dojo.query("a", this.domNode)[0]; //$NON-NLS-0$
-						if(link) { 
-							if(evt.ctrlKey) {
-								window.open(link);
-							} else {
-								window.location=link;
-							}
-						}
-						return;
-					}
-				}
+				hasLink: !!this.hrefCallback
 			});
 			if (this.tooltip) {
 				new CommandTooltip({
@@ -1172,10 +1254,10 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 				if (loc) {
 					if (loc.then) {
 						loc.then(dojo.hitch(this, function(l) { 
-							menuitem.set("label", "<a href='"+l+"'>"+this.name+"</a>"); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+							menuitem.setLink(l, this.name); 
 						}));
 					} else if (loc) {
-						menuitem.set("label", "<a href='"+loc+"'>"+this.name+"</a>"); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+						menuitem.setLink(loc, this.name);
 					} else {
 						return;
 					}
@@ -1327,11 +1409,13 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 	 * @param {Boolean} mod4 the fourth modifier (usually Control on the Mac).
 	 * @param {String|DomElement} domScope the element for which this key binding is active.  If not specified, the key
 	 *       binding is considered to be global.
+	 * @param {String} scopeName the name of the scope to be used when listing key bindings.  Must be specified if a domScope
+	 *       is specified.
 	 * 
 	 * @name orion.commands.CommandKeyBinding
 	 * @class
 	 */
-	function CommandKeyBinding (keyCode, mod1, mod2, mod3, mod4, domScope) {
+	function CommandKeyBinding (keyCode, mod1, mod2, mod3, mod4, domScope, scopeName) {
 		if (typeof(keyCode) === "string") { //$NON-NLS-0$
 			this.keyCode = keyCode.toUpperCase().charCodeAt(0);
 		} else {
@@ -1343,8 +1427,10 @@ define(['i18n!orion/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'or
 		this.mod4 = mod4 !== undefined && mod4 !== null ? mod4 : false;
 		if (typeof(domScope) === "string") { //$NON-NLS-0$
 			this.domScope = dojo.byId(domScope);
+			this.scopeName = scopeName || domScope;
 		} else {
 			this.domScope = domScope;
+			this.scopeName = scopeName || domScope ? domScope.id : null;
 		}
 	}
 	CommandKeyBinding.prototype = /** @lends orion.commands.CommandKeyBinding.prototype */ {

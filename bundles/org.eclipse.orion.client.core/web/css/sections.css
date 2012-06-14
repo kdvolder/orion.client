@@ -32,9 +32,22 @@
 	text-align: right;
 }
 
+.sectionActions {
+	font-size: 8pt;
+	font-weight: normal;
+	margin-top: 2px;
+	vertical-align: baseline;
+}
+
+.sectionAnchor{
+	line-height:16px;
+	font-size:10pt;
+	color: #222;
+	font-weight:normal;
+}
+
 .displayTable {
-	padding-left:20px;
-	padding-right:20px;
+	padding: 10px 20px
 }
 
 .sectionWrapper {

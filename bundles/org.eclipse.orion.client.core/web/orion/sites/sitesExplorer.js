@@ -9,10 +9,10 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 /*global define document*/
-define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/section', 'orion/commands', 'orion/selection', 'orion/sites/siteUtils', 'orion/sites/siteClient', 
-		'orion/sites/siteCommands', 'orion/treetable'],
-		function(messages, dojo, Deferred, mSection, mCommands, mSelection, mSiteUtils, mSiteClient, mSiteCommands, treetable) {
-	var Section = mSection.Section;
+define(['i18n!orion/sites/nls/messages', 'orion/i18nUtil', 'dojo', 'orion/Deferred', 'orion/commands', 'orion/globalCommands',
+		'orion/selection', 'orion/sites/siteUtils', 'orion/sites/siteClient', 'orion/sites/siteCommands', 'orion/treetable'],
+		function(messages, i18nUtil, dojo, Deferred, mCommands, mGlobalCommands, mSelection, mSiteUtils, mSiteClient, mSiteCommands, treetable) {
+	var formatMessage = i18nUtil.formatMessage;
 	var TableTree = treetable.TableTree;
 	var SitesTree, ViewOnSiteTree;
 
@@ -27,6 +27,17 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 		this.parentNode = options.parent;
 		this.siteServiceRefs = this.registry.getServiceReferences('orion.site'); //$NON-NLS-0$
 	}
+	
+	var updatePageActions = function(registry, toolbarId, scopeId, item){
+		var toolbar = dojo.byId(toolbarId);
+		if (toolbar) {
+			dojo.empty(toolbar);
+		} else {
+			throw "could not find toolbar " + toolbarId; //$NON-NLS-0$
+		}
+		registry.getService("orion.page.command").renderCommands(scopeId, toolbar, item, null, "button");  //$NON-NLS-0$
+	};
+	
 	SiteServicesExplorer.prototype = /** @lends orion.sites.SiteServicesExplorer.prototype */ {
 		display: function() {
 			var serviceRegistry = this.registry;
@@ -38,23 +49,23 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 				var siteClient = new mSiteClient.SiteClient(serviceRegistry, siteService, siteServiceRef);
 				var sectionId = 'section' + i; //$NON-NLS-0$
 				var sitesNodeId = sectionId + 'siteNode'; //$NON-NLS-0$
-				var section = new Section(this.parentNode, {
-					explorer: this,
-					id: sectionId,
-					title: messages['Site Configurations on '] + siteServiceRef.getProperty('name'), //$NON-NLS-1$
-					content: '<div id="' + sitesNodeId + '" class="plugin-settings-list"></div>', //$NON-NLS-1$ //$NON-NLS-0$
-					commandService: commandService,
-					serviceRegistry: serviceRegistry,
-					slideout: true
-				});
-				commandService.registerCommandContribution(section.actionsNode.id, 'orion.site.create', 100); //$NON-NLS-0$
-				commandService.renderCommands(section.actionsNode.id, section.actionsNode, siteServiceRef, this, 'button'); //$NON-NLS-0$
+				
+				var section = {};
+				
+				var contentParent = dojo.create("div", {"role": "region", "class":"sectionTable"}, this.parentNode, "last");
+				contentParent.innerHTML = '<div id="' + sitesNodeId + '" class="plugin-settings-list"></div>'; //$NON-NLS-0$
+				
+				commandService.registerCommandContribution("pageActions", 'orion.site.create', 100); //$NON-NLS-0$
+				
+				updatePageActions(this.registry, "pageActions", "pageActions", siteServiceRef); //$NON-NLS-1$ //$NON-NLS-0$
 
 				var sectionItemActionScopeId = 'section' + i + 'Action'; //$NON-NLS-1$ //$NON-NLS-0$
+				
 				commandService.registerCommandContribution(sectionItemActionScopeId, 'orion.site.edit', 10); //$NON-NLS-0$
 				commandService.registerCommandContribution(sectionItemActionScopeId, 'orion.site.start', 20); //$NON-NLS-0$
 				commandService.registerCommandContribution(sectionItemActionScopeId, 'orion.site.stop', 30); //$NON-NLS-0$
 				commandService.registerCommandContribution(sectionItemActionScopeId, 'orion.site.delete', 40); //$NON-NLS-0$
+				
 				var refresher = (function(section) {
 					return function() {
 						section.tree.refresh();
@@ -124,21 +135,12 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 		}
 		SitesRenderer.prototype = /** @lends orion.sites.SitesRenderer.prototype */{
 			initTable: function (tableNode, tableTree) {
-				this.tableTree = tableTree;
-				dojo.addClass(tableNode, "treetable"); //$NON-NLS-0$
-				var thead = dojo.create("thead", null); //$NON-NLS-0$
-				dojo.create("th", {innerHTML: messages["Name"]}, thead, "last"); //$NON-NLS-2$ //$NON-NLS-0$
-				dojo.create("th", {innerHTML: messages["Status"]}, thead, "last"); //$NON-NLS-2$ //$NON-NLS-0$
-				dojo.create("th", {innerHTML: messages["URL"], className: "urlCol"}, thead, "last"); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-0$
-				dojo.create("th", {innerHTML: messages['Actions']}, thead, "last"); //$NON-NLS-2$ //$NON-NLS-0$
-				tableNode.appendChild(thead);
+				dojo.addClass(tableNode, "treetable");
 			},
 			render: function(item, tableRow) {
 				dojo.addClass(tableRow, "treeTableRow sitesTableRow"); //$NON-NLS-0$
 				
 				var siteConfigCol = dojo.create("td", {id: tableRow.id + "col1"}); //$NON-NLS-1$ //$NON-NLS-0$
-				var statusCol = dojo.create("td", {id: tableRow.id + "col2"}); //$NON-NLS-1$ //$NON-NLS-0$
-				var urlCol = dojo.create("td", {id: tableRow.id + "col3"}); //$NON-NLS-1$ //$NON-NLS-0$
 				var actionCol = dojo.create("td", {id: tableRow.id + "col4"}); //$NON-NLS-1$ //$NON-NLS-0$
 				
 				// Site config column
@@ -146,24 +148,26 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 				var nameLink = dojo.create("a", {href: href}, siteConfigCol, "last"); //$NON-NLS-1$ //$NON-NLS-0$
 				dojo.place(document.createTextNode(item.Name), nameLink, "last"); //$NON-NLS-0$
 				
+				var statusField = dojo.create("span", {"style" : "padding-left:10px; padding-right:10px"}, siteConfigCol, "last");
+				
 				// Status, URL columns
 				var status = item.HostingStatus;
 				if (typeof status === "object") { //$NON-NLS-0$
 					if (status.Status === "started") { //$NON-NLS-0$
-						dojo.place(document.createTextNode(messages["Started"]), statusCol, "last"); //$NON-NLS-1$
-						var link = dojo.create("a", {className: "siteURL"}, urlCol, "last"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-						dojo.place(document.createTextNode(status.URL), link, "only"); //$NON-NLS-0$
+						dojo.place(document.createTextNode(messages["Started"]), statusField, "last"); //$NON-NLS-1$
+						var link = dojo.create("a", null, siteConfigCol, "last"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+						dojo.place(document.createTextNode(status.URL), link, "last"); //$NON-NLS-0$
 						link.href = status.URL;
 					} else {
 						var statusString = status.Status.substring(0,1).toUpperCase() + status.Status.substring(1);
-						dojo.place(document.createTextNode(statusString), statusCol, "only"); //$NON-NLS-0$
+						dojo.place(document.createTextNode(statusString), statusField, "last"); //$NON-NLS-0$
 					}
 				} else {
-					dojo.place(document.createTextNode(messages["Unknown"]), statusCol, "only"); //$NON-NLS-1$
+					dojo.place(document.createTextNode(messages["Unknown"]), statusField, "last"); //$NON-NLS-1$
 				}
 				
 				// Action column
-				var actionsWrapper = dojo.create("span", {id: tableRow.id + "actionswrapper"}, actionCol, "only"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+				var actionsWrapper = dojo.create("span", {id: tableRow.id + "actionswrapper", "class":"sectionTableItemActions"}, actionCol, "only"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 				var options = this._options;
 				var userData = {
 					startCallback: options.startCallback,
@@ -176,8 +180,6 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 				this._commandService.renderCommands(options.actionScopeId, actionsWrapper, item, null /*handler*/, "tool", userData); //$NON-NLS-0$
 				
 				dojo.place(siteConfigCol, tableRow, "last"); //$NON-NLS-0$
-				dojo.place(statusCol, tableRow, "last"); //$NON-NLS-0$
-				dojo.place(urlCol, tableRow, "last"); //$NON-NLS-0$
 				dojo.place(actionCol, tableRow, "last"); //$NON-NLS-0$
 			},
 			rowsChanged: function() {
@@ -286,7 +288,9 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 				if (item.Placeholder) {
 					dojo.addClass(tableRow, "newSiteRow"); //$NON-NLS-0$
 				}
-				var siteConfigCol = dojo.create("td", {id: tableRow.id + "col1"}); //$NON-NLS-1$ //$NON-NLS-0$
+				var siteConfigCol = dojo.create("td", { //$NON-NLS-0$
+					id: tableRow.id + "col1", //$NON-NLS-0$
+					className: item.Placeholder ? "newSiteCol" : ""}); //$NON-NLS-0$ //$NON-NLS-1$
 				var actionCol = dojo.create("td", {id: tableRow.id + "col2"}); //$NON-NLS-1$ //$NON-NLS-0$
 				
 				// Site config column
@@ -301,7 +305,7 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 					addToCallback: this.addToCallback,
 					errorCallback: this.errorCallback
 				};
-				this._commandService.renderCommands("viewOnSiteScope", actionsWrapper, item,  null /*handler*/, "tool", userData); //$NON-NLS-1$ //$NON-NLS-0$
+				this._commandService.renderCommands("viewOnSiteScope", actionsWrapper, item,  null /*handler*/, "button", userData); //$NON-NLS-1$ //$NON-NLS-0$
 
 				dojo.place(siteConfigCol, tableRow, "last"); //$NON-NLS-0$
 				dojo.place(actionCol, tableRow, "last"); //$NON-NLS-0$
@@ -355,7 +359,7 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 	 * @param {orion.sites.SiteTreeModel} [options.model]
 	 * @param {orion.sites.SitesRenderer} [options.renderer]
 	 */
-	ViewOnSiteTree = (function() {
+	ViewOnSiteTree = /** @ignore */ (function() {
 		function ViewOnSiteTree(options) {
 			var serviceRegistry = options.serviceRegistry;
 			var commandService = serviceRegistry.getService("orion.page.command"); //$NON-NLS-0$
@@ -370,6 +374,12 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 				commandService.registerCommandContribution("viewOnSiteScope", "orion.site.add-to", 10); //$NON-NLS-1$ //$NON-NLS-0$
 				commandService.registerCommandContribution("viewOnSiteScope", "orion.site.view-on-link", 20); //$NON-NLS-1$ //$NON-NLS-0$
 
+				mGlobalCommands.setPageTarget({
+						task: messages.ViewOnSiteTitle,
+						target: file,
+						serviceRegistry: serviceRegistry,
+						commandService: commandService});
+
 				options.addToCallback = function() {
 					self.refresh();
 				};
@@ -378,6 +388,9 @@ define(['i18n!orion/sites/nls/messages', 'dojo', 'orion/Deferred', 'orion/sectio
 				};
 
 				options.renderer = new ViewOnSiteRenderer(options);
+				if (options.label) {
+					dojo.byId(options.label).innerHTML = formatMessage(messages.ViewOnSiteCaption, file.Name);
+				}
 				SitesTree.call(self, options);
 			});
 		}

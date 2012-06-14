@@ -1,7 +1,7 @@
 {
-	"version": "0.5M2",
-	"name": "Orion Web Development",
-	"description": "Orion is a Web Based Development Tool",
+	"version": "0.5RC1",
+	"name": "Orion Web Development Environment",
+	"description": "OrionHub is a Web based Development Environment",
 	"icons": {
 		"16": "/webapp/orion-16.png",
 		"32": "/webapp/orion-32.png",

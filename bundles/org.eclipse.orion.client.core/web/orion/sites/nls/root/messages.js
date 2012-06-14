@@ -40,12 +40,14 @@ define({
 	"Delete": "Delete",
 	"Delete the site configuration": "Delete the site configuration",
 	"Are you sure you want to delete the site configuration '": "Are you sure you want to delete the site configuration '",
+	"ViewOnSiteTitle": "View on Site",
+	"ViewOnSiteCaption": "Choose a site configuration to view '${0}' on.",
 	"Add to site": "Add to site",
 	"Add the file to this site": "Add the file to this site",
 	"View": "View",
 	"View the file on the site": "View the file on the site",
 	"Site Configurations on ": "Site Configurations on ",
-	"Started": "Started",
+	"Started": "Started at",
 	"Unknown": "Unknown",
 	"Name": "Name",
 	"Actions": "Actions",
@@ -58,5 +60,7 @@ define({
 	"External link to ": "External link to ",
 	"Move Up": "Move Up",
 	"Move Down": "Move Down",
-	"HostHint": "HostHint"
+	"HostHint": "HostHint",
+	"Start": "Start",
+	"Stop": "Stop"
 });

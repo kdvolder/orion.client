@@ -9,21 +9,65 @@
  * Contributors: IBM Corporation - initial API and implementation
  *******************************************************************************/
 
-/*global define*/
-define(['require' ,'orion/Deferred'], function(require, Deferred) {
+/*global define localStorage*/
+define(['require', 'orion/Deferred'], function(require, Deferred) {
+
+	var messageBundleDeffereds = {};
 
 	function formatMessage(msg) {
 		var args = arguments;
-		return msg.replace(/\$\{([^\}]+)\}/g, function(str, index) { return args[(index << 0) + 1]; });
+		return msg.replace(/\$\{([^\}]+)\}/g, function(str, index) {
+			return args[(index << 0) + 1];
+		});
 	}
 
-	function getMessageBundle(name){
+	function getCachedMessageBundle(name) {
+		var item = localStorage.getItem('orion/messageBundle/' + name);
+		if (item) {
+			var bundle = JSON.parse(item);
+			if (bundle._expires && bundle._expires > new Date().getTime()) {
+				delete bundle._expires;
+				return bundle;
+			}
+		}
+		return null;
+	}
+
+	function setCachedMessageBundle(name, bundle) {
+		bundle._expires = new Date().getTime() + 1000 * 900; //15 minutes
+		localStorage.setItem('orion/messageBundle/' + name, JSON.stringify(bundle));
+		delete bundle._expires;
+	}
+
+
+	function getMessageBundle(name) {
+		if (messageBundleDeffereds[name]) {
+			return messageBundleDeffereds[name];
+		}
+
 		var d = new Deferred();
-		require(['orion/i18n!' + name], function() { //$NON-NLS-0$
+		messageBundleDeffereds[name] = d;
+
+		var cached = getCachedMessageBundle(name);
+		if (cached) {
+				d.resolve(cached);
+				return d;
+		}
+
+		function _resolveMessageBundle() {
 			require(['i18n!' + name], function(bundle) { //$NON-NLS-0$
+				if (bundle) {
+					setCachedMessageBundle(name, bundle);
+				}
 				d.resolve(bundle);
 			});
-		});
+		}
+
+		try {
+			require([name], _resolveMessageBundle);
+		} catch (ignore) {
+			require(['orion/i18n!' + name], _resolveMessageBundle); //$NON-NLS-0$
+		}
 		return d;
 	}
 	return {

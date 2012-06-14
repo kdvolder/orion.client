@@ -14,7 +14,7 @@
 /* This SettingsContainer widget is a dojo border container with a left and right side. The left is for choosing a 
    category, the right shows the resulting HTML for that category. */
 
-define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/PageUtil', 'dijit/TooltipDialog', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane', 'orion/widgets/plugin/PluginList', 'orion/widgets/settings/SplitSelectionLayout', 'orion/widgets/settings/UserSettings', 'orion/widgets/settings/InputBuilder'], function(messages, require, dojo, dijit, mUtil, mCommands, PageUtil) {
+define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/globalCommands', 'orion/PageUtil', 'dijit/TooltipDialog', 'dijit/layout/BorderContainer', 'dijit/layout/ContentPane', 'orion/widgets/plugin/PluginList', 'orion/widgets/settings/SplitSelectionLayout', 'orion/widgets/settings/UserSettings', 'orion/widgets/settings/InputBuilder'], function(messages, require, dojo, dijit, mUtil, mCommands, mGlobalCommands, PageUtil) {
 
 	dojo.declare("orion.widgets.settings.SettingsContainer", [orion.widgets.settings.SplitSelectionLayout], { //$NON-NLS-0$
 
@@ -29,14 +29,21 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 			this.drawUserInterface(this.initialSettings);
 			this.inputBuilder = new orion.widgets.settings.InputBuilder( this.preferences );
 			dojo.subscribe("/dojo/hashchange", this, "processHash"); //$NON-NLS-1$ //$NON-NLS-0$
-			dojo.byId('location').innerHTML = 'Settings';
+			mGlobalCommands.setPageTarget({task: 'Settings'});
 		},
 		
 		processHash: function() {
 			var pageParams = PageUtil.matchResourceParameters();
 			var category = pageParams.category || "userSettings"; //$NON-NLS-0$
 			this.showById(category);
-			this.commandService.processURL(window.location.href);
+			
+			// The widgets might render commands, and this happens asynchronously.  Process the URL in a timeout.
+			window.setTimeout(dojo.hitch(this, function() {this.commandService.processURL(window.location.href);}), 0);
+			
+			
+//			var pageToolBar = dojo.byId( 'pageToolbar' );
+//			
+//			dojo.removeNode( pageToolBar.parentNode.removeChild(pageToolBar) );
 		},
 
 		displaySettings: function(id) {
@@ -117,6 +124,10 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 		
 		
 		showUserSettings: function(id){
+		
+			var td = this.preferences.getPreferences('/settings', 2).then( function(prefs){		 //$NON-NLS-0$
+				var navigate = prefs.get(messages["JavaScript Editor"]);					
+			} );
 
 			if (this.selectedCategory) {
 				dojo.removeClass(this.selectedCategory, "navbar-item-selected"); //$NON-NLS-0$
@@ -142,7 +153,7 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 
 			this.updateToolbar(id);
 			
-			var pluginNode = dojo.create( 'div', null, this.table ); //$NON-NLS-0$
+			var userNode = dojo.create( 'div', null, this.table ); //$NON-NLS-0$
 
 			this.userWidget = new orion.widgets.settings.UserSettings({
 				registry: this.registry,
@@ -151,11 +162,31 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 				statusService: this.preferencesStatusService,
 				dialogService: this.preferenceDialogService,
 				commandService: this.commandService,
-				userClient: this.userClient,
-				toolbarID: "pageActions" //$NON-NLS-0$
-			}, pluginNode);
+				userClient: this.userClient
+			}, userNode);
 			
 			this.userWidget.startUp();
+		},
+		
+		initPlugins: function(id){
+			dojo.empty(this.table);
+
+			if (this.pluginWidget) {
+				this.pluginWidget.destroyRecursive(true);
+			}
+
+			var pluginNode = dojo.create( 'div', null, this.table ); //$NON-NLS-0$
+
+			this.pluginWidget = new orion.widgets.plugin.PluginList({
+				settings: this.settingsCore,
+				preferences: this.preferences,
+				statusService: this.preferencesStatusService,
+				dialogService: this.preferenceDialogService,
+				commandService: this.commandService
+//				toolbarID: "pageActions" //$NON-NLS-0$
+			}, pluginNode);
+			
+			this.pluginWidget.startup();
 		},
 
 
@@ -188,24 +219,7 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 			this.selectedCategory.tabIndex = 0;
 			this.selectedCategory.focus();
 
-			dojo.empty(this.table);
-
-			if (this.pluginWidget) {
-				this.pluginWidget.destroyRecursive(true);
-			}
-
-			this.updateToolbar(id);
-			
-			var pluginNode = dojo.create( 'div', null, this.table ); //$NON-NLS-0$
-
-			this.pluginWidget = new orion.widgets.plugin.PluginList({
-				settings: this.settingsCore,
-				preferences: this.preferences,
-				statusService: this.preferencesStatusService,
-				dialogService: this.preferenceDialogService,
-				commandService: this.commandService,
-				toolbarID: "pageActions" //$NON-NLS-0$
-			}, pluginNode);
+			this.initPlugins(id);
 		},
 
 		showById: function(id) {

@@ -17,6 +17,7 @@ define(['i18n!orion/nls/messages', 'dojo', 'orion/treeModelIterator'], function(
 var exports = {};
 var userAgent = navigator.userAgent;
 var isPad = userAgent.indexOf("iPad") !== -1; //$NON-NLS-0$
+var isMac = window.navigator.platform.indexOf("Mac") !== -1; //$NON-NLS-0$
 
 exports.ExplorerNavHandler = (function() {
 	/**
@@ -36,8 +37,9 @@ exports.ExplorerNavHandler = (function() {
 	    this._selections = [];
 	    
 	    this._currentColumn = 0;
-	    dojo.attr(this.explorer._parentId, "tabIndex", 0); //$NON-NLS-0$
-		dojo.addClass(this.explorer._parentId, "selectionModelContainer"); //$NON-NLS-0$
+	    var parentDiv = this._getEventListeningDiv();
+	    dojo.attr(parentDiv, "tabIndex", 0); //$NON-NLS-0$
+		dojo.addClass(parentDiv, "selectionModelContainer"); //$NON-NLS-0$
 		
 		this._modelIterator = new mTreeModelIterator.TreeModelIterator([],
 		   		   {isExpanded: dojo.hitch(this, function(model) {
@@ -56,7 +58,6 @@ exports.ExplorerNavHandler = (function() {
 		   		   });
 		this._init(options);
 		
-	    var parentDiv = this._getEventListeningDiv();
 	    if(!options || options.setFocus !== false){
 	    	parentDiv.focus();
 	    }
@@ -78,13 +79,9 @@ exports.ExplorerNavHandler = (function() {
 			} else if(e.keyCode === dojo.keys.UP_ARROW){
 				return this.onUpArrow(e);
 			} else if(e.keyCode === dojo.keys.RIGHT_ARROW){
-				if(!e.ctrlKey){
-					return this.onRihgtArrow(e);
-				}
+				return this.onRightArrow(e);
 			} else if(e.keyCode === dojo.keys.LEFT_ARROW){
-				if(!e.ctrlKey){
-					return this.onLeftArrow(e);
-				}
+				return this.onLeftArrow(e);
 			} else if(e.keyCode === dojo.keys.SPACE){
 				return this.onSpace(e);
 			} else if(e.keyCode === dojo.keys.ENTER) {
@@ -113,7 +110,7 @@ exports.ExplorerNavHandler = (function() {
 	ExplorerNavHandler.prototype = /** @lends orion.ExplorerNavHandler.ExplorerNavHandler.prototype */ {
 		
 		_init: function(options){
-			this._linearGridMove = true;//temporary. If true right key on the last grid will go to first grid of next row
+			this._linearGridMove = false;//temporary. If true right key on the last grid will go to first grid of next row
 			                            // Left key on the first grid will go to the last line grid of the previous line
 			if(!options){
 				return;
@@ -123,6 +120,10 @@ exports.ExplorerNavHandler = (function() {
 			                                                     //The key event is passed to preventDefaultFunc. It can implement its own behavior based o nteh key event.
 			this.postDefaultFunc = options.postDefaultFunc;//optional callback. If this function provides addtional behaviors after the default behavior.
 			                                               //Some explorers may want to do something else whne the cursor is changed, etc.
+		},
+		
+		_ctrlKeyOn: function(e){
+			return 	isMac ? e.metaKey : e.ctrlKey;
 		},
 		
 		removeListeners: function(){
@@ -140,9 +141,9 @@ exports.ExplorerNavHandler = (function() {
 		    }
 		},
 		
-		_getEventListeningDiv: function(){
+		_getEventListeningDiv: function(secondLevel){
 			if(this.explorer.keyEventListeningDiv && typeof this.explorer.keyEventListeningDiv === "function"){ //$NON-NLS-0$
-				return this.explorer.keyEventListeningDiv();
+				return this.explorer.keyEventListeningDiv(secondLevel);
 			}
 			return dojo.byId(this.explorer._parentId);
 		},
@@ -188,10 +189,14 @@ exports.ExplorerNavHandler = (function() {
 				this.topIterationNodes = topIterationNodes;
 			}
 			this._modelIterator.setTree(this.topIterationNodes);
-			if(!noReset){
+			if(!noReset && this.explorer.selection){
 				this._modelIterator.reset();
 			}
 			this.refreshSelection();
+		},
+		
+		getTopLevelNodes: function(){
+			return this._modelIterator.firstLevelChildren;
 		},
 		
 		_inSelection: function(model){
@@ -216,6 +221,12 @@ exports.ExplorerNavHandler = (function() {
 		
 		setSelection: function(model, toggling){
 			if(this._selectionPolicy === "cursorOnly"){ //$NON-NLS-0$
+				if(toggling && this.explorer.renderer._useCheckboxSelection){
+					this._checkRow(model,true);
+				}
+				return;
+			}
+			if(!this._isRowSelectable(model)){
 				return;
 			}
 			if(!toggling){
@@ -245,7 +256,7 @@ exports.ExplorerNavHandler = (function() {
 				model = this.currentModel();
 			}
 			var gridChildren = this._getGridChildren(model);
-			if(gridChildren && gridChildren.length > 1){
+			if((gridChildren && gridChildren.length > 1) || (offset === 0 && gridChildren)){
 				if(offset !== 0){
 					this.toggleCursor(model, false);
 				}
@@ -395,16 +406,45 @@ exports.ExplorerNavHandler = (function() {
 			}
 		},
 		
+		_vpWidth: function() {
+			return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+		},
+		
+		_vpHeight: function(){
+			return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+		},
+		
+		_getToolBarHeight: function(toolBarId){
+			if(dojo.byId(toolBarId)){
+				mBox = dojo.marginBox(toolBarId);
+				if(mBox){
+					return mBox.h;
+				}
+			}
+			return 0;
+		},
+		
 		_visible: function(rowDiv) {
 			if (rowDiv.offsetWidth === 0 || rowDiv.offsetHeight === 0) {
 				return false;
 			}
-		    var parentNode = this._getEventListeningDiv();
-			var parentRect = parentNode.getClientRects()[0],
-			rects = rowDiv.getClientRects();
+			
+			var headerHeight = 0;
+			headerHeight += this._getToolBarHeight("staticBanner");
+			headerHeight += this._getToolBarHeight("titleArea");
+			headerHeight += this._getToolBarHeight("pageToolbar");
+			
+		    var parentNode = this._getEventListeningDiv(true);
+			var parentRect = parentNode.getClientRects()[0];
+			var vPortRect = {top: headerHeight, left: 0, bottom : this._vpHeight(), right: this._vpWidth()};
+			
+			var vTop = parentRect.top >  vPortRect.top ? parentRect.top :  vPortRect.top;
+			var vBottom = parentRect.bottom <  vPortRect.bottom ? parentRect.bottom :  vPortRect.bottom;
+
+			var rects = rowDiv.getClientRects();
 			for (var i = 0, l = rects.length; i < l; i++) {
 				var r = rects[i];
-			    var in_viewport = (r.top >= parentRect.top && r.top <= parentRect.bottom && r.bottom >= parentRect.top && r.bottom <= parentRect.bottom);
+			    var in_viewport = (r.top >= vTop && r.top <= vBottom && r.bottom >= vTop && r.bottom <= vBottom);
 			    if (in_viewport ) {
 					return true;
 			    }
@@ -435,13 +475,17 @@ exports.ExplorerNavHandler = (function() {
 		},
 		
 		onClick: function(model, mouseEvt)	{
+			var twistieSpan = dojo.byId(this.explorer.renderer.expandCollapseImageId(this.model.getId(model)));
+			if(mouseEvt.target === twistieSpan){
+				return;
+			}
 			if(this._onModelGrid(model, mouseEvt)){
 				return;
 			}
-			this.cursorOn(model);
+			this.cursorOn(model, true);
 			if(isPad){
 				this.setSelection(model, true);
-			} else if(mouseEvt.ctrlKey){
+			} else if(this._ctrlKeyOn(mouseEvt)){
 				this.setSelection(model, true);
 			} else if(mouseEvt.shiftKey && this._lastSelection){
 				var scannedSel = this._modelIterator.scan(this._lastSelection, model);
@@ -466,7 +510,7 @@ exports.ExplorerNavHandler = (function() {
 		//If shift key is on, it toggles the check box and iterates backward.
 		onUpArrow: function(e) {
 			this.iterate(false, false, e.shiftKey);
-			if(!e.ctrlKey && !e.shiftKey){
+			if(!this._ctrlKeyOn(e) && !e.shiftKey){
 				this.setSelection(this.currentModel(), false);
 			}
 			e.preventDefault();
@@ -477,17 +521,31 @@ exports.ExplorerNavHandler = (function() {
 		//If shift key is on, it toggles the check box and iterates forward.
 		onDownArrow: function(e) {
 			this.iterate(true, false, e.shiftKey);
-			if(!e.ctrlKey && !e.shiftKey){
+			if(!this._ctrlKeyOn(e) && !e.shiftKey){
 				this.setSelection(this.currentModel(), false);
 			}
 			e.preventDefault();
 			return false;
 		},
 
+		_shouldMoveColumn: function(e){
+			var model = this.currentModel();
+			var gridChildren = this._getGridChildren(model);
+			if(gridChildren && gridChildren.length > 1){
+				if(this.isExpandable(model)){
+					return this._ctrlKeyOn(e);
+				}
+				return true;
+			} else {
+				return false;
+			}
+		},
+		
 		//Left arrow key collapses the current row. If current row is not expandable(e.g. a file in file navigator), move the cursor to its parent row.
 		//If current row is expandable and expanded, collapse it. Otherwise move the cursor to its parent row.
 		onLeftArrow:  function(e) {
-			if(!e.ctrlKey && this.moveColumn(null, -1)){
+			if(this._shouldMoveColumn(e)){
+				this.moveColumn(null, -1);
 				e.preventDefault();
 				return true;
 			}
@@ -512,14 +570,15 @@ exports.ExplorerNavHandler = (function() {
 		},
 		
 		//Right arrow key expands the current row if it is expandable and collapsed.
-		onRihgtArrow: function(e) {
-			if(!e.ctrlKey && this.moveColumn(null, 1)){
+		onRightArrow: function(e) {
+			if(this._shouldMoveColumn(e)){
+				this.moveColumn(null, 1);
 				e.preventDefault();
 				return true;
 			}
 			var curModel = this._modelIterator.cursor();
 			if(!curModel){
-				return;
+				return false;
 			}
 			if(this.isExpandable(curModel)){
 				if(!this.isExpanded(curModel)){
@@ -528,6 +587,10 @@ exports.ExplorerNavHandler = (function() {
 					return false;
 				}
 			}
+		},
+		
+		_isRowSelectable: function(model){
+			return this.explorer.isRowSelectable ? this.explorer.isRowSelectable(model) : true;
 		},
 
 		//Space key toggles the check box on the current row if the renderer uses check box
@@ -549,7 +612,7 @@ exports.ExplorerNavHandler = (function() {
 				} else {
 					var evt = document.createEvent("MouseEvents"); //$NON-NLS-0$
 					evt.initMouseEvent("click", true, true, window, //$NON-NLS-0$
-							0, 0, 0, 0, 0, e.ctrlKey, false, false, false, 0, null);
+							0, 0, 0, 0, 0, this._ctrlKeyOn(e), false, false, false, 0, null);
 					currentGrid.domNode.dispatchEvent(evt);
 				}
 				return;
@@ -561,7 +624,7 @@ exports.ExplorerNavHandler = (function() {
 				}
 				var div = this.explorer.renderer.getRowActionElement(this.model.getId(curModel));
 				if(div.href){
-					if(e.ctrlKey){
+					if(this._ctrlKeyOn(e)){
 						window.open(div.href);
 					} else {
 						window.location.href = div.href;

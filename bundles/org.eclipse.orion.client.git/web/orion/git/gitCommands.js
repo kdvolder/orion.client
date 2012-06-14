@@ -40,7 +40,7 @@ var exports = {};
 			var pageNav = dojo.byId(pageNavId);
 			if (pageNav) {
 				dojo.empty(pageNav);
-				commandService.renderCommands(pageNavId, pageNav, item, explorer, "button", true);   //$NON-NLS-0$
+				commandService.renderCommands(pageNavId, pageNav, item, explorer, "button");   //$NON-NLS-0$
 			}
 		}
 		
@@ -1286,7 +1286,7 @@ var exports = {};
 					return;
 				}
 
-				exports.gatherSshCredentials(serviceRegistry, commandInvocation, errorData).then(
+				exports.gatherSshCredentials(serviceRegistry, commandInvocation).then(
 					function(options) {
 						
 						var gitService = serviceRegistry.getService("orion.git.provider"); //$NON-NLS-0$
@@ -1380,19 +1380,6 @@ var exports = {};
 		});
 		commandService.addCommand(pushForceCommand);
 
-		var switchToRemote = new mCommands.Command({
-			name : messages["Switch to Remote"],
-			tooltip: messages["Show the log for the corresponding remote tracking branch"],
-			id : "eclipse.orion.git.switchToRemote", //$NON-NLS-0$
-			hrefCallback : function(data) {
-				return require.toUrl("git/git-log.html")+"#" + data.items.toRef.RemoteLocation[0].Children[0].CommitLocation + "?page=1"; //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-			},
-			visibleWhen : function(item) {
-				return item.toRef != null && item.toRef.Type === "Branch" && item.toRef.Current && item.toRef.RemoteLocation && item.toRef.RemoteLocation.length===1 && item.toRef.RemoteLocation[0].Children.length===1; //$NON-NLS-0$
-			}
-		});
-		commandService.addCommand(switchToRemote);
-
 		var previousLogPage = new mCommands.Command({
 			name : messages["< Previous Page"],
 			tooltip: messages["Show previous page of git log"],
@@ -1424,51 +1411,6 @@ var exports = {};
 			}
 		});
 		commandService.addCommand(nextLogPage);
-
-		var switchToCurrentLocal = new mCommands.Command({
-			name : "Switch to Active Local", //$NON-NLS-0$
-			tooltip: "Show the log for the active local branch", //$NON-NLS-0$
-			id : "eclipse.orion.git.switchToCurrentLocal", //$NON-NLS-0$
-			hrefCallback : function(data) {
-				var item = data.items;
-				var clientDeferred = new dojo.Deferred();
-
-				var cloneLocation = item.CloneLocation;
-				if (cloneLocation == null){
-					var obj = JSON.parse(item.responseText);
-					cloneLocation = obj.JsonData.CloneLocation;
-				}
-				var gitService = serviceRegistry.getService("orion.git.provider"); //$NON-NLS-0$
-				gitService.getGitClone(cloneLocation).then(function(clone, secondArg) {
-					gitService.getGitBranch(clone.Children[0].BranchLocation).then(function(branches){
-						dojo.forEach(branches.Children, function(branch, i) {
-							if (branch.Current == true){
-								clientDeferred.callback(require.toUrl("git/git-log.html") + "#" + branch.CommitLocation + "?page=1"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-								return;
-							}
-						}, displayErrorOnStatus);
-					}, displayErrorOnStatus);
-				});
-				return clientDeferred;
-			},
-			visibleWhen : function(item) {
-				if (item.Type === "RemoteTrackingBranch") //$NON-NLS-0$
-					return true;
-				if (item.Type === "Commit" && item.toRef && item.toRef.Type === "RemoteTrackingBranch") //$NON-NLS-1$ //$NON-NLS-0$
-					return true;
-
-				try {
-					var obj = JSON.parse(item.responseText);
-					if (obj.JsonData)
-						return true;
-				} catch(error) {
-					//it is not JSON, just continue;
-				}
-
-				return false;
-			}
-		});
-		commandService.addCommand(switchToCurrentLocal);
 
 		var pushToCommand = new mCommands.Command({
 			name : messages["Push to..."],
@@ -1996,8 +1938,8 @@ var exports = {};
 								options.gitPrivateKey, options.gitPassphrase),
 								messages["Cloning repository: "] + gitUrl).deferred.then(function(jsonData, secondArg) {
 							exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData) {
-								if (explorer.redisplayClonesList) {
-									dojo.hitch(explorer, explorer.redisplayClonesList)();
+								if (explorer.changedItem) {
+									dojo.hitch(explorer, explorer.changedItem)();
 								}
 							}, func, messages['Clone Git Repository']);
 						}, function(jsonData, secondArg) {
@@ -2041,8 +1983,8 @@ var exports = {};
 						serviceRegistry.getService("orion.page.message").createProgressMonitor(gitService.cloneGitRepository(name, gitUrl, path, explorer.defaultPath), //$NON-NLS-0$
 								messages["Initializing repository: "] + name).deferred.then(function(jsonData, secondArg){
 							exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function(jsonData){
-								if(explorer.redisplayClonesList)
-									dojo.hitch(explorer, explorer.redisplayClonesList)();
+								if(explorer.changedItem)
+									dojo.hitch(explorer, explorer.changedItem)();
 							}, func, messages["Init Git Repository"]);
 						}, function(jsonData, secondArg) {
 							exports.handleProgressServiceResponse(jsonData, options, serviceRegistry, function() {}, func, messages['Init Git Repository']);
@@ -2077,16 +2019,18 @@ var exports = {};
 			imageClass: "core-sprite-delete", //$NON-NLS-0$
 			id: "eclipse.git.deleteClone", //$NON-NLS-0$
 			visibleWhen: function(item) {
-				var items = dojo.isArray(item) ? item : [item];
-				if (items.length === 0) {
-					return false;
-				}
-				for (var i=0; i < items.length; i++) {
-					if (!items[i].ContentLocation) {
-						return false;
-					}
-				}
-				return true;
+				return item.Type === "Clone";
+				
+//				var items = dojo.isArray(item) ? item : [item];
+//				if (items.length === 0) {
+//					return false;
+//				}
+//				for (var i=0; i < items.length; i++) {
+//					if (items[i].Type !== "Clone") { //$NON-NLS-0$
+//						return false;
+//					}
+//				}
+//				return true;
 			},
 			callback: function(data) {
 				var item = data.items;
@@ -2098,8 +2042,8 @@ var exports = {};
 							gitService.removeGitRepository(item[i].Location).then(
 									function(jsonData){
 										alreadyDeleted++;
-										if(alreadyDeleted >= item.length && explorer.redisplayClonesList){
-											dojo.hitch(explorer, explorer.redisplayClonesList)();
+										if(alreadyDeleted >= item.length && explorer.changedItem){
+											dojo.hitch(explorer, explorer.changedItem)();
 										}
 									}, displayErrorOnStatus);
 						}
@@ -2108,8 +2052,8 @@ var exports = {};
 					if(confirm(dojo.string.substitute(messages['Are you sure you want to delete ${0}?'], [item.Name])))
 						gitService.removeGitRepository(item.Location).then(
 							function(jsonData){
-								if(explorer.redisplayClonesList){
-									dojo.hitch(explorer, explorer.redisplayClonesList)();
+								if(explorer.changedItem){
+									dojo.hitch(explorer, explorer.changedItem)();
 								}
 							},
 							displayErrorOnStatus);
@@ -2289,7 +2233,7 @@ var exports = {};
 				} else {
 					var paths = [];
 					for ( var i = 0; i < items.length; i++) {
-						paths[i] = items[i].path;
+						paths[i] = items[i].name;
 					}
 					
 					progressService.createProgressMonitor(
@@ -2338,7 +2282,7 @@ var exports = {};
 				} else {
 					var paths = [];
 					for ( var i = 0; i < items.length; i++) {
-						paths[i] = items[i].path;
+						paths[i] = items[i].name;
 					}
 					
 					progressService.createProgressMonitor(
@@ -2375,12 +2319,12 @@ var exports = {};
 			id: "eclipse.orion.git.commitCommand", //$NON-NLS-0$
 			parameters: commitMessageParameters,
 			callback: function(data) {
-				var item = data.items;
+				var item = data.items.status;
 				
 				var commitFunction = function(body){		
 					var progressService = serviceRegistry.getService("orion.page.message"); //$NON-NLS-0$
 					progressService.createProgressMonitor(
-						serviceRegistry.getService("orion.git.provider").commitAll(item.CommitLocation, null, dojo.toJson(body)), //$NON-NLS-0$
+						serviceRegistry.getService("orion.git.provider").commitAll(item.Clone.HeadLocation, null, dojo.toJson(body)), //$NON-NLS-0$
 						messages["Committing changes"]).deferred.then(
 						function(jsonData){
 							dojo.hitch(explorer, explorer.changedItem)(item);
@@ -2479,7 +2423,7 @@ var exports = {};
 						
 						var paths = [];
 						for ( var i = 0; i < items.length; i++) {
-							paths[i] = items[i].path;
+							paths[i] = items[i].name;
 						}
 						
 						progressService.createProgressMonitor(
@@ -2519,7 +2463,7 @@ var exports = {};
 				var url = data.userData.Clone.DiffLocation + "?parts=diff"; //$NON-NLS-0$
 				for (var i = 0; i < items.length; i++) {
 					url += "&Path="; //$NON-NLS-0$
-					url += items[i].path;
+					url += items[i].name;
 				}
 				return url;
 			},

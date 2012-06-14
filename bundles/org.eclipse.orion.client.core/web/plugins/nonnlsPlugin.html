@@ -76,13 +76,13 @@
 			  },
 			  {
 			     contentType: ["application/javascript"],
-			     gosiasValidator: true
 			  });
 			
 			provider.registerServiceProvider('orion.navigate.command', null, {
 				id: 'orion.nonnls.externalize',
-				name: 'Externalize Strings',
-				tooltip: 'Externalize Strings from JavaScript files in this folder',
+				nameKey: 'Strings Xtrnalizr',
+				tooltipKey: 'Externalize Strings from JavaScript files in this folder',
+				nls: 'orion/navigate/nls/messages',
 				forceSingleItem: true,
 				validationProperties:
 							[

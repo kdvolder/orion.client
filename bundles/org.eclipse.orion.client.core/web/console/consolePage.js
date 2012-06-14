@@ -19,6 +19,10 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 
 	var fileClient;
 
+	var resolveError = function(result, error) {
+		result.resolve(dojo.string.substitute(messages['File service error: ${0}'], ["<em>" + error + "</em>"])); //$NON-NLS-2$ //$NON-NLS-1$
+	};
+
 	/* implementation of the 'edit' command */
 
 	function editExec(node) {
@@ -46,7 +50,7 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 	}
 
 	function formatFullPath(node) {
-		var path = fileClient.fileServiceName(node.Location);
+		var path = fileClient.fileServiceName(node.Location) || "";
 		var parents = node.Parents;
 		// TODO it could be useful to make the path segments link to something
 		// useful, see breadcrumb.js for an idea
@@ -73,22 +77,44 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 	 */
 	function formatLs(node, result, func) {
 		result = result || [];
-		mCurrentDirectory.withChildren(node, function(children) {
-			for (var i = 0; i < children.length; i++) {
-				formatLsChild(children[i], result);
+		mCurrentDirectory.withChildren(node,
+			function(children) {
+				children.sort(function(a,b) {
+					var isDir1 = a.Directory;
+					var isDir2 = b.Directory;
+					if (isDir1 !== isDir2) {
+						return isDir1 ? -1 : 1;
+					}
+					var n1 = a.Name && a.Name.toLowerCase();
+					var n2 = b.Name && b.Name.toLowerCase();
+					if (n1 < n2) { return -1; }
+					if (n1 > n2) { return 1; }
+					return 0;
+				});
+				for (var i = 0; i < children.length; i++) {
+					formatLsChild(children[i], result);
+				}
+				func(result);
+			},
+			function(error) {
+				func([]);
 			}
-			func(result);
-		});
+		);
 	}
 
 	function lsExec(args, context) {
 		var result = context.createPromise();
 		mCurrentDirectory.setCurrentTreeNode(null); /* flushes current node cache */
-		mCurrentDirectory.withCurrentTreeNode(function(node) {
-			formatLs(node, [], function(buffer) {
-				result.resolve(buffer.join(''));
-			});
-		});
+		mCurrentDirectory.withCurrentTreeNode(
+			function(node) {
+				formatLs(node, [], function(buffer) {
+					result.resolve(buffer.join(''));
+				});
+			},
+			function(error) {
+				resolveError(result, error);
+			}
+		);
 		return result;
 	}
 
@@ -100,53 +126,84 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 			targetDirName = targetDirName.Name;
 		}
 		var result = context.createPromise();
-		mCurrentDirectory.withCurrentTreeNode(function(node) {
-			if (targetDirName === '..') { //$NON-NLS-0$
-				fileClient.read(node.Location, true).then(
-					dojo.hitch(this, function(metadata) {
-						if (metadata.Parents && metadata.Parents.length > 0) {
-							var parentLocation = metadata.Parents[0].Location;
-							fileClient.read(parentLocation, true).then(
-								dojo.hitch(this, function(parentMetadata) {
-									dojo.hash(parentMetadata.Location);
-									var buffer = formatFullPath(parentMetadata);
-									result.resolve(dojo.string.substitute(messages['Changed to: ${0}'], ["<b>" + buffer + "</b>"])); //$NON-NLS-2$ //$NON-NLS-1$
-								})
-							);
-						} else {
-							dojo.hash("#"); //$NON-NLS-0$
-							var buffer = fileClient.fileServiceName(metadata.Location);
-							result.resolve(dojo.string.substitute(messages['Changed to: ${0}'] ["<b>" + buffer + "</b>"])); //$NON-NLS-2$ //$NON-NLS-1$
-						}
-						mCurrentDirectory.setCurrentTreeNode(null);
-					})
-				);
-			} else {
-				mCurrentDirectory.withChildren(node, function(children) {
-					var found = false;
-					for (var i = 0; i < children.length; i++) {
-						var child = children[i];
-						if (child.Name === targetDirName) {
-							if (child.Directory) {
-								found = true;
-								mCurrentDirectory.setCurrentTreeNode(child);
-								fileClient.read(child.Location, true).then(
-									dojo.hitch(this, function(metadata) {
-										var buffer = formatFullPath(metadata);
+		mCurrentDirectory.withCurrentTreeNode(
+			function(node) {
+				if (targetDirName === '..') { //$NON-NLS-0$
+					fileClient.loadWorkspace(node.Location).then(
+						dojo.hitch(this, function(metadata) {
+							if (!metadata.Parents) {
+								/* changing to the root where file services are mounted */
+								mCurrentDirectory.setCurrentTreeNode(null);
+								dojo.hash('#'); //$NON-NLS-0$
+								result.resolve(dojo.string.substitute(messages['Changed to: ${0}'], ["<b>/</b>"])); //$NON-NLS-1$
+							} else if (metadata.Parents.length === 0) {
+								/* changing to the root directory within the current file service */
+								// TODO: computing the parent location based on the current location may not always be valid
+								mCurrentDirectory.setCurrentTreeNode(null);
+								var index = metadata.Location.indexOf('/', 1); //$NON-NLS-0$
+								var hash = metadata.Location.substr(0, index);
+								dojo.hash(hash);
+								var buffer = fileClient.fileServiceName(metadata.Location);
+								result.resolve(dojo.string.substitute(messages['Changed to: ${0}'], ["<b>" + buffer + "</b>"])); //$NON-NLS-2$ //$NON-NLS-1$
+							} else {
+								var parentLocation = metadata.Parents[0].Location;
+								fileClient.loadWorkspace(parentLocation).then(
+									dojo.hitch(this, function(parentMetadata) {
+										mCurrentDirectory.setCurrentTreeNode(parentMetadata);
+										dojo.hash(parentMetadata.Location);
+										var buffer = formatFullPath(parentMetadata);
 										result.resolve(dojo.string.substitute(messages['Changed to: ${0}'], ["<b>" + buffer + "</b>"])); //$NON-NLS-2$ //$NON-NLS-1$
+									}),
+									dojo.hitch(this, function(error) {
+										resolveError(result, error);
 									})
 								);
-							} else {
-								result.resolve("<em>" + dojo.string.substitute(messages['${0} is not a directory'], [targetDirName])+"</em>"); //$NON-NLS-2$ //$NON-NLS-0$
 							}
+						}),
+						dojo.hitch(this, function(error) {
+							resolveError(result, error);
+						})
+					);
+				} else {
+					mCurrentDirectory.withChildren(node,
+						function(children) {
+							var found = false;
+							for (var i = 0; i < children.length; i++) {
+								var child = children[i];
+								if (child.Name === targetDirName) {
+									if (child.Directory) {
+										found = true;
+										mCurrentDirectory.setCurrentTreeNode(child);
+										dojo.hash(child.Location);
+										fileClient.loadWorkspace(child.Location).then(
+											dojo.hitch(this, function(metadata) {
+												var buffer = formatFullPath(metadata);
+												result.resolve(dojo.string.substitute(messages['Changed to: ${0}'], ["<b>" + buffer + "</b>"])); //$NON-NLS-2$ //$NON-NLS-1$
+											}),
+											dojo.hitch(this, function(error) {
+												resolveError(result, error);
+											})
+										);
+									} else {
+										resolveError(result, dojo.string.substitute(messages['${0} is not a directory'], [targetDirName]));
+									}
+									break;
+								}
+							}
+							if (!found) {
+								resolveError(result, dojo.string.substitute(messages['${0} was not found'], [targetDirName]));
+							}
+						},
+						function(error) {
+							resolveError(result, error);
 						}
-					}
-					if (!found) {
-						result.resolve("<em>" + dojo.string.substitute(messages['${0} was not found'], [targetDirName])+"</em>"); //$NON-NLS-2$ //$NON-NLS-0$
-					}
-				});
+					);
+				}
+			},
+			function(error) {
+				resolveError(result, error);
 			}
-		});
+		);
 		return result;
 	}
 
@@ -154,33 +211,26 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 
 	function pwdExec(args, context) {
 		var result = context.createPromise();
-		mCurrentDirectory.withCurrentTreeNode(function(node) {
-			fileClient.read(node.Location, true).then(
-				dojo.hitch(this, function(metadata) {
-					var buffer = formatFullPath(metadata);
-					result.resolve("<b>" + buffer + "</b>"); //$NON-NLS-1$ //$NON-NLS-0$
-				})
-			);
-		});
+		mCurrentDirectory.withCurrentTreeNode(
+			function(node) {
+				fileClient.loadWorkspace(node.Location).then(
+					dojo.hitch(this, function(metadata) {
+						var buffer = formatFullPath(metadata);
+						result.resolve("<b>" + buffer + "</b>"); //$NON-NLS-1$ //$NON-NLS-0$
+					}),
+					dojo.hitch(this, function(error) {
+						resolveError(result, error);
+					})
+				);
+			},
+			function(error) {
+				resolveError(result, error);
+			}
+		);
 		return result;
 	}
 
 	/* methods for handling contributed commands */
-
-	/*
-	 * Creates a JSON object with context information an external command
-	 * may need access to in order to execute.
-	 */
-	function createPluginContext(gcliContext, func) {
-		mCurrentDirectory.withWorkspace(function(wsNode) {
-			mCurrentDirectory.withCurrentTreeNode(function(pwdNode) {
-				return func({
-					location: pwdNode.Location,
-					workspaceLocation: wsNode.Location
-				});
-			});
-		});
-	}
 
 	/*
 	 * Creates a gcli exec function that wraps a 'callback' function contributed by
@@ -188,22 +238,20 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 	 */
 	function contributedExecFunc(service) {
 		if (typeof(service.callback) === 'function') { //$NON-NLS-0$
-			//TODO: we may support different styles of exec functions based on 
-			// properties set in the service. For now we just have the one
-			// type that executes asynchronously and renders the result as 'pre' text.
 			return function(args, context) {
 				var promise = context.createPromise();
-				createPluginContext(context, function(jsonContext) {
-					service.callback(args, jsonContext).then(function(result) {
+				service.callback(args).then(
+					function(result) {
 						promise.resolve(result);
-					});
-				});
+					},
+					function(error) {
+						resolveError(promise, error);
+					}
+				);
 				return promise;
 			};
 		}
 		return undefined; 
-		//returns undefined if we can't create an exec function (typically because the 
-		//service doesn't provide one and is just a parent node in the command hierarchy).
 	}
 
 	dojo.addOnLoad(function() {
@@ -217,6 +265,7 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 			fileClient = new mFileClient.FileClient(serviceRegistry);
 			var searcher = new mSearchClient.Searcher({serviceRegistry: serviceRegistry, commandService: commandService, fileService: fileClient});
 			mGlobalCommands.generateBanner("toolbar", serviceRegistry, commandService, preferences, searcher); //$NON-NLS-0$
+			mGlobalCommands.setPageTarget({task: "Console"});
 
 			var console = new mConsole.Console(dojo.byId("console-input"), dojo.byId("console-output")); //$NON-NLS-1$ //$NON-NLS-0$
 			/* the Console creates a child of console-input, resize to give it a height */
@@ -234,26 +283,22 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 				description: messages['Change current directory'],
 				callback: cdExec,
 				returnType: 'string', //$NON-NLS-0$
-				parameters: [
-						    {
-								name: 'directory', //$NON-NLS-0$
-								type: 'directory', //$NON-NLS-0$
-								description: messages['Directory']
-						    }
-				]
+				parameters: [{
+					name: 'directory', //$NON-NLS-0$
+					type: 'directory', //$NON-NLS-0$
+					description: messages['Directory']
+				}]
 			});
 			console.addCommand({
 				name: 'edit', //$NON-NLS-0$
 				description: messages['Edit a file'],
 				callback: editExec,
 				returnType: 'string', //$NON-NLS-0$
-				parameters: [
-						    {
-								name: 'file', //$NON-NLS-0$
-								type: 'file', //$NON-NLS-0$
-								description: messages['File']
-						    }
-				]
+				parameters: [{
+					name: 'file', //$NON-NLS-0$
+					type: 'file', //$NON-NLS-0$
+					description: messages['File']
+				}]
 			});
 			console.addCommand({
 				name: 'ls', //$NON-NLS-0$
@@ -298,9 +343,10 @@ define(['i18n!orion/console/nls/messages', 'require', 'dojo', 'dijit', 'orion/bo
 					console.addCommand({
 						name: ref.getProperty("name"), //$NON-NLS-0$
 						description: ref.getProperty("description"), //$NON-NLS-0$
-						manual: ref.getProperty("manual"), //$NON-NLS-0$
+						callback: contributedExecFunc(service),
+						returnType: 'string', //$NON-NLS-0$
 						parameters: ref.getProperty("parameters"), //$NON-NLS-0$
-						exec: contributedExecFunc(service)
+						manual: ref.getProperty("manual") //$NON-NLS-0$
 					});
 				}
 			}

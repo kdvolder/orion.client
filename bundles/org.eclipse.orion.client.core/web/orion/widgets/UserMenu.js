@@ -56,14 +56,26 @@ define(['i18n!orion/widgets/nls/messages', 'require', 'dojo', 'dijit', 'orion/co
 			var _self = this;
 			var authService = this.authenticatedServices[key].authService;
 			if(authService && authService.logout){
-					this.addChild(new dijit.MenuItem({
+					this.addChild(new mCommands.CommandMenuItem({
 						label: who ? messages["Sign Out "] + who : messages["Sign Out"],
 						onClick: dojo.hitch(this, function(authService, key){
-							return function(){authService.logout().then(dojo.hitch(_self, function(){
-								this.addUserItem(key, authService, this.authenticatedServices[key].label);
-								localStorage.removeItem(key);
-								}));};
-							})(authService, key)
+							return function(){
+								authService.logout().then(dojo.hitch(_self, function(){
+									this.addUserItem(key, authService, this.authenticatedServices[key].label);
+									localStorage.removeItem(key);
+									//TODO: Bug 368481 - Re-examine localStorage caching and lifecycle
+									for (var i = 0, length = localStorage.length; i < length; i++) {
+										var name = localStorage.key(i);
+										if (name && name.indexOf("/orion/preferences/user") === 0) {
+											localStorage.removeItem(name);
+										}
+									}
+									authService.getAuthForm(window.location.href).then(function(formURL) {
+										window.location = formURL;
+									});
+								}));
+							};
+						})(authService, key)
 					}));
 			}
 		},
@@ -79,10 +91,9 @@ define(['i18n!orion/widgets/nls/messages', 'require', 'dojo', 'dijit', 'orion/co
 				}else{
 					loginForm+= "&redirect=" + eclipse.globalCommandUtils.notifyAuthenticationSite + "?key=" + key; //$NON-NLS-1$ //$NON-NLS-0$
 				}
-				this.addChild(new dijit.MenuItem({
+				this.addChild(new mCommands.Command.MenuItem({
 					label: where ? "<a target='_blank' href="+loginForm+">"+messages["Sign In To "]+ where +"</a>" : "<a target='_blank' href="+loginForm+">"+messages["Sign In"]+"</a>", //$NON-NLS-8$ //$NON-NLS-6$ //$NON-NLS-4$ //$NON-NLS-3$ //$NON-NLS-1$ //$NON-NLS-0$
-					onKeyDown: function(evt){if(evt.keyCode===13) window.open(loginForm);},
-					_onClick: function(evt) { this.getParent().onItemClick(this, evt); } 
+					hasLink: true
 				}), startIndex);
 				
 			}else if(authService.getAuthForm){
@@ -93,15 +104,14 @@ define(['i18n!orion/widgets/nls/messages', 'require', 'dojo', 'dijit', 'orion/co
 						}else{
 							loginForm+= "&redirect=" + eclipse.globalCommandUtils.notifyAuthenticationSite + "?key=" + key; //$NON-NLS-1$ //$NON-NLS-0$
 						}
-						_self.addChild(new dijit.MenuItem({
+						_self.addChild(new mCommands.CommandMenuItem({
 							label: where ? "<a target='_blank' href="+loginForm+">"+messages['Sign In To ']+where+"</a>" : "<a target='_blank' href="+loginForm+">"+messages["Sign In"]+"</a>", //$NON-NLS-7$ //$NON-NLS-5$ //$NON-NLS-4$ //$NON-NLS-3$ //$NON-NLS-1$ //$NON-NLS-0$
-							onKeyDown: function(evt){if(evt.keyCode===13) window.open(loginForm);},
-							_onClick: function(evt) { this.getParent().onItemClick(this, evt); } 
+							hasLink: true
 						}), startIndex);
 					});
 				})(key);
 			}else if(authService.login){
-				this.addChild(new dijit.MenuItem({
+				this.addChild(new mCommands.CommandMenuItem({
 					label: where ? "Sign In To " + where : "Sign In", //$NON-NLS-1$ //$NON-NLS-0$
 					onClick:  dojo.hitch(_self, function(authService){
 						return function(){authService.login(eclipse.globalCommandUtils.notifyAuthenticationSite);};
@@ -131,21 +141,12 @@ define(['i18n!orion/widgets/nls/messages', 'require', 'dojo', 'dijit', 'orion/co
 //				 _onClick: function(evt) { this.getParent().onItemClick(this, evt); }
 //			 }));
 			 
-			this.addChild(new dijit.MenuItem({
+			this.addChild(new mCommands.CommandMenuItem({
 				 label: "<a href="+require.toUrl("help/index.jsp") + ">"+messages["Help"]+"</a>", //$NON-NLS-4$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-				 onKeyDown: function(evt){
-					if(evt.keyCode === 13 || evt.keyCode === 32) {
-						if(evt.ctrlKey) {
-							window.open(require.toUrl("help/index.jsp")); //$NON-NLS-0$
-						} else {
-							window.location=require.toUrl("help/index.jsp"); //$NON-NLS-0$
-						}
-					}
-				 },
-				 _onClick: function(evt) { this.getParent().onItemClick(this, evt); }
+				 hasLink: true
 			 }));
 			if(this.keyAssistFunction){
-				this.addChild(new dijit.MenuItem({
+				this.addChild(new mCommands.CommandMenuItem({
 					 label: messages["Keyboard Shortcuts"],
 					 onClick: this.keyAssistFunction
 				 }));	
@@ -154,18 +155,9 @@ define(['i18n!orion/widgets/nls/messages', 'require', 'dojo', 'dijit', 'orion/co
 			this.addChild(new dijit.MenuSeparator());
 			
 			
-			 this.addChild(new dijit.MenuItem({
+			 this.addChild(new mCommands.CommandMenuItem({
 				 label: "<a href="+require.toUrl("settings/settings.html") + ">"+messages["Settings"]+"</a>", //$NON-NLS-4$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-				 onKeyDown: function(evt){
-					if(evt.keyCode === 13 || evt.keyCode === 32) {
-						if(evt.ctrlKey) {
-							window.open(require.toUrl("settings/settings.html")); //$NON-NLS-0$
-						} else {
-							window.location=require.toUrl("settings/settings.html"); //$NON-NLS-0$
-						}
-					}
-				 },
-				 _onClick: function(evt) { this.getParent().onItemClick(this, evt); }
+				 hasLink: true
 			 }));
 			 
 			 if(this.isSingleService()){

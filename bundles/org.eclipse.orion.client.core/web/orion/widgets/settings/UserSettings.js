@@ -14,19 +14,36 @@
 /* This SettingsContainer widget is a dojo border container with a left and right side. The left is for choosing a 
    category, the right shows the resulting HTML for that category. */
 
-define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/widgets/settings/LabeledTextfield', 'orion/widgets/settings/LabeledCheckbox', 'orion/widgets/settings/LabeledToggle', 'profile/UsersService', 'orion/widgets/settings/Section' ], function(messages, require, dojo, dijit, mUtil, mCommands) {
+define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/util', 'orion/commands', 'orion/section', 'orion/widgets/settings/LabeledTextfield', 'orion/widgets/settings/LabeledCheckbox', 'orion/widgets/settings/LabeledToggle', 'profile/UsersService', 'orion/widgets/settings/Section' ], function(messages, require, dojo, dijit, mUtil, mCommands, mSection) {
 
 	dojo.declare("orion.widgets.settings.UserSettings", [dijit._Widget, dijit._Templated], { //$NON-NLS-0$
 	
 		// templateString: '<input type="text" name="myname" data-dojo-attach-point="textfield" data-dojo-attach-event="onchange:change"/>',
 		
+		dispatch: true,
+		
 		templateString: '<div>' +  //$NON-NLS-0$
 							'<div data-dojo-attach-point="table">' +  //$NON-NLS-0$
-								'<div class="sectionWrapper sectionWrapperAux toolComposite"><div class="sectionAnchor">'+messages['User Profile']+'</div></div>' + //$NON-NLS-2$ //$NON-NLS-0$
+								'<div class="sectionWrapper toolComposite">' +
+									'<div class="sectionAnchor sectionTitle layoutLeft">'+messages['User Profile']+'</div>' + 
+									'<div id="userCommands" class="layoutRight sectionActions"></div>' +
+								'</div>' + //$NON-NLS-2$ //$NON-NLS-0$
 								'<div data-dojo-attach-point="sections">' + //$NON-NLS-0$
+								
 								'</sections>' + //$NON-NLS-0$
+								'<div></div>' +
+								
 							'</div>' + //$NON-NLS-0$
+							'<div data-dojo-attach-point="linkedSection"></div>' +
 						'</div>', //$NON-NLS-0$
+						
+		setHash: function(iframe, hash){
+			if(iframe.src.indexOf("#")>0){ //$NON-NLS-0$
+				iframe.src = iframe.src.substr(0, iframe.src.indexOf("#")) + "#" + hash; //$NON-NLS-1$ //$NON-NLS-0$
+			}else{
+				iframe.src = iframe.src + "#" + hash; //$NON-NLS-0$
+			}
+		},
 		
 		postCreate: function(){
 			
@@ -56,26 +73,26 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 			
 			/* - linked ------------------------------------------------------ */
 			
-			this.linkedFields = [];
-			
-			var toggleLabels = [ messages['Google'], messages['Yahoo'], messages['AOL'], messages['OpenId'] ];
-			
-			var openIds = [ 'https://www.google.com/accounts/o8/id', 'http://me.yahoo.com', 'http://openid.aol.com/', 'http://myopenid.com' ];//$NON-NLS-0$ //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-			
-			var toggleData = {toggleOnState:messages["Linked"], toggleOffState:messages["Unlinked"], toggleOnSwitch:messages['Link'], toggleOffSwitch:messages['Unlink']};
-			
-			for( var toggle = 0; toggle< 4; toggle++ ){
-				toggleData.fieldlabel = toggleLabels[toggle];
-				
-				var toggleWidget = new orion.widgets.settings.LabeledToggle( toggleData );
-				
-				toggleWidget.onAction = dojo.hitch( this, 'confirmOpenId', openIds[toggle] ); //$NON-NLS-0$
-				
-				this.linkedFields.push( toggleWidget );
-				
-			}
-			
-			var linkedSection = new orion.widgets.settings.Section( {sectionName:messages['Linked Accounts'], container: this.sections, sections: this.linkedFields } );
+//			this.linkedFields = [];
+//			
+//			var toggleLabels = [ messages['Google'], messages['Yahoo'], messages['AOL'], messages['OpenId'] ];
+//			
+//			var openIds = [ 'https://www.google.com/accounts/o8/id', 'http://me.yahoo.com', 'http://openid.aol.com/', 'http://myopenid.com' ];//$NON-NLS-0$ //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+//			
+//			var toggleData = {toggleOnState:messages["Linked"], toggleOffState:messages["Unlinked"], toggleOnSwitch:messages['Link'], toggleOffSwitch:messages['Unlink']};
+//			
+//			for( var toggle = 0; toggle< 4; toggle++ ){
+//				toggleData.fieldlabel = toggleLabels[toggle];
+//				
+//				var toggleWidget = new orion.widgets.settings.LabeledToggle( toggleData );
+//				
+//				toggleWidget.onAction = dojo.hitch( this, 'confirmOpenId', openIds[toggle] ); //$NON-NLS-0$
+//				
+//				this.linkedFields.push( toggleWidget );
+//				
+//			}
+//			
+//			var linkedSection = new orion.widgets.settings.Section( {sectionName:messages['Linked Accounts'], container: this.sections, sections: this.linkedFields } );
 
 			/* - git --------------------------------------------------------- */
 			
@@ -100,7 +117,21 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 
 			this.commandService.registerCommandContribution('profileCommands', "orion.updateprofile", 2); //$NON-NLS-1$ //$NON-NLS-0$
 			
-			this.commandService.renderCommands('profileCommands', this.toolbarID, this, this, "button"); //$NON-NLS-1$ //$NON-NLS-0$
+			this.commandService.renderCommands('profileCommands', dojo.byId( 'userCommands' ), this, this, "button"); //$NON-NLS-1$ //$NON-NLS-0$		
+			
+			this.linkedAccountSection = new mSection.Section(this.linkedSection, {
+							id: "linkedAccountSection", //$NON-NLS-0$
+							title: "Linked Accounts", //$NON-NLS-0$
+							content: '<div id="iFrameContent"></div>', //$NON-NLS-0$
+							canHide: true,
+							useAuxStyle: true,
+							hidden: true,
+							slideout: true
+			});
+			
+			var desc = { src: "../mixlogin/manageopenids", style: "border: 0px; width: 500px" };
+			
+			this.iframe = dojo.create("iframe", desc, dojo.byId( 'iFrameContent' ) ); //$NON-NLS-0$
 			
 			this.startUp();
 		},
@@ -111,8 +142,7 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 			}
 		},
 		
-		update: function(data){
-			console.log( 'update' ); //$NON-NLS-0$
+	update: function(data){
 			
 			var authenticationIds = [];
 			
@@ -133,39 +163,61 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 			userdata.Name = settingsWidget.accountFields[1].getValue();
 			userdata.email = settingsWidget.accountFields[2].getValue();
 			
-//			userdata.password = settingsWidget.passwordFields[1].getValue();
-//			userdata.passwordRetype = settingsWidget.passwordFields[1].getValue();
+			var pword = settingsWidget.passwordFields[1].getValue();
+			var pwordRetype = settingsWidget.passwordFields[2].getValue();
 
-//			if( userdata.password === userdata.passwordRetype ){
+			if( pword.length > 0 ){
 			
-			for(var i=0; i<authServices.length; i++){
-				var servicePtr = authServices[i];
-				var authService = this.registry.getService(servicePtr);		
-
-				authService.getKey().then(function(key){
-					authenticationIds.push(key);
-					authService.getUser().then(function(jsonData){
+				if( pword !== pwordRetype ){
+					messageService.setProgressResult( 'New password, and retyped password do not match' );
 					
-						var data = jsonData;
+					this.dispatch = false;
+					
+				}else{
+				
+					if( settingsWidget.passwordFields[0].getValue().length > 0 ){
+						userdata.oldPassword = settingsWidget.passwordFields[0].getValue();
+						userdata.password = pword;
+						userdata.passwordRetype = pwordRetype;
+					
+						this.dispatch = true;
+					
+					}else{
+						messageService.setProgressResult( 'Need to type your current password' );
+					
+						this.dispatch = false;
+					}		
+				}
+			}
+			
+			if( this.dispatch === true ){
+			
+				for(var i=0; i<authServices.length; i++){
+					var servicePtr = authServices[i];
+					var authService = this.registry.getService(servicePtr);		
+	
+					authService.getKey().then(function(key){
+						authenticationIds.push(key);
+						authService.getUser().then(function(jsonData){
 						
-						var b = userService.updateUserInfo(jsonData.Location, userdata).then( function(args){
-							messageService.setProgressResult( messages['User profile data successfully reset.'] );
+							var data = jsonData;
 							
-							if( userdata.Name ){
-							
-								var userMenu = dijit.byId( 'logins' ); //$NON-NLS-0$
+							var b = userService.updateUserInfo(jsonData.Location, userdata).then( function(args){
+								messageService.setProgressResult( messages['User profile data successfully reset.'] );
 								
-								userMenu.set( 'label', userdata.Name  ); //$NON-NLS-0$
-							
-							}
-							
+								if( userdata.Name ){
+								
+									var userMenu = dijit.byId( 'logins' ); //$NON-NLS-0$
+									
+									userMenu.set( 'label', userdata.Name  ); //$NON-NLS-0$
+								
+								}
+								
+							});
 						});
 					});
-				});
-			}		
-//			}else{
-//				messageService.setProgressResult( 'New password, and retyped password do not match' );
-//			}
+				}		
+			}
 		},
 		
 		startUp:function(){
@@ -196,9 +248,19 @@ define(['i18n!orion/settings/nls/messages', 'require', 'dojo', 'dijit', 'orion/u
 							settingsWidget.accountFields[1].setValue( accountData.Name );
 							settingsWidget.accountFields[2].setValue( accountData.email );
 							
-							settingsWidget.gitFields[0].setValue( accountData.GitMail );
-							settingsWidget.gitFields[1].setValue( accountData.GitName );							
+							if( accountData.GitMail ){
+								settingsWidget.gitFields[0].setValue( accountData.GitMail );
+							}
+							
+							if( accountData.GitName ){
+								settingsWidget.gitFields[1].setValue( accountData.GitName );	
+							}
 						});
+						
+						settingsWidget.setHash( settingsWidget.iframe, jsonData.Location );
+						
+						
+						
 					});
 				});
 			}

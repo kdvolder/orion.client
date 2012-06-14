@@ -13,6 +13,7 @@
 define(['i18n!orion/sites/nls/messages', 'require', 'dojo', 'orion/util', 'orion/commands', 'orion/explorer'],
 		function(messages, require, dojo, mUtil, mCommands, mExplorer) {
 
+var ROOT = "/"; //$NON-NLS-0$
 var mSiteMappingsTable = {};
 
 function mixin(target, source) {
@@ -202,7 +203,7 @@ mSiteMappingsTable.MappingsTable = (function() {
 				id: "orion.site.mappings.remove", //$NON-NLS-0$
 				visibleWhen: function(item) {
 					// Only show on a Mappings object
-					return typeof item.Source !== "undefined" && typeof item.Target !== "undefined"; //$NON-NLS-1$ //$NON-NLS-0$
+					return 'Source' in item || 'Target' in item || 'FriendlyPath' in item; //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 				},
 				callback: dojo.hitch(this, function(data) {
 					//table._hideTooltip();
@@ -218,7 +219,7 @@ mSiteMappingsTable.MappingsTable = (function() {
 				imageClass: "core-sprite-move_up", //$NON-NLS-0$
 				id: "orion.site.mappings.moveUp", //$NON-NLS-0$
 				visibleWhen: dojo.hitch(this, function(item) {
-					return item.Source && item.Target;
+					return 'Source' in item || 'Target' in item || 'FriendlyPath' in item; //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 				}),
 				callback: dojo.hitch(this, function(data) {
 					var index = this.getItemIndex(data.items);
@@ -237,7 +238,7 @@ mSiteMappingsTable.MappingsTable = (function() {
 				imageClass: "core-sprite-move_down", //$NON-NLS-0$
 				id: "orion.site.mappings.moveDown", //$NON-NLS-0$
 				visibleWhen: dojo.hitch(this, function(item) {
-					return item.Source && item.Target;
+					return 'Source' in item || 'Target' in item || 'FriendlyPath' in item; //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 				}),
 				callback: dojo.hitch(this, function(data) {
 //					this._hideTooltip();
@@ -256,9 +257,9 @@ mSiteMappingsTable.MappingsTable = (function() {
 			return this.siteConfiguration.Mappings.indexOf(item);
 		},
 		_addMapping: function(object) {
-			var source = object.Souce, target = object.Target, friendlyPath = object.FriendlyPath;
-			source = safePath(typeof(source) === "string" ? source : this.getNextMountPoint(friendlyPath)); //$NON-NLS-0$
-			target = safePath(typeof(target) === "string" ? target : "/"); //$NON-NLS-1$ //$NON-NLS-0$
+			var source = object.Source, target = object.Target, friendlyPath = object.FriendlyPath;
+			object.Source = safePath(typeof(source) === "string" ? source : this.getNextMountPoint(friendlyPath)); //$NON-NLS-0$
+			object.Target = safePath(typeof(target) === "string" ? target : "/"); //$NON-NLS-1$ //$NON-NLS-0$
 			if (!this.mappingExists(source, target)) {
 				this.siteConfiguration.Mappings.push(object);
 			}

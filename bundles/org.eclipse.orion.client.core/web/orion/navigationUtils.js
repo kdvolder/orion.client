@@ -11,6 +11,8 @@
 /*global define window document navigator*/
 
 define(['dojo'], function(dojo) {
+	var userAgent = navigator.userAgent;
+	var isPad = userAgent.indexOf("iPad") !== -1; //$NON-NLS-0$
                 
 	/**
 	 * Add a grid navigation item to the navigation dictionary. A row navigation model normally comes from any node in a {treeModelIterator}.
@@ -49,6 +51,9 @@ define(['dojo'], function(dojo) {
 	 *                 Otherwise we will check if the widget has focus function and call it accordingly.
 	 */
 	function generateNavGrid(domNodeWrapperList, domNode, widget, onClick) {
+		if(isPad){
+			return;
+		}
 		if(!domNodeWrapperList){
 			return;
 		}
@@ -58,6 +63,7 @@ define(['dojo'], function(dojo) {
 		} else {
 			domNodeWrapperList.push({domNode: domNode});
 			dojo.attr(domNode, "tabIndex", -1); //$NON-NLS-0$
+			dojo.style(domNode, "outline", "none"); //$NON-NLS-0$
 		}
 	}
 	

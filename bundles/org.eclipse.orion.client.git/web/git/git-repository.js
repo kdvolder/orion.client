@@ -40,7 +40,7 @@ mBootstrap.startup().then(function(core) {
 	var fileClient = new mFileClient.FileClient(serviceRegistry);
 	var searcher = new mSearchClient.Searcher({serviceRegistry: serviceRegistry, commandService: commandService, fileService: fileClient});
 	
-	var explorer = new mGitRepositoryExplorer.GitRepositoryExplorer(serviceRegistry, commandService, linkService, /* selection */ null, "artifacts", "pageActions", null, "itemLevelCommands"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	var explorer = new mGitRepositoryExplorer.GitRepositoryExplorer(serviceRegistry, commandService, linkService, /* selection */ null, "artifacts", "itemLevelCommands"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 	mGlobalCommands.generateBanner("banner", serviceRegistry, commandService, preferences, searcher, explorer); //$NON-NLS-0$
 	
 	// define commands
@@ -49,12 +49,23 @@ mBootstrap.startup().then(function(core) {
 
 	// define the command contributions - where things appear, first the groups
 	commandService.addCommandGroup("pageActions", "eclipse.gitGroup", 100); //$NON-NLS-1$ //$NON-NLS-0$
-	commandService.registerCommandContribution("pageActions", "eclipse.cloneGitRepository", 100, "eclipse.gitGroup", false, null, new mCommands.URLBinding("cloneGitRepository", "url")); //$NON-NLS-4$ //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-	commandService.registerCommandContribution("pageActions", "eclipse.initGitRepository", 101, "eclipse.gitGroup"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-	commandService.registerCommandContribution("pageActions", "eclipse.orion.git.openCommitCommand", 102, "eclipse.gitGroup", true,  //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-		new mCommands.CommandKeyBinding('h', true, true), new mCommands.URLBinding("openGitCommit", "commitName")); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-	commandService.registerCommandContribution("pageActions", "eclipse.orion.git.showContent", 300, null,true,new mCommands.CommandKeyBinding('e', true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	commandService.addCommandGroup("pageActions", "eclipse.gitGroup", 200); //$NON-NLS-1$ //$NON-NLS-0$
 	
+	commandService.registerCommandContribution("reposPageActions", "eclipse.cloneGitRepository", 100, "eclipse.gitGroup", false, null, new mCommands.URLBinding("cloneGitRepository", "url")); //$NON-NLS-4$ //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	commandService.registerCommandContribution("reposPageActions", "eclipse.initGitRepository", 200, "eclipse.gitGroup"); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	
+	commandService.registerCommandContribution("repoPageActions", "eclipse.orion.git.pull", 100, "eclipse.gitGroup"); //$NON-NLS-1$ //$NON-NLS-0$
+	commandService.registerCommandContribution("repoPageActions", "eclipse.orion.git.applyPatch", 200, "eclipse.gitGroup"); //$NON-NLS-1$ //$NON-NLS-0$
+	commandService.registerCommandContribution("repoPageActions", "eclipse.git.deleteClone", 300, "eclipse.gitGroup"); //$NON-NLS-1$ //$NON-NLS-0$
+	
+	commandService.registerCommandContribution("reposPageActions", "eclipse.orion.git.openCommitCommand", 1000, "eclipse.gitGroup", true,  //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+			new mCommands.CommandKeyBinding('h', true, true), new mCommands.URLBinding("openGitCommit", "commitName")); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	commandService.registerCommandContribution("reposPageActions", "eclipse.orion.git.showContent", 1100, null, true, new mCommands.CommandKeyBinding('e', true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	
+	commandService.registerCommandContribution("repoPageActions", "eclipse.orion.git.openCommitCommand", 1000, "eclipse.gitGroup", true,  //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+		new mCommands.CommandKeyBinding('h', true, true), new mCommands.URLBinding("openGitCommit", "commitName")); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	commandService.registerCommandContribution("repoPageActions", "eclipse.orion.git.showContent", 1100, null, true, new mCommands.CommandKeyBinding('e', true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+
 	// object contributions
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.openCloneContent", 100); //$NON-NLS-1$ //$NON-NLS-0$
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.openGitStatus", 100); //$NON-NLS-1$ //$NON-NLS-0$
@@ -65,7 +76,6 @@ mBootstrap.startup().then(function(core) {
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.removeTag", 1000); //$NON-NLS-1$ //$NON-NLS-0$
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.checkoutBranch", 200); //$NON-NLS-1$ //$NON-NLS-0$
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.orion.git.applyPatch", 300); //$NON-NLS-1$ //$NON-NLS-0$
-	commandService.registerCommandContribution("itemLevelCommands", "eclipse.orion.git.showContent", 300, null,true,new mCommands.CommandKeyBinding('e', true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.git.deleteClone", 1000); //$NON-NLS-1$ //$NON-NLS-0$
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.orion.git.fetch", 500); //$NON-NLS-1$ //$NON-NLS-0$
 	commandService.registerCommandContribution("itemLevelCommands", "eclipse.orion.git.merge", 600); //$NON-NLS-1$ //$NON-NLS-0$
@@ -97,19 +107,7 @@ mBootstrap.startup().then(function(core) {
 	fileClient.loadWorkspace().then(
 		function(workspace){
 			explorer.setDefaultPath(workspace.Location);
-			var pageParams = PageUtil.matchResourceParameters();
-			if (pageParams.resource) {
-				explorer.displayRepository(pageParams.resource);
-			} else {
-				var path = workspace.Location;
-				var relativePath = mUtil.makeRelative(path);
-				
-				//NOTE: require.toURL needs special logic here to handle "gitapi/clone"
-				var gitapiCloneUrl = require.toUrl("gitapi/clone._"); //$NON-NLS-0$
-				gitapiCloneUrl = gitapiCloneUrl.substring(0,gitapiCloneUrl.length-2);
-				
-				explorer.displayRepository(relativePath[0] === "/" ? gitapiCloneUrl + relativePath : gitapiCloneUrl + "/" + relativePath); //$NON-NLS-1$ //$NON-NLS-0$
-			}
+			explorer.redisplay();
 		}	
 	);	
 	
@@ -118,54 +116,12 @@ mBootstrap.startup().then(function(core) {
 		fileClient.loadWorkspace().then(
 			function(workspace){
 				explorer.setDefaultPath(workspace.Location);
-				var pageParams = PageUtil.matchResourceParameters();
-				if (pageParams.resource) {
-					explorer.displayRepository(pageParams.resource);
-				} else {
-					var path = workspace.Location;
-					var relativePath = mUtil.makeRelative(path);
-					
-					//NOTE: require.toURL needs special logic here to handle "gitapi/clone"
-					var gitapiCloneUrl = require.toUrl("gitapi/clone._"); //$NON-NLS-0$
-					gitapiCloneUrl = gitapiCloneUrl.substring(0,gitapiCloneUrl.length-2);
-					
-					explorer.displayRepository(relativePath[0] === "/" ? gitapiCloneUrl + relativePath : gitapiCloneUrl + "/" + relativePath); //$NON-NLS-1$ //$NON-NLS-0$
-				}
+				explorer.redisplay();
 			}	
 		);	
 	});
-
-//	makeRightPane(explorer);
+	
 });
-
-/*function makeRightPane(explorer){
-	// set up the splitter bar and its key binding
-	var splitArea = dijit.byId("orion.innerNavigator");
-	
-	//by default the pane should be closed
-	if(splitArea.isRightPaneOpen()){
-		splitArea.toggle();
-	}
-			
-	var bufferedSelection = [];
-	
-	window.document.onkeydown = function (evt){
-		evt = evt || window.event;
-		var handled = false;
-		if(evt.ctrlKey && evt.keyCode  === 79){ // Ctrl+o handler for toggling outline 
-			splitArea.toggle();
-			handled = true;			
-		} 
-		if (handled) {
-			if (window.document.all) { 
-				evt.keyCode = 0;
-			} else { 
-				evt.preventDefault();
-				evt.stopPropagation();
-			}		
-		}
-	};
-}*/
 
 //end of define
 });

@@ -10,7 +10,7 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 
-/*global define setTimeout addEventListener document console localStorage Worker*/
+/*global define setTimeout clearTimeout addEventListener document console localStorage Worker*/
 
 define(["orion/Deferred", "orion/serviceregistry", "orion/es5shim"], function(Deferred, mServiceregistry){
 var eclipse = eclipse || {};
@@ -31,13 +31,14 @@ eclipse.Plugin = function(url, data, internalRegistry) {
 	var _currentMessageId = 0;
 	var _deferredResponses = {};
 	var _serviceRegistrations = {};
-		
-	function _callService(serviceId, method, params, deferred) {
+	
+	function _callService(serviceId, method, params) {
 		if (!_channel) {
 			throw new Error("plugin not connected");
 		}
 		var requestId = _currentMessageId++;
-		_deferredResponses[String(requestId)] = deferred;
+		var d = new Deferred();
+		_deferredResponses[String(requestId)] = d;
 		var message = {
 			id: requestId,
 			serviceId: serviceId,
@@ -45,6 +46,7 @@ eclipse.Plugin = function(url, data, internalRegistry) {
 			params: params
 		};
 		internalRegistry.postMessage(message, _channel);
+		return d.promise;
 	}
 
 	function _createServiceProxy(service) {
@@ -53,11 +55,13 @@ eclipse.Plugin = function(url, data, internalRegistry) {
 			service.methods.forEach(function(method) {
 				serviceProxy[method] = function() {
 					var params = Array.prototype.slice.call(arguments);
-					var d = new Deferred();
-					_self._load().then(function() {
-						_callService(service.serviceId, method, params, d);
-					});
-					return d.promise;
+					if (_loaded) {
+						return _callService(service.serviceId, method, params);
+					} else {
+						return _self._load().then(function() {
+							return _callService(service.serviceId, method, params);
+						});
+					}
 				};
 			});
 		}
@@ -97,6 +101,7 @@ eclipse.Plugin = function(url, data, internalRegistry) {
 					
 					if (!_loaded) {
 						_loaded = true;
+						internalRegistry.dispatchEvent("pluginLoaded", _self); //$NON-NLS-0$
 						_deferredLoad.resolve(_self);
 					}
 					
@@ -110,6 +115,15 @@ eclipse.Plugin = function(url, data, internalRegistry) {
 				} else if ("progress" === message.method){ //$NON-NLS-0$
 					deferred = _deferredResponses[String(message.requestId)];
 					deferred.update.apply(deferred, message.params);	
+				} else if ("timeout"){
+					if (!_loaded) {
+						_deferredLoad.reject(new Error("Load timeout for plugin: " + url));
+					}
+					
+					if (_deferredUpdate) {
+						_deferredUpdate.reject(new Error("Load timeout for plugin: " + url));
+						_deferredUpdate = null;
+					}
 				} else {
 					throw new Error("Bad response method: " + message.method);
 				}		
@@ -195,27 +209,19 @@ eclipse.Plugin = function(url, data, internalRegistry) {
 			updatePromise = _deferredUpdate;
 			internalRegistry.disconnect(_channel);
 			_channel = internalRegistry.connect(url, _responseHandler);
-			setTimeout(function() {
-				if (_deferredUpdate === updatePromise) {
-					_deferredUpdate.reject(new Error("Load timeout for plugin: " + url));
-				}
-			}, 15000);
 		}
 		return _deferredUpdate.promise;
 	};
 	
-	this._load = function(isInstall) {
+	this._load = function(isInstall, optTimeout) {
 		if (!_channel) {
-			_channel = internalRegistry.connect(url, _responseHandler);
-			setTimeout(function() {
-				if (!_loaded) {
-					if (!isInstall) {
-						data = {};
-						internalRegistry.updatePlugin(_self);
-					}
-					_deferredLoad.reject(new Error("Load timeout for plugin: " + url));
+			_channel = internalRegistry.connect(url, _responseHandler, optTimeout);
+			_deferredLoad.then(null, function() {
+				if (!isInstall) {
+					data = {};
+					internalRegistry.updatePlugin(_self);
 				}
-			}, 15000);
+			});
 		}
 		return _deferredLoad.promise;
 	};
@@ -274,11 +280,18 @@ eclipse.PluginRegistry = function(serviceRegistry, opt_storage, opt_visible) {
 
 	var internalRegistry = {
 			registerService: serviceRegistry.registerService.bind(serviceRegistry),
-			connect: function(url, handler) {
+			connect: function(url, handler, timeout) {
 				var channel = {
 					handler: handler,
 					url: url
 				};
+				
+				function sendTimeout() {
+					handler({method:"timeout"});
+				}
+				
+				var loadTimeout = setTimeout(sendTimeout, timeout || 15000);
+				
 				if (url.match(/\.js$/) && typeof(Worker) !== "undefined") { //$NON-NLS-0$
 					var worker = new Worker(url);
 					worker.onmessage = function(event) {
@@ -300,6 +313,11 @@ eclipse.PluginRegistry = function(serviceRegistry, opt_storage, opt_visible) {
 						iframe.style.visibility = "hidden"; //$NON-NLS-0$
 					}
 					iframe.src = url;
+					iframe.onload = function() {
+						clearTimeout(loadTimeout);
+						setTimeout(sendTimeout, 5000);
+					};
+					iframe.sandbox = "allow-scripts allow-same-origin";
 					document.body.appendChild(iframe);
 					channel.target = iframe.contentWindow;
 					channel.close = function() {
@@ -338,6 +356,15 @@ eclipse.PluginRegistry = function(serviceRegistry, opt_storage, opt_visible) {
 			},
 			postMessage: function(message, channel) {
 				channel.target.postMessage((channel.useStructuredClone ? message : JSON.stringify(message)), channel.url);
+			},
+			dispatchEvent: function(type, plugin) {
+				try {
+					_pluginEventTarget.dispatchEvent(type, plugin);
+				} catch (e) {
+					if (console) {
+						console.log(e);
+					}
+				}
 			}
 	};
 	
@@ -374,7 +401,7 @@ eclipse.PluginRegistry = function(serviceRegistry, opt_storage, opt_visible) {
 				_storage[key] ="{}"; //$NON-NLS-0$
 				var plugin = new eclipse.Plugin(pluginURL, {}, internalRegistry); 
 				_plugins.push(plugin);
-				installList.push(plugin._load(false)); // _load(false) because we want to ensure the plugin is updated
+				installList.push(plugin._load(false, 5000)); // _load(false) because we want to ensure the plugin is updated
 			}
 		});
 		

@@ -33,15 +33,14 @@ define(['i18n!orion/nls/messages', 'require'],
 				'<div id="globalActions" class="spacingLeft layoutLeft"></div>' + //$NON-NLS-0$
 				'<div id="relatedLinks" class="spacingLeft layoutLeft" style="padding-top:1px;"></div>' + //$NON-NLS-0$
 				'<input type="text" id="search" placeholder="Search" title="'+messages['Type a keyword or wild card to search in root']+'" class="layoutLeft spacingLeft searchbox" role="search">' + //$NON-NLS-2$ //$NON-NLS-0$
-				'<div id="userInfo" style= "display:none;" class="layoutLeft primaryNav"></div>' + //$NON-NLS-0$
+				// '<div id="userInfo" style= "display:none;" class="layoutLeft primaryNav"></div>' + //$NON-NLS-0$
 				'<div id="userMenu" class="spacingLeft layoutLeft"></div>' + //$NON-NLS-0$
 			'</div>' + //$NON-NLS-0$
 		'</div>' + //$NON-NLS-0$
 		//Title area
 		'<div id="titleArea" class="layoutBlock titleArea">' + //$NON-NLS-0$
 			'<div class="layoutLeft pageTitle"></div>' + //$NON-NLS-0$
-			
-			'<div id="location" style="padding-bottom:5px;display:inline;" class="clear currentLocation"></div>' + //$NON-NLS-0$
+			'<div class="clear" style="padding-bottom:5px;display:inline;"><span id="location" class="currentLocation"></span><span id="dirty" class="currentLocation"></span></div>' + //$NON-NLS-0$
 			'<div class="layoutRight pageNav">' + //$NON-NLS-0$
 				'<span id="pageFavorite" tabindex="0" role="button" aria-label="'+messages['Add this page to the favorites list']+'" class="spacingLeft layoutLeft imageSprite core-sprite-favorite_sml"></span>' + //$NON-NLS-2$ //$NON-NLS-0$
 			'</div>' + //$NON-NLS-0$
@@ -52,13 +51,13 @@ define(['i18n!orion/nls/messages', 'require'],
 	// BEGIN BOTTOM BANNER FRAGMENT
 	// styling of the surrounding div (text-align, etc) is in ide.css "footer"
 	var bottomHTMLFragment = 
-		'<footer class="layoutBlock" role="contentinfo">' + //$NON-NLS-0$
+		'<footer id="footerContent" class="layoutBlock" role="contentinfo">' + //$NON-NLS-0$
 			'<div class="footerBlock">' + //$NON-NLS-0$
 				messages['Orion is in Beta. Please try it out but BEWARE your data may be lost.'] +
 			'</div>' + //$NON-NLS-0$
 			'<div class="footerRightBlock">' + //$NON-NLS-0$
 				'<a href="http://wiki.eclipse.org/Orion/FAQ" target="_blank">'+messages['FAQ']+'</a> | ' +  //$NON-NLS-0$
-				'<a href="https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Orion&version=0.4" target="_blank">'+messages['Report a Bug']+'</a> | ' + //$NON-NLS-0$
+				'<a href="https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Orion&version=0.5" target="_blank">'+messages['Report a Bug']+'</a> | ' + //$NON-NLS-0$
 				'<a href="http://www.eclipse.org/legal/privacy.php" target="_blank">'+messages['Privacy Policy']+'</a> | ' +  //$NON-NLS-0$
 				'<a href="http://www.eclipse.org/legal/termsofuse.php" target="_blank">'+messages['Terms of Use']+'</a> | '+  //$NON-NLS-0$
 				'<a href="http://www.eclipse.org/legal/copyright.php" target="_blank">'+messages['Copyright Agent']+'</a>'+ //$NON-NLS-0$

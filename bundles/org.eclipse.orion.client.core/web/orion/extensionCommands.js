@@ -12,8 +12,8 @@
 /*global window define orion */
 /*browser:true*/
 
-define(["require", "dojo", "orion/util", "orion/commands", "orion/editor/regex", "orion/contentTypes", "orion/URITemplate", "orion/widgets/NewItemDialog", "orion/widgets/DirectoryPrompterDialog", 'orion/widgets/ImportDialog', 'orion/widgets/SFTPConnectionDialog'],
-	function(require, dojo, mUtil, mCommands, mRegex, mContentTypes, URITemplate){
+define(["require", "dojo", "orion/util", "orion/commands", "orion/editor/regex", "orion/contentTypes", "orion/URITemplate", "orion/i18nUtil", "orion/widgets/NewItemDialog", "orion/widgets/DirectoryPrompterDialog", 'orion/widgets/ImportDialog', 'orion/widgets/SFTPConnectionDialog'],
+	function(require, dojo, mUtil, mCommands, mRegex, mContentTypes, URITemplate, i18nUtil){
 
 	/**
 	 * Utility methods
@@ -55,6 +55,8 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/editor/regex",
 				editors.push({
 					id: id,
 					name: serviceRef.getProperty("name"), //$NON-NLS-0$
+					nameKey: serviceRef.getProperty("nameKey"), //$NON-NLS-0$
+					nls: serviceRef.getProperty("nls"), //$NON-NLS-0$
 					uriTemplate: serviceRef.getProperty("orionTemplate") || serviceRef.getProperty("uriTemplate") //$NON-NLS-1$ //$NON-NLS-0$
 				});
 			}
@@ -95,10 +97,13 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/editor/regex",
 			if (editorContentTypes.length) {
 				var properties = {
 					name: editor.name || editor.id,
+					nameKey: editor.nameKey,
 					id: "eclipse.openWithCommand." + editor.id, //$NON-NLS-0$
 					tooltip: editor.name,
+					tooltipKey: editor.nameKey,
 					contentType: editorContentTypes,
 					uriTemplate: editor.uriTemplate,
+					nls: editor.nls,
 					forceSingleItem: true,
 					isEditor: (isDefaultEditor ? "default": "editor") // Distinguishes from a normal fileCommand //$NON-NLS-1$ //$NON-NLS-0$
 				};
@@ -308,47 +313,69 @@ define(["require", "dojo", "orion/util", "orion/commands", "orion/editor/regex",
 	
 	// Turns an info object containing the service properties and the service (or reference) into Command options.
 	extensionCommandUtils._createCommandOptions = function(/**Object*/ info, /**Service*/ serviceOrReference, serviceRegistry, contentTypesMap, /**boolean*/ createNavigateCommandCallback, /**optional function**/ validationItemConverter) {
-		var commandOptions = {
-			name: info.name,
-			image: info.image,
-			id: info.id || info.name,
-			tooltip: info.tooltip,
-			isEditor: info.isEditor
-		};
-		var validator = extensionCommandUtils._makeValidator(info, serviceRegistry, contentTypesMap, validationItemConverter);
-		commandOptions.visibleWhen = validator.validationFunction;
 		
-		if (createNavigateCommandCallback) {
-			if (validator.generatesURI()) {
-				commandOptions.hrefCallback = dojo.hitch(validator, function(data){
-					var item = dojo.isArray(data.items) ? data.items[0] : data.items;
-					return this.getURI(item);
-				});
-			} else {
-				commandOptions.callback = dojo.hitch(info, function(data){
-					var shallowItemsClone;
-					if (this.forceSingleItem) {
-						var item = dojo.isArray() ? data.items[0] : data.items;
-						shallowItemsClone = extensionCommandUtils._cloneItemWithoutChildren(item);
-					} else {
-						if (dojo.isArray(data.items)) {
-							shallowItemsClone = [];
-							for (var j = 0; j<data.items.length; j++) {
-								shallowItemsClone.push(extensionCommandUtils._cloneItemWithoutChildren(data.items[j]));
-							}
+		var deferred = new dojo.Deferred();
+		
+		function enhanceCommandOptions(commandOptions, deferred){
+			var validator = extensionCommandUtils._makeValidator(info, serviceRegistry, contentTypesMap, validationItemConverter);
+			commandOptions.visibleWhen = validator.validationFunction;
+			
+			if (createNavigateCommandCallback) {
+				if (validator.generatesURI()) {
+					commandOptions.hrefCallback = dojo.hitch(validator, function(data){
+						var item = dojo.isArray(data.items) ? data.items[0] : data.items;
+						return this.getURI(item);
+					});
+				} else {
+					commandOptions.callback = dojo.hitch(info, function(data){
+						var shallowItemsClone;
+						if (this.forceSingleItem) {
+							var item = dojo.isArray() ? data.items[0] : data.items;
+							shallowItemsClone = extensionCommandUtils._cloneItemWithoutChildren(item);
 						} else {
-							shallowItemsClone = extensionCommandUtils._cloneItemWithoutChildren(data.items);
+							if (dojo.isArray(data.items)) {
+								shallowItemsClone = [];
+								for (var j = 0; j<data.items.length; j++) {
+									shallowItemsClone.push(extensionCommandUtils._cloneItemWithoutChildren(data.items[j]));
+								}
+							} else {
+								shallowItemsClone = extensionCommandUtils._cloneItemWithoutChildren(data.items);
+							}
 						}
-					}
-					if(serviceOrReference.run) {
-						serviceOrReference.run(shallowItemsClone);
-					} else if (serviceRegistry) {
-						serviceRegistry.getService(serviceOrReference).run(shallowItemsClone);
-					}
-				});
-			}  // otherwise the caller will make an appropriate callback for the extension
+						if(serviceOrReference.run) {
+							serviceOrReference.run(shallowItemsClone);
+						} else if (serviceRegistry) {
+							serviceRegistry.getService(serviceOrReference).run(shallowItemsClone);
+						}
+					});
+				}  // otherwise the caller will make an appropriate callback for the extension
+			}
+			deferred.resolve(commandOptions);
 		}
-		return commandOptions;
+		
+		if(info.nls){
+			i18nUtil.getMessageBundle(info.nls).then(function(commandMessages){
+				var commandOptions = {
+						name: info.nameKey ? commandMessages[info.nameKey] : info.name,
+						image: info.image,
+						id: info.id || info.name,
+						tooltip: info.tooltipKey ? commandMessages[info.tooltipKey] : info.tooltip,
+						isEditor: info.isEditor
+				};
+				enhanceCommandOptions(commandOptions, deferred);
+			});
+		} else {
+			var commandOptions = {
+					name: info.name,
+					image: info.image,
+					id: info.id || info.name,
+					tooltip: info.tooltip,
+					isEditor: info.isEditor
+			};
+			enhanceCommandOptions(commandOptions, deferred);
+		}
+		
+		return deferred;
 	};
 	
 	extensionCommandUtils.getOpenWithCommands = function(commandService) {

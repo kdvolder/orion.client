@@ -23,6 +23,7 @@ define(['dojo', 'orion/selection', 'orion/commands', 'orion/commonHTMLFragments'
 	 * @param options.canHide {boolean} [optional] if true section may be hidden
 	 * @param options.hidden {boolean} [optional] if true section will be hidden at first display
 	 * @param options.useAuxStyle {boolean} [optional] if true the section will be styled for an auxiliary pane
+	 * @param options.onExpandCollapse {function} [optional] a function that will be called when the expanded/collapsed state changes
 	 * @returns Section object
 	 */
 	function Section(parent, options) {
@@ -54,7 +55,7 @@ define(['dojo', 'orion/selection', 'orion/commands', 'orion/commonHTMLFragments'
 			dojo.style(this.domNode, "cursor", "pointer"); //$NON-NLS-1$ //$NON-NLS-0$
 			dojo.attr(this.domNode, "tabIndex", "0"); //$NON-NLS-1$ //$NON-NLS-0$
 			dojo.connect(this.domNode, "onclick", function(evt) { //$NON-NLS-0$
-				if (evt.target === that.domNode || evt.target === that.titleNode || evt.target === that.twistie) {
+				if (evt.target === that.titleNode || evt.target === that.twistie) {
 					that._changeExpandedState();
 				}
 			});
@@ -91,6 +92,9 @@ define(['dojo', 'orion/selection', 'orion/commands', 'orion/commonHTMLFragments'
 		}
 		
 		this.hidden = options.hidden;
+		if (typeof(options.onExpandCollapse) === "function") { //$NON-NLS-0$
+			this._onExpandCollapse = options.onExpandCollapse;
+		}
 		this._preferenceService = options.preferenceService;
 		// initially style as hidden until we determine what needs to happen
 		dojo.style(this._contentParent, "display", "none"); //$NON-NLS-1$ //$NON-NLS-0$
@@ -203,6 +207,11 @@ define(['dojo', 'orion/selection', 'orion/commands', 'orion/commonHTMLFragments'
 				this._preferenceService.getPreferences("/window/views").then(function(prefs){ //$NON-NLS-0$
 					prefs.put(id, isExpanded);
 				}); 
+			}
+			
+			// notify the client
+			if (this._onExpandCollapse) {
+				this._onExpandCollapse(isExpanded, this);
 			}
 		}
 	};

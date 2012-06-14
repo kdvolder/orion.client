@@ -12,10 +12,10 @@
 /*global define window dijit */
 /*jslint browser:true devel:true */
 define(['i18n!orion/compare/nls/messages', 'require', 'dojo', 'orion/compare/diff-parser', 'orion/compare/compare-rulers', 'orion/editor/contentAssist',
-        'orion/editorCommands','orion/editor/editor','orion/editor/editorFeatures','orion/globalCommands', 'orion/breadcrumbs', 'orion/commands',
-        'orion/textview/textModel','orion/textview/textView', 'orion/compare/compare-features', 'orion/compare/compareUtils', 'orion/compare/diff-provider', 'orion/compare/jsdiffAdapter', 'orion/highlight', 'orion/compare/diffTreeNavigator'], 
-		function(messages, require, dojo, mDiffParser, mCompareRulers, mContentAssist, mEditorCommands, mEditor, mEditorFeatures, mGlobalCommands, mBreadcrumbs,
-				mCommands, mTextModel, mTextView, mCompareFeatures, mCompareUtils, mDiffProvider, mJSDiffAdapter, Highlight, mDiffTreeNavigator) {
+        'orion/editorCommands','orion/editor/editor','orion/editor/editorFeatures','orion/globalCommands', 'orion/commands',
+        'orion/textview/textModel','orion/textview/textView', 'orion/compare/compare-features', 'orion/compare/compareUtils', 'orion/compare/diff-provider', 'orion/compare/jsdiffAdapter', 'orion/highlight', 'orion/compare/diffTreeNavigator', 'orion/searchAndReplace/textSearcher'], 
+		function(messages, require, dojo, mDiffParser, mCompareRulers, mContentAssist, mEditorCommands, mEditor, mEditorFeatures, mGlobalCommands,
+				mCommands, mTextModel, mTextView, mCompareFeatures, mCompareUtils, mDiffProvider, mJSDiffAdapter, Highlight, mDiffTreeNavigator, mSearcher) {
 
 var exports = {};
 
@@ -132,8 +132,9 @@ exports.CompareContainer = (function() {
 				this.options.commandSpanId = typeof(options.commandSpanId) === "string" ? options.commandSpanId : this.options.commandSpanId; //$NON-NLS-0$
 				this.options.generateLink = (options.generateLink !== undefined &&  options.generateLink !== null) ? options.generateLink : this.options.generateLink;
 				this.options.editableInComparePage = (options.editableInComparePage !== undefined &&  options.editableInComparePage !== null) ? options.editableInComparePage : this.options.editableInComparePage;
-				this.options.navGridHolder = options.navGridHolder || this.options.navGridHolder;
+				this.options.gridRenderer = options.gridRenderer || this.options.gridRenderer;
 				this.options.readonly = (options.readonly !== undefined &&  options.readonly !== null) ? options.readonly : this.options.readonly;
+				this.options.onPage = (options.onPage !== undefined &&  options.onPage !== null) ? options.onPage : this.options.onPage;
 				this.options.wordLevelNav = (options.wordLevelNav !== undefined &&  options.wordLevelNav !== null) ? options.wordLevelNav : this.options.wordLevelNav;
 				this.options.charDiff = (options.charDiff !== undefined &&  options.charDiff !== null) ? options.charDiff : this.options.charDiff;
 				this.options.hasConflicts = (options.hasConflicts !== undefined &&  options.hasConflicts !== null) ? options.hasConflicts : this.options.hasConflicts;
@@ -300,7 +301,22 @@ exports.CompareContainer = (function() {
 				return;
 			}
 			dojo.empty(commandSpanId);
-			this._commandService.renderCommands(commandSpanId, commandSpanId, this, this, "button", null, this.options.navGridHolder); //$NON-NLS-0$
+			if(this.options.gridRenderer && this.options.gridRenderer.navGridHolder){
+				this.options.gridRenderer.navGridHolder.splice(0, this.options.gridRenderer.navGridHolder.length);
+				if(this.options.gridRenderer.additionalCmdRender){
+					if(this.options.gridRenderer.before){
+						this.options.gridRenderer.additionalCmdRender(this.options.gridRenderer.navGridHolder);
+						this._commandService.renderCommands(commandSpanId, commandSpanId, this, this, "button", null, this.options.gridRenderer.navGridHolder); //$NON-NLS-0$
+					} else {
+						this._commandService.renderCommands(commandSpanId, commandSpanId, this, this, "button", null, this.options.gridRenderer.navGridHolder); //$NON-NLS-0$
+						this.options.gridRenderer.additionalCmdRender(this.options.gridRenderer.navGridHolder);
+					}
+				} else {
+					this._commandService.renderCommands(commandSpanId, commandSpanId, this, this, "button", null, this.options.gridRenderer.navGridHolder); //$NON-NLS-0$
+				}
+			} else {
+				this._commandService.renderCommands(commandSpanId, commandSpanId, this, this, "button", null); //$NON-NLS-0$
+			}
 		},
 		
 		generateLink: function(){	
@@ -478,8 +494,11 @@ exports.TwoWayCompareContainer = (function() {
 	function TwoWayCompareContainer(serviceRegistry, parentDivId, uiFactory, options) {
 		this._diffNavigator = new mDiffTreeNavigator.DiffTreeNavigator("word"); //$NON-NLS-0$
 		this._registry = serviceRegistry;
+		// TODO this is probably not a good idea, 
+		// see https://bugs.eclipse.org/bugs/show_bug.cgi?id=337740
 		this._commandService = this._registry.getService("orion.page.command"); //$NON-NLS-0$
 		this._fileClient = this._registry.getService("orion.core.file"); //$NON-NLS-0$
+		this._searchService = this._registry.getService("orion.core.search"); //$NON-NLS-0$
 		this._uiFactory = uiFactory;
 		if(!this._uiFactory){
 			this._uiFactory = new mCompareFeatures.TwoWayCompareUIFactory({
@@ -525,16 +544,9 @@ exports.TwoWayCompareContainer = (function() {
 			getInput: function() {
 				return this.filePath;
 			},
+			
 			setDirty: function(dirty) {
-				if (dirty) {
-					if (this._lastTitle && this._lastTitle.charAt(0) !== '*') { //$NON-NLS-0$
-						this.setTitle('*'+ this._lastTitle); //$NON-NLS-0$
-					}
-				} else {
-					if (this._lastTitle && this._lastTitle.charAt(0) === '*') { //$NON-NLS-0$
-						this.setTitle(this._lastTitle.substring(1));
-					}
-				}
+				mGlobalCommands.setDirtyIndicator(dirty);
 			},
 			
 			getFileMetadata: function() {
@@ -556,7 +568,7 @@ exports.TwoWayCompareContainer = (function() {
 					that._fileClient.read(fileURI, true).then(
 						dojo.hitch(this, function(metadata) {
 							this._fileMetadata = metadata;
-							this.setTitle(metadata.Location);
+							this.setTitle(metadata.Location, metadata);
 						}),
 						dojo.hitch(this, function(error) {
 							console.error("Error loading file metadata: " + error.message); //$NON-NLS-0$
@@ -567,27 +579,22 @@ exports.TwoWayCompareContainer = (function() {
 				this.lastFilePath = fileURI;
 			},
 			
-			setTitle : function(title) {
-				var indexOfSlash = title.lastIndexOf("/"); //$NON-NLS-0$
-				var shortTitle = title;
-				if (indexOfSlash !== -1) {
-					shortTitle = messages["Compare"] + " " + shortTitle.substring(indexOfSlash + 1);
-					if (title.charAt(0) === '*') { //$NON-NLS-0$
-						shortTitle = '*' + shortTitle; //$NON-NLS-0$
-					}
+			setTitle : function(title, /*optional*/ metadata) {
+				var name;
+				if (metadata) {
+					name = metadata.Name;
 				}
-				this._lastTitle = shortTitle;
-				window.document.title = shortTitle;
-				var location = dojo.byId("location"); //$NON-NLS-0$
-				if (location && this._fileMetadata) {
-					dojo.empty(location);
-					new mBreadcrumbs.BreadCrumbs({container: "location", resource: this._fileMetadata}); //$NON-NLS-0$
-					if (title.charAt(0) === '*') { //$NON-NLS-0$
-						var dirty = dojo.create('b', null, location, "last"); //$NON-NLS-1$ //$NON-NLS-0$
-						dirty.innerHTML = '*'; //$NON-NLS-0$
-					}
-				}
+				mGlobalCommands.setPageTarget({task: messages["Compare"], name: name, target: metadata,
+							serviceRegistry: serviceRegistry, commandService: this._commandService,
+							searchService: this._searchService, fileService: this._fileClient});
+				if (title.charAt(0) === '*') { //$NON-NLS-0$
+					mGlobalCommands.setDirtyIndicator(true);
+					name = title.substring(1);
+				} else {
+					mGlobalCommands.setDirtyIndicator(false);
+				} 
 			},
+			
 			afterSave: function(){
 				that.startup(true);
 			}
@@ -611,7 +618,9 @@ exports.TwoWayCompareContainer = (function() {
 	
 	TwoWayCompareContainer.prototype.initEditorContainers = function(delim , leftContent , rightContent , mapper, createLineStyler){	
 		this._leftEditor = this.createEditorContainer(leftContent , delim , mapper, 0 , this._leftEditorDivId , this._uiFactory.getStatusDivId(true) ,this.options.readonly ,createLineStyler , this.options.newFile);
-		mGlobalCommands.generateDomCommandsInBanner(this._commandService, this._leftEditor , null, null, null, true);
+		if( this.options.onPage){
+			mGlobalCommands.generateDomCommandsInBanner(this._commandService, this._leftEditor , null, null, null, true, true);
+		}
 		this._leftTextView = this._leftEditor.getTextView();
 		this._rightEditor = this.createEditorContainer(rightContent , delim , mapper ,1 , this._rightEditorDivId , this._uiFactory.getStatusDivId(false) ,true, createLineStyler , this.options.baseFile);
 		this._rightTextView = this._rightEditor.getTextView();
@@ -689,11 +698,11 @@ exports.TwoWayCompareContainer = (function() {
 				that._commandService.addCommandGroup("pageActions", "orion.editorActions.unlabeled", 200); //$NON-NLS-1$ //$NON-NLS-0$
 				return;
 			}
-			var commandGenerator = new mEditorCommands.EditorCommandFactory(that._registry, that._commandService,that._fileClient , that._inputManager, "pageActions"); //$NON-NLS-0$
+			var localSearcher = new mSearcher.TextSearcher(editor, that._commandService, undoStack);
+			var commandGenerator = new mEditorCommands.EditorCommandFactory(that._registry, that._commandService,that._fileClient , that._inputManager, "pageActions", readOnly, "pageNavigationActions", localSearcher); //$NON-NLS-0$
 			commandGenerator.generateEditorCommands(editor);
 			var genericBindings = new mEditorFeatures.TextActions(editor, undoStack);
 			keyModeStack.push(genericBindings);
-				
 			// create keybindings for source editing
 			var codeBindings = new mEditorFeatures.SourceCodeActions(editor, undoStack, contentAssist);
 			keyModeStack.push(codeBindings);
@@ -826,8 +835,8 @@ exports.TwoWayCompareContainer = (function() {
 		if(this._viewLoadedCounter > 1){
 			this._diffNavigator.gotoBlock(this.options.blockNumber-1, this.options.changeNumber-1);
 		}
-		var leftViewHeight = this._leftTextView.getModel().getLineCount() * this._leftTextView.getLineHeight(); + 5;
-		var rightViewHeight = this._rightTextView.getModel().getLineCount() * this._rightTextView.getLineHeight(); +5;
+		var leftViewHeight = this._leftTextView.getModel().getLineCount() * this._leftTextView.getLineHeight() + 5;
+		var rightViewHeight = this._rightTextView.getModel().getLineCount() * this._rightTextView.getLineHeight() +5;
 		return leftViewHeight > rightViewHeight ? leftViewHeight : rightViewHeight;
 	};
 	return TwoWayCompareContainer;

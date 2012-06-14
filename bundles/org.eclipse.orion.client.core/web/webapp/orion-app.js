@@ -17,7 +17,7 @@ window.onload = function() {
 		var installApp = document.getElementById("install-app");
 		installApp.disabled = false;
 		for (var i in request.result) {
-			if (request.result[i].manifest.name === "Orion Web Development") {
+			if (request.result[i].manifest.name === "Orion Web Development Environment") {
 				installApp.textContent = "Orion App Already Installed";
 				installApp.disabled = true;
 				return;
@@ -32,7 +32,7 @@ window.onload = function() {
 		installApp.addEventListener("click", function() {
 			var mozApps = navigator.mozApps;
 			if (mozApps) {
-				var installing = navigator.mozApps.install("/webapp/orion-manifest.webapp");
+				var installing = navigator.mozApps.install("http://orion.eclipse.org/webapp/orion-manifest.webapp");
 				installing.onsuccess = function(e) {
 					var installApp = document.getElementById("install-app");
 					installApp.textContent = "Orion App Already Installed";
