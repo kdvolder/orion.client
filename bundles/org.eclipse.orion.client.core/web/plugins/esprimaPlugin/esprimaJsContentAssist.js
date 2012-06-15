@@ -411,16 +411,17 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 				var summary = env.indexer.retrieveSummary(arg.value);
 				if (summary) {
 					var typeName;
+					var mergeTypeName;
 					if (typeof summary.provided === "string") {
-						// module provides a builtin type, just remember that type
 						typeName = summary.provided;
+						mergeTypeName = env.scope();
 					} else {
 						// module provides a composite type
 						// must create a type to add the summary to
-						typeName = env.newScope();
+						mergeTypeName = typeName = env.newScope();
 						env.popScope();
-						env.mergeSummary(summary, typeName);
 					}
+					env.mergeSummary(summary, mergeTypeName);
 					return typeName;
 				}
 			}
@@ -472,16 +473,17 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 								var summary = env.indexer.retrieveSummary(moduleNames[i].value);
 								if (summary) {
 									var typeName;
+									var mergeTypeName;
 									if (typeof summary.provided === "string") {
-										// module provides a builtin type, just remember that type
 										typeName = summary.provided;
+										mergeTypeName = env.scope();
 									} else {
 										// module provides a composite type
 										// must create a type to add the summary to
-										typeName = env.newScope();
+										mergeTypeName = typeName = env.newScope();
 										env.popScope();
-										env.mergeSummary(summary, typeName);
 									}
+									env.mergeSummary(summary, mergeTypeName);
 									paramTypes.push(typeName);
 								} else {
 									paramTypes.push(env.newFleetingObject());
@@ -591,24 +593,31 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 			
 			// assume that function name that starts with capital is 
 			// a constructor
+			var isConstuctor;
 			if (name && node.body && name.charAt(0) === name.charAt(0).toUpperCase()) {
 				// create new object so that there is a custom "this"
-				if (!node.body.extras) {
-					node.body.extras = {};
-				}
-				node.body.extras.isConstructor = true;
 				newTypeName = env.newObject(name);
+				isConstuctor = true;
 			} else {
 				// temporarily use "Object" as type, but this may change once we 
 				// walk through to get to a return statement
 				newTypeName = "Object";
+				isConstuctor = false;
 			}
-			newTypeName = "?" + newTypeName + ":" + params;
-			node.extras.inferredType = newTypeName;
+			if (!node.body.extras) {
+				node.body.extras = {};
+			}
+			node.body.extras.isConstructor = isConstuctor;
+			var functionTypeName = "?" + newTypeName + ":" + params;
+			if (isConstuctor) {
+				env.createConstructor(functionTypeName, newTypeName);
+			}
+
+			node.extras.inferredType = functionTypeName;
 			
 			if (name && !isBefore(env.offset, node.range)) {
 				// if we have a name, then add it to the scope
-				env.addVariable(name, node.extras.target, newTypeName);
+				env.addVariable(name, node.extras.target, functionTypeName);
 			}
 			
 			// now add the scope for inside the function
@@ -1084,8 +1093,8 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 			 * like a call to this.newObject(), but the 
 			 * object created has not scope added to the scope stack
 			 */
-			newFleetingObject : function() {
-				var newObjectName = this.newName();
+			newFleetingObject : function(name) {
+				var newObjectName = name ? name : this.newName();
 				this._allTypes[newObjectName] = {
 					$$proto : "Object"
 				};
@@ -1109,7 +1118,18 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 			scope : function(target) {
 				if (target && target.extras.inferredType) {
 					// check for function literal
-					return target.extras.inferredType.charAt(0) === "?" ? "Function" : target.extras.inferredType;
+					var inferredType = target.extras.inferredType;
+					// hmmmm... will be a problem here if there are nexted ~protos
+					if (inferredType.charAt(0) === '?' && inferredType.indexOf("~proto") === -1) {
+						var noArgsType = inferredType.substring(0, inferredType.lastIndexOf(':')+1);
+						if (this._allTypes[noArgsType]) {
+							return noArgsType;
+						} else {
+							return "Function";
+						}
+					} else {
+						return inferredType;
+					}
 				} else {
 					// grab topmost scope
 					return this._scopeStack[this._scopeStack.length -1];
@@ -1142,6 +1162,9 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 			 * if exists in prototype hierarchy, then replace the type
 			 */
 			addOrSetVariable : function(name, target, typeName) {
+				if (name === 'prototype') {
+					name = '$$proto';
+				}
 				var targetType = this.scope(target);
 				var current = this._allTypes[targetType], found = false;
 				// if no type provided, create a new type
@@ -1178,6 +1201,7 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 				var swapper = function(name) {
 					switch (name) {
 						case "prototype":
+							return "$$proto";
 						case "toString":
 						case "hasOwnProperty":
 						case "toLocaleString":
@@ -1232,7 +1256,25 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 				}
 			},
 			
+			/**
+			 * takes the name of a constructor and converts it into a type.
+			 * We need to ensure that ConstructorName.prototype = { ... } does the
+			 * thing that we expect.  This is why we set the $$proto property of the types
+			 */
+			createConstructor : function(constructorName, rawTypeName) {
+				// don't include the parameter names since we don't want them confusing things when exported
+				constructorName = constructorName.substring(0,constructorName.lastIndexOf(":")+1);
+				this.newFleetingObject(constructorName);
+				var flobj = this.newFleetingObject(constructorName + "~proto");
+				this._allTypes[constructorName]["$$proto"] = flobj;
+				this._allTypes[rawTypeName]["$$proto"] = constructorName;
+			},
+			
 			findType : function(typeName) {
+				// trim arguments if a constructor, carefyl to avoid a cosnstructor prototypes
+				if (typeName.charAt(0) === '?' && typeName.indexOf("~proto") === -1) {
+					typeName = typeName.substring(0, typeName.lastIndexOf(':')+1);
+				}
 				return this._allTypes[typeName];
 			},
 			
@@ -1284,14 +1326,14 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 								propType, replaceStart - 1);
 						proposals.push({ 
 							proposal: removePrefix(prefix, res.completion), 
-							description: res.completion + " : " + createReadableType(propType, env) + " (esprima)", 
+							description: res.completion + " : " + createReadableType(propType, env), 
 							positions: res.positions, 
 							escapePosition: replaceStart + res.completion.length 
 						});
 					} else {
 						proposals.push({ 
 							proposal: removePrefix(prefix, propName),
-							description: propName + " : " + createReadableType(propType, env) + " (esprima)"
+							description: propName + " : " + createReadableType(propType, env)
 						});
 					}
 				}
@@ -1308,9 +1350,13 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 		var currentType = allTypes[currentTypeName];
 		if (currentType) {
 			for(var prop in currentType) {
-				if (currentType.hasOwnProperty(prop) && prop.substring(0,2) !== '$$' ) {
+				if (currentType.hasOwnProperty(prop) && prop !== '$$isBuiltin' ) {
 					var propType = currentType[prop];
 					while (propType.charAt(0) === '?') {
+						if (!alreadySeen[propType]) {
+							alreadySeen[propType] = true;
+							findUnreachable(propType, allTypes, alreadySeen);
+						}
 						propType = extractReturnType(propType);					
 					}
 					if (!alreadySeen[propType]) {
@@ -1340,6 +1386,9 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 		if (moduleTypeName.charAt(0) === '?') {
 			var retType = moduleTypeName;
 			while (retType.charAt(0) === '?') {
+				retType = retType.substring(0,retType.lastIndexOf(':')+1);
+				reachable[retType] = true;
+				reachable[retType + "~proto"] = true;
 				retType = extractReturnType(retType);
 			}
 			reachable[retType] = true;
