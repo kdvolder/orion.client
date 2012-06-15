@@ -1296,11 +1296,14 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 	}
 	
 	
-	function createProposals(targetTypeName, env, completionKind, prefix, replaceStart) {
+	function createProposals(targetTypeName, env, completionKind, prefix, replaceStart, proposals) {
 		var prop, propName, propType, proto, res, type = env.findType(targetTypeName),
-			proposals = [];
 		proto = type.$$proto;
-		
+		// start at the top of the prototype hierarchy so that duplicates can be removed
+		if (proto) {
+			createProposals(proto, env, completionKind, prefix, replaceStart, proposals);
+		}
+
 		for (prop in type) {
 			if (type.hasOwnProperty(prop)) {
 				if (prop.charAt(0) === "$" && prop.charAt(1) === "$") {
@@ -1324,26 +1327,21 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 						// we have a function
 						res = calculateFunctionProposal(propName, 
 								propType, replaceStart - 1);
-						proposals.push({ 
+						proposals["$"+propName] = { 
 							proposal: removePrefix(prefix, res.completion), 
 							description: res.completion + " : " + createReadableType(propType, env), 
 							positions: res.positions, 
 							escapePosition: replaceStart + res.completion.length 
-						});
+						};
 					} else {
-						proposals.push({ 
+						proposals["$"+propName] = { 
 							proposal: removePrefix(prefix, propName),
 							description: propName + " : " + createReadableType(propType, env)
-						});
+						};
 					}
 				}
 			}
 		}
-		// walk up the prototype hierarchy
-		if (proto) {
-			proposals = proposals.concat(createProposals(proto, env, completionKind, prefix, replaceStart));
-		}
-		return proposals;
 	}
 	
 	function findUnreachable(currentTypeName, allTypes, alreadySeen) {
@@ -1442,7 +1440,14 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 				if (completionKind) {
 					var environment = createEnvironment(buffer, "local", offset, this.indexer);
 					var target = this._doVisit(root, environment);
-					var proposals = createProposals(target, environment, completionKind, context.prefix, offset - context.prefix.length);
+					var proposalsObj = { };
+					createProposals(target, environment, completionKind, context.prefix, offset - context.prefix.length, proposalsObj);
+					var proposals = [];
+					for (var prop in proposalsObj) {
+						if (proposalsObj.hasOwnProperty(prop)) {
+							proposals.push(proposalsObj[prop]);
+						}
+					}
 					proposals.sort(function(l,r) {
 						if (l.description < r.description) {
 							return -1;

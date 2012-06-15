@@ -46,20 +46,17 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], functio
 		return text;
 	}
 	
-	function stringifyActual(actualProposals) {
+	function stringifyActual(actualProposals, prefix) {
 		var text = "";
 		for (var i = 0; i < actualProposals.length; i++) {
-			text += actualProposals[i].proposal + " : " + actualProposals[i].description + "\n";
+			text += prefix + actualProposals[i].proposal + " : " + actualProposals[i].description + "\n";
 		}
 		return text;
 	}
 	
 	function testProposals(prefix, actualProposals, expectedProposals) {
-//		console.log("Proposals:");
-//		console.log(actualProposals);
-		
 		assert.equal(actualProposals.length, expectedProposals.length, 
-			"Wrong number of proposals.  Expected:\n" + stringifyExpected(expectedProposals) +"\nActual:\n" + stringifyActual(actualProposals));
+			"Wrong number of proposals.  Expected:\n" + stringifyExpected(expectedProposals) +"\nActual:\n" + stringifyActual(actualProposals, prefix));
 			
 		for (var i = 0; i < actualProposals.length; i++) {
 			testProposal(actualProposals[i], expectedProposals[i][0], expectedProposals[i][1], prefix);
@@ -330,6 +327,39 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], functio
 			["valueOf()", "valueOf() : Object"]
 		]);
 	};
+	
+	tests["test no dupe 1"] = function() {
+		var results = computeContentAssist(
+				"var foo = 9; var other = function(foo) { f/**/ }", "f");
+		testProposals("f", results, [
+			["foo", "foo : {  }"]
+		]);
+	};
+	
+	tests["test no dupe 2"] = function() {
+		var results = computeContentAssist(
+				"var foo = { }; var other = function(foo) { foo = 9;\nf/**/ }", "f");
+		testProposals("f", results, [
+			["foo", "foo : Number"]
+		]);
+	};
+	
+	tests["test no dupe 3"] = function() {
+		var results = computeContentAssist(
+				"var foo = function () { var foo = 9; \n f/**/};", "f");
+		testProposals("f", results, [
+			["foo", "foo : Number"]
+		]);
+	};
+	
+	tests["test no dupe 4"] = function() {
+		var results = computeContentAssist(
+				"var foo = 9; var other = function () { var foo = function() { return 9; }; \n f/**/};", "f");
+		testProposals("f", results, [
+			["foo()", "foo() : Number"]
+		]);
+	};
+	
 	tests["test scopes 1"] = function() {
 		// only the outer foo is available
 		var results = computeContentAssist(
@@ -455,8 +485,6 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], functio
 			["aa", "aa : {  }"],
 			["ab", "ab : {  }"],
 			["abb", "abb : Object"],
-			// FIXADE Yikes!  getting arguments twice for nested function
-			["arguments", "arguments : Arguments"],
 			["arguments", "arguments : Arguments"]
 		]);
 	};
@@ -1746,9 +1774,7 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], functio
 		var results = computeContentAssist(
 			"var AAA = function() { this.foo = 0; };\nAAA.prototype = { foo : '' };\nnew AAA().f", "f");
 		testProposals("f", results, [
-			["foo", "foo : Number"],
-			// FIXADE TODO This is a bug, should not show both values.  need to filter out
-			["foo", "foo : String"]
+			["foo", "foo : Number"]
 		]);
 	};
 	tests["test constructor prototype4"] = function() {
@@ -1769,10 +1795,10 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], functio
 		var results = computeContentAssist(
 			"var Fun = function() { };\n" +
 			"var obj = new Fun();\n" +
-			"Fun.prototype.val = 0;\n" +
-			"obj.v", "v");
-		testProposals("v", results, [
-			["val", "val : Number"]
+			"Fun.prototype.num = 0;\n" +
+			"obj.n", "n");
+		testProposals("n", results, [
+			["num", "num : Number"]
 		]);
 	};
 
