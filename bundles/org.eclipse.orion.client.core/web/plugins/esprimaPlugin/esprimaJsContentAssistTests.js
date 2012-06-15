@@ -1765,6 +1765,16 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], functio
 			["foo", "foo : Number"]
 		]);
 	};
+	tests["test constructor prototype6"] = function() {
+		var results = computeContentAssist(
+			"var Fun = function() { };\n" +
+			"var obj = new Fun();\n" +
+			"Fun.prototype.val = 0;\n" +
+			"obj.v", "v");
+		testProposals("v", results, [
+			["val", "val : Number"]
+		]);
+	};
 
 
 	
