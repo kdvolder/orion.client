@@ -14,6 +14,21 @@
 define("plugins/esprimaPlugin/types", [], function() {
 
 	/**
+	 * The Definition class refers to the declaration of an identifier.
+	 * The start and end are locations in the source code.
+	 * Path is a URL corresponding to the document where the definition occurs.
+	 * If range is undefined, then the definition refers to the entire document
+	 * Range is a two element array with the start and end values 
+	 * (Exactly the same range field as is used in Esprima)
+	 * If the document is undefined, then the definition is in the current document.
+	 */
+	var Definition = function(typeName, range, path) {
+		this.typeName = typeName;
+		this.range = range;
+		this.path = path;
+	};
+
+	/**
 	 * A prototype that contains the common built-in types
 	 * Types that begin with '?' are functions.  The values after the ':' are the 
 	 * argument names.
@@ -25,36 +40,37 @@ define("plugins/esprimaPlugin/types", [], function() {
 		// this object can be touched by clients
 		// and so must not be in the prototype
 		// the global 'this'
-		// FIXADE move this list of initial properties to the proto type so we don't
+		// FIXADE move this list of initial properties to the prototype so we don't
 		// have to keep on reinitializing them
 		this.Global = {
-			decodeURI : "?String:uri",			
-			encodeURI : "?String:uri",			
-			eval : "?Object:toEval",
-			parseInt : "?Number:str,[radix]",
-			parseFloat : "?Number:str,[radix]",
-			"this": "Global",  
-			Math: "Math",
-			JSON: "JSON",
-			Object: "?Object:[val]",
-			Function: "?Function:",
-			Array: "?Array:[val]",
-			Boolean: "?Boolean:[val]",
-			Number: "?Number:[val]",
-			Date: "?Date:[val]",
-			RegExp: "?RegExp:[val]",
-			Error: "?Error:[err]",
-			$$proto : "Object"
+			decodeURI : new Definition("?String:uri"),			
+			encodeURI : new Definition("?String:uri"),			
+			'eval' : new Definition("?Object:toEval"),
+			parseInt : new Definition("?Number:str,[radix]"),
+			parseFloat : new Definition("?Number:str,[radix]"),
+			"this": new Definition("Global"),  
+			Math: new Definition("Math"),
+			JSON: new Definition("JSON"),
+			Object: new Definition("?Object:[val]"),
+			Function: new Definition("?Function:"),
+			Array: new Definition("?Array:[val]"),
+			Boolean: new Definition("?Boolean:[val]"),
+			Number: new Definition("?Number:[val]"),
+			Date: new Definition("?Date:[val]"),
+			RegExp: new Definition("?RegExp:[val]"),
+			Error: new Definition("?Error:[err]"),
+			$$proto : new Definition("Object")
 
 			// not included since not meant to be referenced directly
 			// NaN
 			// Infinity
 			// isNaN
 			// isFinite
-			// decodeURIComponent
-			// encodeURIComponent
 			// EvalError, RangeError, ReferenceError, SyntaxError, TypeError, URIError 
 			
+			// not included since too boring to use...maybe consider for later			
+			// decodeURIComponent
+			// encodeURIComponent
 		};
 		
 		var initialGlobalProperties = [];
@@ -87,13 +103,13 @@ define("plugins/esprimaPlugin/types", [], function() {
 		Object : {
 			$$isBuiltin: true,
 			// Can't use the real propoerty name here because would override the real methods of that name
-			$_$prototype : "Object",
-			$_$toString: "?String:",
-			$_$toLocaleString : "?String:",
-			$_$valueOf: "?Object:",
-			$_$hasOwnProperty: "?boolean:property",
-			$_$isPrototypeOf: "?boolean:object",
-			$_$propertyIsEnumerable: "?boolean:property"
+			$_$prototype : new Definition("Object"),
+			$_$toString: new Definition("?String:"),
+			$_$toLocaleString : new Definition("?String:"),
+			$_$valueOf: new Definition("?Object:"),
+			$_$hasOwnProperty: new Definition("?boolean:property"),
+			$_$isPrototypeOf: new Definition("?boolean:object"),
+			$_$propertyIsEnumerable: new Definition("?boolean:property")
 		},
 		
 		/**
@@ -101,14 +117,14 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		Function : {
 			$$isBuiltin: true,
-			apply : "?Object:func,[argArray]",
-			"arguments" : "Arguments",
-			bind : "?Object:func,[args...]",
-			call : "?Object:func,[args...]",
-			caller : "Function",
-			length : "Number",
-			name : "String",
-			$$proto : "Object"
+			apply : new Definition("?Object:func,[argArray]"),
+			"arguments" : new Definition("Arguments"),
+			bind : new Definition("?Object:func,[args...]"),
+			call : new Definition("?Object:func,[args...]"),
+			caller : new Definition("Function"),
+			length : new Definition("Number"),
+			name : new Definition("String"),
+			$$proto : new Definition("Object")
 		},
 
 		/**
@@ -117,27 +133,27 @@ define("plugins/esprimaPlugin/types", [], function() {
 		Array : {
 			$$isBuiltin: true,
 
-			concat : "?Array:first,[rest...]",
-			join : "?String:separator",
-			length : "Number",
-			pop : "?Object:",
-			push : "?Object:[vals...]",
-			reverse : "?Array:",
-			shift : "?Object:",
-			slice : "?Array:start,deleteCount,[items...]",
-			splice : "?Array:start,end",
-			sort : "?Array:[sorter]",
-			unshift : "?Number:[items...]",
-			indexOf : "?Number:searchElement,[fromIndex]",
-			lastIndexOf : "?Number:searchElement,[fromIndex]",
-			every : "?Boolean:callbackFn,[thisArg]",
-			some : "?Boolean:callbackFn,[thisArg]",
-			forEach : "?Object:callbackFn,[thisArg]",  // should return 
-			map : "?Array:callbackFn,[thisArg]",
-			filter : "?Array:callbackFn,[thisArg]",
-			reduce : "?Array:callbackFn,[initialValue]",
-			reduceRight : "?Array:callbackFn,[initialValue]",
-			$$proto : "Object"
+			concat : new Definition("?Array:first,[rest...]"),
+			join : new Definition("?String:separator"),
+			length : new Definition("Number"),
+			pop : new Definition("?Object:"),
+			push : new Definition("?Object:[vals...]"),
+			reverse : new Definition("?Array:"),
+			shift : new Definition("?Object:"),
+			slice : new Definition("?Array:start,deleteCount,[items...]"),
+			splice : new Definition("?Array:start,end"),
+			sort : new Definition("?Array:[sorter]"),
+			unshift : new Definition("?Number:[items...]"),
+			indexOf : new Definition("?Number:searchElement,[fromIndex]"),
+			lastIndexOf : new Definition("?Number:searchElement,[fromIndex]"),
+			every : new Definition("?Boolean:callbackFn,[thisArg]"),
+			some : new Definition("?Boolean:callbackFn,[thisArg]"),
+			forEach : new Definition("?Object:callbackFn,[thisArg]"),  // should return 
+			map : new Definition("?Array:callbackFn,[thisArg]"),
+			filter : new Definition("?Array:callbackFn,[thisArg]"),
+			reduce : new Definition("?Array:callbackFn,[initialValue]"),
+			reduceRight : new Definition("?Array:callbackFn,[initialValue]"),
+			$$proto : new Definition("Object")
 		},
 		
 		/**
@@ -145,26 +161,26 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		String : {
 			$$isBuiltin: true,
-			charAt : "?String:index",
-			charCodeAt : "?Number:index",
-			concat : "?String:array",
-			indexOf : "?Number:searchString",
-			lastIndexOf : "?Number:searchString",
-			length : "Number",
-			localeCompare : "?Number:Object",
-			match : "?Boolean:regexp",
-			replace : "?String:searchValue,replaceValue",
-			search : "?String:regexp",
-			slice : "?String:start,end",
-			split : "?Array:separator,[limit]",  // Array of string
-			substring : "?String:start,end",
-			toLocaleUpperCase : "?String:",
-			toLowerCase : "?String:",
-			toLocaleLowerCase : "?String:",
-			toUpperCase : "?String:",
-			trim : "?String:",
+			charAt : new Definition("?String:index"),
+			charCodeAt : new Definition("?Number:index"),
+			concat : new Definition("?String:array"),
+			indexOf : new Definition("?Number:searchString"),
+			lastIndexOf : new Definition("?Number:searchString"),
+			length : new Definition("Number"),
+			localeCompare : new Definition("?Number:Object"),
+			match : new Definition("?Boolean:regexp"),
+			replace : new Definition("?String:searchValue,replaceValue"),
+			search : new Definition("?String:regexp"),
+			slice : new Definition("?String:start,end"),
+			split : new Definition("?Array:separator,[limit]"),  // Array of string
+			substring : new Definition("?String:start,end"),
+			toLocaleUpperCase : new Definition("?String:"),
+			toLowerCase : new Definition("?String:"),
+			toLocaleLowerCase : new Definition("?String:"),
+			toUpperCase : new Definition("?String:"),
+			trim : new Definition("?String:"),
 
-			$$proto : "Object"
+			$$proto : new Definition("Object")
 		},
 		
 		/**
@@ -172,7 +188,7 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		Boolean : {
 			$$isBuiltin: true,
-			$$proto : "Object"
+			$$proto : new Definition("Object")
 		},
 		
 		/**
@@ -180,12 +196,12 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		Number : {
 			$$isBuiltin: true,
-			toExponential : "?Number:digits",
-			toFixed : "?Number:digits",
-			toPrecision : "?Number:digits",
+			toExponential : new Definition("?Number:digits"),
+			toFixed : new Definition("?Number:digits"),
+			toPrecision : new Definition("?Number:digits"),
 			// do we want to include NaN, MAX_VALUE, etc?	
 		
-			$$proto : "Object"
+			$$proto : new Definition("Object")
 		},
 		
 		/**
@@ -196,35 +212,35 @@ define("plugins/esprimaPlugin/types", [], function() {
 			$$isBuiltin: true,
 		
 			// properties
-			E : "Number",
-			LN2 : "Number",
-			LN10 : "Number",
-			LOG2E : "Number",
-			LOG10E : "Number",
-			PI : "Number",
-			SQRT1_2 : "Number",
-			SQRT2 : "Number",
+			E : new Definition("Number"),
+			LN2 : new Definition("Number"),
+			LN10 : new Definition("Number"),
+			LOG2E : new Definition("Number"),
+			LOG10E : new Definition("Number"),
+			PI : new Definition("Number"),
+			SQRT1_2 : new Definition("Number"),
+			SQRT2 : new Definition("Number"),
 		
 			// Methods
-			abs : "?Number:val",
-			acos : "?Number:val",
-			asin : "?Number:val",
-			atan : "?Number:val",
-			atan2 : "?Number:val1,val2",
-			ceil : "?Number:val",
-			cos : "?Number:val",
-			exp : "?Number:val",
-			floor : "?Number:val",
-			log : "?Number:val",
-			max : "?Number:val1,val2",
-			min : "?Number:val1,val2",
-			pow : "?Number:x,y",
-			random : "?Number:",
-			round : "?Number:val",
-			sin : "?Number:val",
-			sqrt : "?Number:val",
-			tan : "?Number:val",
-			$$proto : "Object"
+			abs : new Definition("?Number:val"),
+			acos : new Definition("?Number:val"),
+			asin : new Definition("?Number:val"),
+			atan : new Definition("?Number:val"),
+			atan2 : new Definition("?Number:val1,val2"),
+			ceil : new Definition("?Number:val"),
+			cos : new Definition("?Number:val"),
+			exp : new Definition("?Number:val"),
+			floor : new Definition("?Number:val"),
+			log : new Definition("?Number:val"),
+			max : new Definition("?Number:val1,val2"),
+			min : new Definition("?Number:val1,val2"),
+			pow : new Definition("?Number:x,y"),
+			random : new Definition("?Number:"),
+			round : new Definition("?Number:val"),
+			sin : new Definition("?Number:val"),
+			sqrt : new Definition("?Number:val"),
+			tan : new Definition("?Number:val"),
+			$$proto : new Definition("Object")
 		},
 
 		
@@ -233,55 +249,55 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		Date : {
 			$$isBuiltin: true,
-			toDateString : "?String:",
-			toTimeString : "?String:",
-			toUTCString : "?String:",
-			toISOString : "?String:",
-			toJSON : "?Object:key",
-			toLocaleDateString : "?String:",
-			toLocaleTimeString : "?String:",
+			toDateString : new Definition("?String:"),
+			toTimeString : new Definition("?String:"),
+			toUTCString : new Definition("?String:"),
+			toISOString : new Definition("?String:"),
+			toJSON : new Definition("?Object:key"),
+			toLocaleDateString : new Definition("?String:"),
+			toLocaleTimeString : new Definition("?String:"),
 			
-			getTime : "?Number:",
-			getTimezoneOffset : "?Number:",
+			getTime : new Definition("?Number:"),
+			getTimezoneOffset : new Definition("?Number:"),
 
-			getDay : "?Number:",
-			getUTCDay : "?Number:",
-			getFullYear : "?Number:",
-			getUTCFullYear : "?Number:",
-			getHours : "?Number:",
-			getUTCHours : "?Number:",
-			getMinutes : "?Number:",
-			getUTCMinutes : "?Number:",
-			getSeconds : "?Number:",
-			getUTCSeconds : "?Number:",
-			getMilliseconds : "?Number:",
-			getUTCMilliseconds : "?Number:",
-			getMonth : "?Number:",
-			getUTCMonth : "?Number:",
-			getDate : "?Number:",
-			getUTCDate : "?Number:",
+			getDay : new Definition("?Number:"),
+			getUTCDay : new Definition("?Number:"),
+			getFullYear : new Definition("?Number:"),
+			getUTCFullYear : new Definition("?Number:"),
+			getHours : new Definition("?Number:"),
+			getUTCHours : new Definition("?Number:"),
+			getMinutes : new Definition("?Number:"),
+			getUTCMinutes : new Definition("?Number:"),
+			getSeconds : new Definition("?Number:"),
+			getUTCSeconds : new Definition("?Number:"),
+			getMilliseconds : new Definition("?Number:"),
+			getUTCMilliseconds : new Definition("?Number:"),
+			getMonth : new Definition("?Number:"),
+			getUTCMonth : new Definition("?Number:"),
+			getDate : new Definition("?Number:"),
+			getUTCDate : new Definition("?Number:"),
 			
-			setTime : "?Number:",
-			setTimezoneOffset : "?Number:",
+			setTime : new Definition("?Number:"),
+			setTimezoneOffset : new Definition("?Number:"),
 
-			setDay : "?Number:dayOfWeek",
-			setUTCDay : "?Number:dayOfWeek",
-			setFullYear : "?Number:year,[month],[date]",
-			setUTCFullYear : "?Number:year,[month],[date]",
-			setHours : "?Number:hour,[min],[sec],[ms]",
-			setUTCHours : "?Number:hour,[min],[sec],[ms]",
-			setMinutes : "?Number:min,[sec],[ms]",
-			setUTCMinutes : "?Number:min,[sec],[ms]",
-			setSeconds : "?Number:sec,[ms]",
-			setUTCSeconds : "?Number:sec,[ms]",
-			setMilliseconds : "?Number:ms",
-			setUTCMilliseconds : "?Number:ms",
-			setMonth : "?Number:month,[date]",
-			setUTCMonth : "?Number:month,[date]",
-			setDate : "?Number:date",
-			setUTCDate : "?Number:gate",
+			setDay : new Definition("?Number:dayOfWeek"),
+			setUTCDay : new Definition("?Number:dayOfWeek"),
+			setFullYear : new Definition("?Number:year,[month],[date]"),
+			setUTCFullYear : new Definition("?Number:year,[month],[date]"),
+			setHours : new Definition("?Number:hour,[min],[sec],[ms]"),
+			setUTCHours : new Definition("?Number:hour,[min],[sec],[ms]"),
+			setMinutes : new Definition("?Number:min,[sec],[ms]"),
+			setUTCMinutes : new Definition("?Number:min,[sec],[ms]"),
+			setSeconds : new Definition("?Number:sec,[ms]"),
+			setUTCSeconds : new Definition("?Number:sec,[ms]"),
+			setMilliseconds : new Definition("?Number:ms"),
+			setUTCMilliseconds : new Definition("?Number:ms"),
+			setMonth : new Definition("?Number:month,[date]"),
+			setUTCMonth : new Definition("?Number:month,[date]"),
+			setDate : new Definition("?Number:date"),
+			setUTCDate : new Definition("?Number:gate"),
 			
-			$$proto : "Object"
+			$$proto : new Definition("Object")
 		},
 		
 		/**
@@ -289,20 +305,20 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		RegExp : {
 			$$isBuiltin: true,
-			g : "Object",
-			i : "Object",
-			gi : "Object",
-			m : "Object",
-			source : "String",
-			global : "Boolean",
-			ignoreCase : "Boolean",
-			multiline : "Boolean",
-			lastIndex : "Boolean",
+			g : new Definition("Object"),
+			i : new Definition("Object"),
+			gi : new Definition("Object"),
+			m : new Definition("Object"),
+			source : new Definition("String"),
+			global : new Definition("Boolean"),
+			ignoreCase : new Definition("Boolean"),
+			multiline : new Definition("Boolean"),
+			lastIndex : new Definition("Boolean"),
 			
-			exec : "?Array:str",
-			test : "?Boolean:str",
+			exec : new Definition("?Array:str"),
+			test : new Definition("?Boolean:str"),
 			
-			$$proto : "Object"
+			$$proto : new Definition("Object")
 		},
 		
 		/**
@@ -311,10 +327,10 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		Error : {
 			$$isBuiltin: true,
-			name : "String",
-			message : "String",
-			stack : "String",
-			$$proto : "Object"
+			name : new Definition("String"),
+			message : new Definition("String"),
+			stack : new Definition("String"),
+			$$proto : new Definition("Object")
 		},
 
 		/**
@@ -322,10 +338,10 @@ define("plugins/esprimaPlugin/types", [], function() {
 		 */
 		Arguments : {
 			$$isBuiltin: true,
-			callee : "Function",
-			length : "Number",
+			callee : new Definition("Function"),
+			length : new Definition("Number"),
 			
-			$$proto : "Object"
+			$$proto : new Definition("Object")
 		},
 
 		/**
@@ -334,14 +350,14 @@ define("plugins/esprimaPlugin/types", [], function() {
 		JSON : {
 			$$isBuiltin: true,
 
-			parse : "?Object:str",
-			stringify : "?String:obj",
-			$$proto : "Object"
+			parse : new Definition("?Object:str"),
+			stringify : new Definition("?String:obj"),
+			$$proto : new Definition("Object")
 		}
 	};
 	
-	
 	return {
-		Types : Types
+		Types : Types,
+		Definition : Definition
 	};
 });

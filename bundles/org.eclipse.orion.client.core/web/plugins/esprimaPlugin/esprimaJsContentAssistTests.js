@@ -1606,7 +1606,7 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "orion/assert"], functio
 		testProposals("xx", results, [
 		]);
 	};
-	// should not see an implicit if it is defined at the location of content assists
+
 	tests["test implicit8"] = function() {
 		var results = computeContentAssist(
 			"var xxx;\nvar obj = { foo : function inner() { xxx = 0; } }\nxx", "xx");

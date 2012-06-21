@@ -17,12 +17,24 @@ define(["plugins/esprimaPlugin/esprimaJsContentAssist", "plugins/esprimaPlugin/i
 	//////////////////////////////////////////////////////////
 	var esprimaContentAssistant = new mEsprimaPlugin.EsprimaJavaScriptContentAssistProvider();
 	
+	function filterSummary(summary) {
+		for (var prop in summary) {
+			if (summary.hasOwnProperty(prop)) {
+				if (summary[prop].typeName) {
+					summary[prop] = summary[prop].typeName;
+				}
+			}
+		}
+		return summary;
+	}
+	
 	function computeSummary(fileName, buffer) {
 		return esprimaContentAssistant.computeSummary(buffer, fileName);
 	}
 
 	function assertSameSummary(expectedSummaryText, actualSummary) {
-		assert.equal(JSON.stringify(actualSummary), expectedSummaryText);
+		var filteredSummary =filterSummary(actualSummary);
+		assert.equal(JSON.stringify(filteredSummary), expectedSummaryText);
 	}
 	
 	function assertCreateSummary(expectedSummaryText, buffer, fileName) {
