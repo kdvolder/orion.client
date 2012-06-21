@@ -226,7 +226,7 @@ exports.Explorer = (function() {
 					that.getNavHandler().refreshModel(that.getNavDict(), that.model, itemOrArray.children);
 				}
 				if(options && options.setFocus){
-					that.getNavHandler().cursorOn();
+					that.getNavHandler().cursorOn(null, false, false, true);
 				}
 			});
 		},
@@ -386,8 +386,8 @@ exports.ExplorerRenderer = (function() {
 	function ExplorerRenderer (options, explorer) {
 		this.explorer = explorer;
 		this._init(options);
-		this._expandImageClass = "core-sprite-twistie_open"; //$NON-NLS-0$
-		this._collapseImageClass = "core-sprite-twistie_closed"; //$NON-NLS-0$
+		this._expandImageClass = "core-sprite-openarrow"; //$NON-NLS-0$
+		this._collapseImageClass = "core-sprite-closedarrow"; //$NON-NLS-0$
 		this._twistieSpriteClass = "modelDecorationSprite"; //$NON-NLS-0$
 	}
 	ExplorerRenderer.prototype = {
