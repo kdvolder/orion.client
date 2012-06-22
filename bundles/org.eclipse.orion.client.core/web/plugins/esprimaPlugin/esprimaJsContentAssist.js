@@ -1530,9 +1530,11 @@ define("plugins/esprimaPlugin/esprimaJsContentAssist", ["plugins/esprimaPlugin/e
 			this._doVisit(root, environment);
 			var maybeType = environment.lookupName(toLookFor.name, toLookFor.extras.target, false, true);
 			if (maybeType) {
+				var hover = toLookFor.name + " :: " + createReadableType(maybeType.typeName, environment, true);
 				if (findName) {
-					return toLookFor.name + " :: " + createReadableType(maybeType.typeName, environment, true);
+					return hover;
 				} else {
+					maybeType.hover = toLookFor.name + " :: " + createReadableType(maybeType.typeName, environment, true);
 					return maybeType;
 				}
 			} else {
