@@ -487,6 +487,7 @@ define([
 			});
 
 			var contextImpl = {};
+			var liveContextImpl = {};
 			[	
 				"getCaretOffset", "setCaretOffset", //$NON-NLS-1$ //$NON-NLS-0$
 				"getSelection", "setSelection", //$NON-NLS-1$ //$NON-NLS-0$
@@ -495,8 +496,15 @@ define([
 				"getLineStart" //$NON-NLS-0$
 			].forEach(function(method) {
 				contextImpl[method] = editor[method].bind(editor);
+				liveContextImpl[method] = editor[method].bind(editor);
 			});
+			liveContextImpl["markClean"] = editor.markClean.bind(editor);
+			liveContextImpl["isDirty"] = editor.isDirty.bind(editor);
+			liveContextImpl.showMarkers = function(markers) {
+				serviceRegistry.getService("orion.core.marker")._setProblems(markers);
+			};
 			serviceRegistry.registerService("orion.edit.context", contextImpl, null); //$NON-NLS-0$
+			serviceRegistry.registerService("orion.edit.liveContext", liveContextImpl, null); //$NON-NLS-0$
 			if(this.editorPreferences) {
 				this.editorPreferences.getPrefs(this.updateSettings.bind(this));
 			}

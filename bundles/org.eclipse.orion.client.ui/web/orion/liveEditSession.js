@@ -1,20 +1,20 @@
-/*******************************************************************************
+/******************************************************************************* 
  * @license
- * Copyright (c) 2010, 2013 IBM Corporation and others.
+ * Copyright (c) 2014 Pivotal Software Inc. and others
  * All rights reserved. This program and the accompanying materials are made 
  * available under the terms of the Eclipse Public License v1.0 
  * (http://www.eclipse.org/legal/epl-v10.html), and the Eclipse Distribution 
  * License v1.0 (http://www.eclipse.org/org/documents/edl-v10.html). 
  * 
- * Contributors: IBM Corporation - initial API and implementation
+ * Contributors: Pivotal Software Inc. - initial API and implementation 
  ******************************************************************************/
 
 /*global define window */
 
 define([
 	'orion/Deferred',
-	'orion/edit/editorContext'
-], function(Deferred, EditorContext) {
+	'orion/edit/liveEditorContext'
+], function(Deferred, LiveEditorContext) {
 	
 
 var resource;
@@ -95,7 +95,8 @@ var LiveEditSession = (function () {
 								title: title
 							};
 							services.push(service);
-							return service.startEdit(EditorContext.getEditorContext(serviceRegistry), context, serviceRegistry.getService("orion.core.marker"));
+							var editorContext = LiveEditorContext.getEditorContext(serviceRegistry);
+							return service.startEdit(editorContext, context);
 						}
 					});
 						
