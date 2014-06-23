@@ -583,30 +583,53 @@ define([
 			parseTokens.links = links;
 			rootElement.innerHTML = marked.Parser.parse(parseTokens, this._markedOptions);
 
+			var processParentTokens = function(parentTokens) {
+				/*
+				 * Create a stream of tokens with this block's start/end tokens (to provide
+				 * context to marked) and the tokens being contributed from child blocks.
+				 */
+				parseTokens = [block.startToken].concat(parentTokens).concat(block.endToken);
+				parseTokens.links = links;
+				var tempElement = document.createElement("div"); //$NON-NLS-0$
+				tempElement.innerHTML = marked.Parser.parse(parseTokens, this._markedOptions);
+				var createdNodes = tempElement.children[0].childNodes;
+				while (createdNodes.length) {
+					rootElement.children[0].appendChild(createdNodes[0]);
+				}				
+			}.bind(this);
+
+			/*
+			 * Parent tokens are accumulated until either a child with its own content tokens is
+			 * encountered or all children have been processed.  These tokens are then parsed
+			 * together in order to provide needed context to marked.
+			 */
+			var accumulatedParentTokens = [];
+
 			block.getBlocks().forEach(function(current) {
 				if (current.parentTokens) {
 					/* a child block that contributes all of its tokens to its parent */
-
-					/*
-					 * Create a stream of tokens with this block's start/end tokens (to provide
-					 * context to marked) and the token being contributed from the child block.
-					 */
-					parseTokens = [block.startToken].concat(current.parentTokens).concat(block.endToken);
-					parseTokens.links = links;
-					var tempElement = document.createElement("div"); //$NON-NLS-0$
-					tempElement.innerHTML = marked.Parser.parse(parseTokens, this._markedOptions);
-					var createdNodes = tempElement.children[0].childNodes;
-					while (createdNodes.length) {
-						rootElement.children[0].appendChild(createdNodes[0]);
-					}
+					accumulatedParentTokens = accumulatedParentTokens.concat(current.parentTokens);
 				} else {
 					/* a child block with its own content tokens */
+					
+					/* first flush accumulated parent tokens */
+					if (accumulatedParentTokens.length) {
+						processParentTokens(accumulatedParentTokens);
+						accumulatedParentTokens = [];
+					}
+					
+					/* now process the child block */
 					var newElement = document.createElement("div"); //$NON-NLS-0$
 					this._generateHTML(newElement, current);
 					newElement.id = current.elementId;
 					rootElement.children[0].appendChild(newElement);
 				}
 			}.bind(this));
+			
+			/* flush any remaining parent tokens */
+			if (accumulatedParentTokens.length) {
+				processParentTokens(accumulatedParentTokens);
+			}
 		},
 		_getLineStart: function(text, index) {
 			while (0 <= --index) {
@@ -886,36 +909,50 @@ define([
 		this._model = options.model;
 		this._editorView = options.editorView;
 
-		this._previewMouseClickListener = function(e) {
+		this._previewClickListener = function(e) {
 			var target = e.target;
 			while (target && target.id.indexOf(ID_PREFIX) !== 0) {
 				target = target.parentElement;
 			}
-
 			if (!target) {
-				// TODO find the next nearest?
+				/* click was not on a preview element */
 				return;
 			}
 
-			var previewBounds = this._previewWrapperDiv.getBoundingClientRect();
 		    var elementBounds = target.getBoundingClientRect();
-		    var relativeTop = elementBounds.top - previewBounds.top;
-		    var elementCentre = relativeTop + target.offsetHeight / 2;
+		    var selectionPercentageWithinElement = (e.clientY - elementBounds.top) / (elementBounds.bottom - elementBounds.top);
 
 			var block = this._stylerAdapter.getBlockWithId(target.id);
 			var textView = this._editorView.editor.getTextView();
 			var blockTop = textView.getLocationAtOffset(block.start);
 			var blockBottom = textView.getLocationAtOffset(block.end);
 			blockBottom.y += textView.getLineHeight();
-			var blockCentre = blockTop.y + (blockBottom.y - blockTop.y) / 2;
-			this._scrollSourceEditor(blockCentre - elementCentre);
+			var blockAlignY = blockTop.y + (blockBottom.y - blockTop.y) * selectionPercentageWithinElement;
+
+			var editorBounds = this._editorDiv.getBoundingClientRect();
+			if (this._splitter.getOrientation() === mSplitter.ORIENTATION_VERTICAL) {
+				var elementRelativeY = editorBounds.height / 2;
+			} else {
+				elementRelativeY = e.clientY - editorBounds.top;
+			}
+
+			this._scrollSourceEditor(blockAlignY - elementRelativeY);
 		}.bind(this);
 
-		this._resizeListener = function(/*e*/) {
-			this._editorView.editor.resize();
+		this._settingsListener = function(e) {
+			this._splitter.setOrientation(e.newSettings.splitOrientation);
+			/*
+			 * If this is the initial retrieval of these settings then the root
+			 * and splitter elements likely need to have their visibilities updated.
+			 */
+			this._rootDiv.style.visibility = "visible"; //$NON-NLS-0$
+			this._splitterDiv.style.visibility = "visible"; //$NON-NLS-0$
+
+			this._styler.setTabsVisible(e.newSettings.showTabs);
+			this._styler.setSpacesVisible(e.newSettings.showSpaces);
 		}.bind(this);
 
-		this._scrollListener = function(e) {
+		this._sourceScrollListener = function(e) {
 			if (this._ignoreEditorScrollsUntilValue) {
 				if (this._ignoreEditorScrollsUntilValue === e.newValue.y) {
 					this._ignoreEditorScrollsUntilValue = null;
@@ -923,23 +960,37 @@ define([
 				return;
 			}
 
-			var textView = this._editorView.editor.getTextView();
-
-			var block;
 			if (!e.newValue.y) {
-				/* the editor is at the top so ensure that preview is at the top as well */
-				var rootBlock = this._styler.getRootBlock();
-				var blocks = rootBlock.getBlocks();
-				if (blocks.length) {
-					block = blocks[0];
+				/* the editor is now at the top so ensure that preview is at its top as well */
+				this._previewWrapperDiv.scrollTop = 0;
+				return;
+			}
+
+			var textView = this._editorView.editor.getTextView();
+			var bottomLineIndex = textView.getBottomIndex();
+			if (bottomLineIndex === this._model.getLineCount() - 1) {
+				/* the editor is now at the bottom so ensure that preview is at its bottom as well */
+				this._previewWrapperDiv.scrollTop = this._previewWrapperDiv.scrollHeight;
+				return;
+			}
+
+			var charIndex = textView.getOffsetAtLocation(0, Math.floor(e.newValue.y + this._previewWrapperDiv.clientHeight / 2));
+			var block = this._styler.getBlockAtIndex(charIndex);
+			var element = document.getElementById(block.elementId);
+			while (!element) {
+				if (!block.parent) {
+					/* have reached the root block, so choose the nearest child block */
+					var childIndex = Math.max(0, block.getBlockAtIndex(charIndex));
+					var subBlocks = block.getBlocks();
+					block = subBlocks[Math.min(childIndex, subBlocks.length - 1)];
+					break;
 				}
-			} else {
-				var charIndex = textView.getOffsetAtLocation(0, Math.floor(e.newValue.y + (this._previewWrapperDiv.clientHeight / 2)));
-				block = this._styler.getBlockAtIndex(charIndex);
+				block = block.parent;
+				element = document.getElementById(block.elementId);
 			}
 
 			if (block) {
-				var element = document.getElementById(block.elementId);
+				element = element || document.getElementById(block.elementId);
 				if (element) {
 					var newTop = Math.max(0, Math.ceil(element.offsetTop - (this._previewWrapperDiv.clientHeight - element.offsetHeight) / 2));
 					this._previewWrapperDiv.scrollTop = newTop;
@@ -947,53 +998,88 @@ define([
 			}
 		}.bind(this);
 
-		this._selectionListener = function(e) {
+		this._sourceSelectionListener = function(e) {
 			var model = this._editorView.editor.getTextView().getModel();
-			var selectionStart = model.mapOffset(e.newValue.start);
-			var block = this._styler.getBlockAtIndex(selectionStart);
+			var selectionIndex = model.mapOffset(e.newValue.start);
+			var block = this._styler.getBlockAtIndex(selectionIndex);
 
 			var element = document.getElementById(block.elementId);
 			while (!element) {
-				block = block.parent;
-				if (!block) {
+				if (!block.parent) {
+					/* have reached the root block */
 					break;
 				}
+				block = block.parent;
 				element = document.getElementById(block.elementId);
 			}
 
-			if (block === this._selectedBlock) {
-				return; /* no change */
+			if (this._selectedElement && this._selectedElement !== element) {
+				this._selectedElement.classList.remove(this._markdownSelected);
 			}
+			this._selectedElement = element;
+			this._selectedBlock = block;
 
-			if (this._selectedElement) {
-				this._selectedElement.className = this._selectedElement.className.replace(this._markdownSelected, "");
-				this._selectedElement = null;
-				this._selectedBlock = null;
-			}
-
-			if (block && block.elementId) {
-				this._selectedElement = element;
-				this._selectedElement.className += this._markdownSelected;
-				this._selectedBlock = block;
-
-				var textView = this._editorView.editor.getTextView();
-				var blockTop = textView.getLocationAtOffset(model.mapOffset(block.start, true));
-				var blockBottom = textView.getLocationAtOffset(model.mapOffset(block.end, true));
-				if (!blockBottom.y) { /* indicates that the block bottom is within a collapsed section */
-					blockBottom.y = blockTop.y;
+			var textView = this._editorView.editor.getTextView();
+			if (element) {
+				this._selectedElement.classList.add(this._markdownSelected);
+				var sourceAlignTop = textView.getLocationAtOffset(model.mapOffset(block.start, true));
+				var sourceAlignBottom = textView.getLocationAtOffset(model.mapOffset(block.end, true));
+				if (!sourceAlignBottom.y) { /* indicates that the block bottom is within a collapsed section */
+					sourceAlignBottom.y = sourceAlignTop.y;
 				}
-				blockBottom.y += textView.getLineHeight();
-				var blockHeight = blockBottom.y - blockTop.y;
-				var relativeTop = blockTop.y - textView.getTopPixel();
-				var blockCentre = relativeTop + blockHeight / 2;
-
-				var previewBounds = this._previewWrapperDiv.getBoundingClientRect();
-			    var elementBounds = this._selectedElement.getBoundingClientRect();
-			    var elementTop = elementBounds.top - previewBounds.top + this._previewWrapperDiv.scrollTop;
-			    var elementCentre = elementTop + this._selectedElement.offsetHeight / 2;
-
-				this._scrollPreviewDiv(elementCentre - blockCentre);
+				sourceAlignBottom.y += textView.getLineHeight();
+			 } else {
+				/* selection is in whitespace in the root block */
+				var childIndex = block.getBlockAtIndex(selectionIndex);
+				var subBlocks = block.getBlocks();
+				var start = childIndex ? subBlocks[childIndex - 1].end : 0;
+				if (childIndex < subBlocks.length) {
+					var end = subBlocks[childIndex].start;
+				} else {
+					/* beyond end of last block */
+					end = model.getCharCount();
+				}
+				sourceAlignTop = textView.getLocationAtOffset(model.mapOffset(start, true));
+				sourceAlignBottom = textView.getLocationAtOffset(model.mapOffset(end, true));
+				sourceAlignBottom.y += textView.getLineHeight();
 			}
+			var sourceAlignHeight = sourceAlignBottom.y - sourceAlignTop.y;
+			var selectionLocation = textView.getLocationAtOffset(model.mapOffset(selectionIndex, true));
+			selectionLocation.y += textView.getLineHeight();
+			var selectionPercentageWithinBlock = (selectionLocation.y - sourceAlignTop.y) / sourceAlignHeight;
+			var previewBounds = this._previewWrapperDiv.getBoundingClientRect();
+			if (this._splitter.getOrientation() === mSplitter.ORIENTATION_VERTICAL) {
+				var sourceRelativeY = (previewBounds.bottom - previewBounds.top) / 2;
+			} else {
+				sourceRelativeY = selectionLocation.y - textView.getTopPixel();
+			}
+
+			if (element) {
+				var elementBounds = this._selectedElement.getBoundingClientRect();
+				var elementTop = elementBounds.top - previewBounds.top + this._previewWrapperDiv.scrollTop;
+				var elementAlignY = elementTop + this._selectedElement.offsetHeight * selectionPercentageWithinBlock;
+			} else {
+				if (childIndex < subBlocks.length) {
+					var nextElement = document.getElementById(subBlocks[childIndex].elementId);
+					var nextElementTop = nextElement.getBoundingClientRect().top;
+				} else {
+					/* beyond end of last block */
+					nextElementTop = previewBounds.bottom;
+				}
+				if (childIndex) {
+					var previousElement = document.getElementById(subBlocks[childIndex - 1].elementId);
+					var previousElementBottom = previousElement.getBoundingClientRect().bottom;
+				} else {
+					previousElementBottom = 0;
+				}
+				var previousElementRelativeBottom = previousElementBottom - previewBounds.top + this._previewWrapperDiv.scrollTop;
+				elementAlignY = previousElementRelativeBottom + (nextElementTop - previousElementBottom) * selectionPercentageWithinBlock;
+			}
+			this._scrollPreviewDiv(elementAlignY - sourceRelativeY);
+		}.bind(this);
+
+		this._splitterResizeListener = function(/*e*/) {
+			this._editorView.editor.resize();
 		}.bind(this);
 
 		BaseEditor.apply(this, arguments);
@@ -1008,10 +1094,10 @@ define([
 			this._stylerAdapter = new MarkdownStylingAdapter(this._model, this._metadata.Location, this._fileService);
 			this._styler = new mTextStyler.TextStyler(textView, annotationModel, this._stylerAdapter);
 
-			this._editorView.editor.getTextView().addEventListener("Scroll", this._scrollListener); //$NON-NLS-0$
-			this._editorView.editor.getTextView().addEventListener("Selection", this._selectionListener); //$NON-NLS-0$
-			this._splitter.addEventListener("resize", this._resizeListener); //$NON-NLS-0$
-			this._previewDiv.addEventListener("click", this._previewMouseClickListener); //$NON-NLS-0$
+			this._editorView.editor.getTextView().addEventListener("Scroll", this._sourceScrollListener); //$NON-NLS-0$
+			this._editorView.editor.getTextView().addEventListener("Selection", this._sourceSelectionListener); //$NON-NLS-0$
+			this._splitter.addEventListener("resize", this._splitterResizeListener); //$NON-NLS-0$
+			this._previewDiv.addEventListener("click", this._previewClickListener); //$NON-NLS-0$
 
 			/*
 			 * If the model already has content then it is being shared with a previous
@@ -1023,6 +1109,10 @@ define([
 			if (this._model.getCharCount()) {
 				this._stylerAdapter.initialPopulatePreview();
 			}
+
+			var settings = this._editorView.getSettings();
+			this._styler.setTabsVisible(settings.showTabs);
+			this._styler.setSpacesVisible(settings.showSpaces);
 		},
 		install: function() {
 			this._rootDiv = document.createElement("div"); //$NON-NLS-0$
@@ -1031,9 +1121,9 @@ define([
 			this._rootDiv.style.height = "100%"; //$NON-NLS-0$
 			this._parent.appendChild(this._rootDiv);
 
-			var editorDiv = document.createElement("div"); //$NON-NLS-0$
-			this._rootDiv.appendChild(editorDiv);	
-			this._editorView.setParent(editorDiv);
+			this._editorDiv = document.createElement("div"); //$NON-NLS-0$
+			this._rootDiv.appendChild(this._editorDiv);	
+			this._editorView.setParent(this._editorDiv);
 
 			this._splitterDiv = document.createElement("div"); //$NON-NLS-0$
 			this._splitterDiv.id = "orion.markdown.editor.splitter";
@@ -1049,12 +1139,12 @@ define([
 			this._previewDiv.classList.add("orionMarkdown"); //$NON-NLS-0$
 			this._previewWrapperDiv.appendChild(this._previewDiv);
 
-			this._editorView.addEventListener("Settings", this._updateSettings.bind(this)); //$NON-NLS-0$
+			this._editorView.addEventListener("Settings", this._settingsListener); //$NON-NLS-0$
 			var settings = this._editorView.getSettings();
 
 			this._splitter = new mSplitter.Splitter({
 				node: this._splitterDiv,
-				sidePanel: editorDiv,
+				sidePanel: this._editorDiv,
 				mainPanel: this._previewWrapperDiv,
 				vertical: settings && settings.splitOrientation === mSplitter.ORIENTATION_VERTICAL
 			});
@@ -1069,11 +1159,12 @@ define([
 		},
 		uninstall: function() {
 			this._styler.destroy();
+			this._editorView.removeEventListener("Settings", this._settingsListener); //$NON-NLS-0$
 			var textView = this._editorView.editor.getTextView();
-			textView.removeEventListener("Scroll", this._scrollListener); //$NON-NLS-0$
-			textView.removeEventListener("Selection", this._selectionListener); //$NON-NLS-0$
-			this._splitter.removeEventListener("resize", this._resizeListener); //$NON-NLS-0$
-			this._previewDiv.removeEventListener("click", this._previewMouseClickListener); //$NON-NLS-0$
+			textView.removeEventListener("Scroll", this._sourceScrollListener); //$NON-NLS-0$
+			textView.removeEventListener("Selection", this._sourceSelectionListener); //$NON-NLS-0$
+			this._splitter.removeEventListener("resize", this._splitterResizeListener); //$NON-NLS-0$
+			this._previewDiv.removeEventListener("click", this._previewClickListener); //$NON-NLS-0$
 			lib.empty(this._parent);
 			BaseEditor.prototype.uninstall.call(this);
 		},
@@ -1088,9 +1179,11 @@ define([
 				return;
 			}
 
+			var settings = this._editorView.getSettings();
 			this._scrollPreviewAnimation = new mTextUtil.Animation({
 				window: window,
 				curve: [pixelY, 0],
+				duration: settings.scrollAnimation ? settings.scrollAnimationTimeout : 0,
 				onAnimate: function(x) {
 					var deltaY = pixelY - Math.floor(x);
 					this._previewWrapperDiv.scrollTop += deltaY;
@@ -1099,9 +1192,11 @@ define([
 				onEnd: function() {
 					this._scrollPreviewAnimation = null;
 					this._previewWrapperDiv.scrollTop += pixelY;
+					this._ignoreEditorScrollsUntilValue = null;
 				}.bind(this)
 			});
 
+			this._ignoreEditorScrollsUntilValue = -1;
 			this._scrollPreviewAnimation.play();	
 		},
 		_scrollSourceEditor: function(top) {
@@ -1116,9 +1211,11 @@ define([
 				return;
 			}
 
+			var settings = this._editorView.getSettings();
 			this._scrollSourceAnimation = new mTextUtil.Animation({
 				window: window,
 				curve: [pixelY, 0],
+				duration: settings.scrollAnimation ? settings.scrollAnimationTimeout : 0,
 				onAnimate: function(x) {
 					var deltaY = pixelY - Math.floor(x);
 					textView.setTopPixel(textView.getTopPixel() + deltaY);
@@ -1135,16 +1232,7 @@ define([
 			this._ignoreEditorScrollsUntilValue = -1;
 			this._scrollSourceAnimation.play();	
 		},
-		_updateSettings: function(event) {
-			this._splitter.setOrientation(event.newSettings.splitOrientation);
-			/*
-			 * If this is the initial retrieval of these settings then the root
-			 * and splitter elements likely need to have their visibilities updated.
-			 */
-			this._rootDiv.style.visibility = "visible"; //$NON-NLS-0$
-			this._splitterDiv.style.visibility = "visible"; //$NON-NLS-0$
-		},
-		_markdownSelected: " markdownSelected", //$NON-NLS-0$
+		_markdownSelected: "markdownSelected", //$NON-NLS-0$
 		_selectedBlock: null
 	});
 

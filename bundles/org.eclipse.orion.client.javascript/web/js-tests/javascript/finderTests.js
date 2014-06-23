@@ -217,25 +217,26 @@ define([
 		 * @since 6.0
 		 */
 		it('test_findNodeAndParents1', function() {
-			try {
-				editorContext.text = "function  F1(p1, p2) {\n"+
-					"\tvar out = p1;\n"+
-					"};";
-				return astManager.getAST(editorContext).then(function(ast) {
-					var node = Finder.findNode(9, ast, {parents:true});
-					if(!node) {
-						assert.fail("Should have found a node");
-					}
-					else {
-						assert.equal(node.type, 'FunctionDeclaration', 'Should have found a FunctionDeclaration node');
-						assert.equal(node.parents.length, 1, 'Should have found one parent');
-						assert.equal(node.parents[0].type, 'Program', 'The program node should be the only parent');
-					}
-				});
-			}
-			finally {
-				tearDown();
-			}
+			editorContext.text = "function  F1(p1, p2) {\n"+
+				"\tvar out = p1;\n"+
+				"};";
+			return astManager.getAST(editorContext).then(function(ast) {
+			    try {
+    				var node = Finder.findNode(9, ast, {parents:true});
+    				if(!node) {
+    					assert.fail("Should have found a node");
+    				}
+    				else {
+    					assert.equal(node.type, 'FunctionDeclaration', 'Should have found a FunctionDeclaration node');
+    					assert.equal(node.parents.length, 1, 'Should have found one parent');
+    					assert.equal(node.parents[0].type, 'Program', 'The program node should be the only parent');
+    				}
+				}
+        		finally {
+        			tearDown();
+        		}
+			});
+			
 		});
 		
 		/**
@@ -243,26 +244,52 @@ define([
 		 * @since 6.0
 		 */
 		it('test_findNodeAndParents2', function() {
-			try {
-				editorContext.text = "function  F1(p1, p2) {\n"+
-					"\tvar out = p1;\n"+
-					"};";
-				return astManager.getAST(editorContext).then(function(ast) {
+			editorContext.text = "function  F1(p1, p2) {\n"+
+				"\tvar out = p1;\n"+
+				"};";
+			return astManager.getAST(editorContext).then(function(ast) {
+			    try {
 					var node = Finder.findNode(14, ast, {parents:true});
 					if(!node) {
 						assert.fail("Should have found a node");
 					}
 					else {
-						assert.equal(node.type, 'Identifier', 'Should have found a Identifier node');
-						assert.equal(node.parents.length, 2, 'Should have found five parents');
+						assert.equal(node.type, 'Identifier', 'Should have found an Identifier node');
+						assert.equal(node.parents.length, 2, 'Should have found two parents');
 						assert.equal(node.parents[0].type, 'Program', 'Should have found the parent Program node as the first parent');
 						assert.equal(node.parents[1].type, 'FunctionDeclaration', 'Should have found the parent function decl as the second parent');
 					}
-				});
-			}
-			finally {
-				tearDown();
-			}
+				}
+    			finally {
+    				tearDown();
+    			}
+			});
+		});
+		/**
+		 * @see https://bugs.eclipse.org/bugs/show_bug.cgi?id=437548
+		 * @since 6.0
+		 */
+		it('test_findNodeAndParents3', function() {
+			editorContext.text = "function  F1(p1, p2) {\n"+
+				"\tvar out = p1;\n"+
+				"};";
+			return astManager.getAST(editorContext).then(function(ast) {
+			    try {
+    				var node = Finder.findNode(4, ast, {parents:true});
+    				if(!node) {
+    					assert.fail("Should have found a node");
+    				}
+    				else {
+    					assert.equal(node.type, 'FunctionDeclaration', 'Should have found a FunctionDeclaration node');
+    					assert.equal(node.parents.length, 1, 'Should have found one parent');
+    					assert.equal(node.parents[0].type, 'Program', 'Should have found the parent Program node as the first parent');
+    				}
+				}
+        		finally {
+        			tearDown();
+        		}
+			});
+			
 		});
 		/**
 		 * Find a token in a broken AST
@@ -1218,7 +1245,68 @@ define([
 			assert.equal(blocks[0].offset, 46);
 			assert.equal(blocks[0].text, 'function f() {}');
 		});
-		
+		/**
+		 * Tests the support for finding script blocks with type tags
+		 * @see https://bugs.eclipse.org/bugs/show_bug.cgi?id=437489
+		 */
+		it('test_findScriptBlockWithType1', function() {
+			var text = "<!DOCTYPE html><head><script type=\"javascript\">function f() {}</script></head><html></html>";
+			var blocks = Finder.findScriptBlocks(text, 51);
+			assert.equal(blocks.length, 1, "Should have found one script block");
+			assert.equal(blocks[0].offset, 47);
+			assert.equal(blocks[0].text, 'function f() {}');
+		});
+		/**
+		 * Tests the support for finding script blocks with type tags
+		 * @see https://bugs.eclipse.org/bugs/show_bug.cgi?id=437489
+		 */
+		it('test_findScriptBlockWithType2', function() {
+			var text = "<!DOCTYPE html><head><script type=\"text/javascript\">function f() {}</script></head><html></html>";
+			var blocks = Finder.findScriptBlocks(text, 54);
+			assert.equal(blocks.length, 1, "Should have found one script block");
+			assert.equal(blocks[0].offset, 52);
+			assert.equal(blocks[0].text, 'function f() {}');
+		});
+		/**
+		 * Tests the support for finding script blocks with type tags
+		 * @see https://bugs.eclipse.org/bugs/show_bug.cgi?id=437489
+		 */
+		it('test_findScriptBlockWithType3', function() {
+			var text = "<!DOCTYPE html><head><script type=\"text/handlebars\">function f() {}</script></head><html></html>";
+			var blocks = Finder.findScriptBlocks(text, 54);
+			assert.equal(blocks.length, 0, "Should have found one script block");
+		});
+		/**
+		 * Tests the support for finding script blocks with type tags
+		 * @see https://bugs.eclipse.org/bugs/show_bug.cgi?id=437489
+		 */
+		it('test_findScriptBlockWithLanguage1', function() {
+			var text = "<!DOCTYPE html><head><script language=\"javascript\">function f() {}</script></head><html></html>";
+			var blocks = Finder.findScriptBlocks(text, 53);
+			assert.equal(blocks.length, 1, "Should have found one script block");
+			assert.equal(blocks[0].offset, 51);
+			assert.equal(blocks[0].text, 'function f() {}');
+		});
+		/**
+		 * Tests the support for finding script blocks with type tags
+		 * @see https://bugs.eclipse.org/bugs/show_bug.cgi?id=437489
+		 */
+		it('test_findScriptBlockWithLanguage2', function() {
+			var text = "<!DOCTYPE html><head><script language=\"text/javascript\">function f() {}</script></head><html></html>";
+			var blocks = Finder.findScriptBlocks(text, 58);
+			assert.equal(blocks.length, 1, "Should have found one script block");
+			assert.equal(blocks[0].offset, 56);
+			assert.equal(blocks[0].text, 'function f() {}');
+		});
+		/**
+		 * Tests the support for finding script blocks with type tags
+		 * @see https://bugs.eclipse.org/bugs/show_bug.cgi?id=437489
+		 */
+		it('test_findScriptBlockWithLanguage3', function() {
+			var text = "<!DOCTYPE html><head><script language=\"text/handlebars\">function f() {}</script></head><html></html>";
+			var blocks = Finder.findScriptBlocks(text, 58);
+			assert.equal(blocks.length, 0, "Should have found one script block");
+		});
 		/**
 		 * Tests the support for finding script blocks in HTML with postamble text
 		 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=433263
