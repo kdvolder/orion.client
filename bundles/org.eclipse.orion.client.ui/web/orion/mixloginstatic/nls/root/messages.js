@@ -6,15 +6,10 @@
  * (http://www.eclipse.org/legal/epl-v10.html), and the Eclipse Distribution 
  * License v1.0 (http://www.eclipse.org/org/documents/edl-v10.html). 
  * 
- * Contributors: Anton McConville - IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*jslint amd:true*/
-define([], function() {
 
-	/**
-	 * Version string for theme data. Please update this string whenever you change the style of a themable element.
-	 */
-	var THEMES_VERSION = "6.1";
+//NLS_CHARSET=UTF-8
 
-	return THEMES_VERSION;
+define({
+	"AddExternalAccount" : "Add external account:"	
 });

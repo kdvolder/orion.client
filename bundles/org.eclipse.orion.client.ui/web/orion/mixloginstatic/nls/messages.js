@@ -6,15 +6,15 @@
  * (http://www.eclipse.org/legal/epl-v10.html), and the Eclipse Distribution 
  * License v1.0 (http://www.eclipse.org/org/documents/edl-v10.html). 
  * 
- * Contributors: Anton McConville - IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*jslint amd:true*/
-define([], function() {
-
-	/**
-	 * Version string for theme data. Please update this string whenever you change the style of a themable element.
-	 */
-	var THEMES_VERSION = "6.1";
-
-	return THEMES_VERSION;
+define(['orion/i18n!orion/mixloginstatic/nls/messages', 'orion/mixloginstatic/nls/root/messages'], function(bundle, root) {
+	var result = {
+			root:root
+	};
+	Object.keys(bundle).forEach(function(key) {
+		if (typeof result[key] === 'undefined') {
+			result[key] = bundle[key];
+		}
+	});
+	return result;
 });
