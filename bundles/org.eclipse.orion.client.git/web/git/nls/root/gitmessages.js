@@ -7,7 +7,7 @@
  * License v1.0 (http://www.eclipse.org/org/documents/edl-v10.html).
  *
  ******************************************************************************/
- /*global define*/
+/*eslint-env browser, amd*/
 
 //NLS_CHARSET=UTF-8
 
@@ -30,12 +30,22 @@ define({
 	"No Commits": "No Commits",
 	"commit: 0": "commit: ${0}",
 	"parent: 0": "parent: ${0}",
-	"authored by 0 (1) on 2": "authored by ${0} (${1}) on ${2}",
-	"committed by 0 (1)": "committed by ${0} (${1})",
+	"authored by 0 (1) on 2": "authored by ${0} <${1}> on ${2}",
+	"committed by 0 (1)": "committed by ${0} <${1}>",
+	"committedby": "committed by ",
+	"authoredby": "authored by ",
+	"on": " on ",
+	"nameEmail": "${0} <${1}>",
 	"Tags:": "Tags:",
 	"No Tags": "No Tags",
 	"Diffs": "Changes",
 	"More": "More",
+	"MoreCommits": "More commits for \"${0}\"",
+	"MoreCommitsProgress": "Loading more commits for \"${0}\"...",
+	"MoreBranches": "More branches for \"${0}\"",
+	"MoreBranchesProgress": "Loading more branches for \"${0}\"...",
+	"MoreTags": "More tags",
+	"MoreTagsProgress": "Loading more tags...",
 	"Loading git log...": "Loading git log...",
 	"local": "local",
 	"remote": "remote",
@@ -51,6 +61,7 @@ define({
 	"Date": "Date",
 	"Actions": "Actions",
 	"Branches": "Branches",
+	"BranchesTags": "Branches and Tags",
 	"Tags": "Tags",
 	"Stage": "Stage",
 	"Unstaged removal": "Unstaged removal",
@@ -67,7 +78,8 @@ define({
 	"Commit message": "Commit message",
 	"Record changes in the active branch": "Record changes in the active branch",
 	"Commit": "Commit",
-	"SmartCommit": "Type a message here to commit...",
+	"CommitTooltip": "Commit the selected files with the given message.",
+	"SmartCommit": "Enter the commit message",
 	"SmartCountCommit": "Commit ${0} file(s)",
 	"Amend last commit": "Amend last commit",
 	" Amend": " Amend",
@@ -100,6 +112,8 @@ define({
 	"Stage the selected changes": "Stage the selected changes",
 	"Staging...": "Staging...",
 	"Checkout all the selected files, discarding all changes": "Checkout all the selected files, discarding all changes",
+	"Add all the selected files to .gitignore file(s)" : "Add all the selected files to .gitignore file(s)",
+	"Writing .gitignore rules" : "Writing .gitignore rules", 
 	"Your changes to all the selected files will be lost. Are you sure you want to checkout?": "Your changes to all the selected files will be lost. Are you sure you want to checkout?",
 	"Save Patch": "Save Patch",
 	"Save workspace changes as a patch": "Save workspace changes as a patch",
@@ -213,6 +227,7 @@ define({
 	"parent:": "parent: ",
 	"branches: ": "branches: ",
 	"tags: ": "tags: ",
+	"tags": "tags",
 	" authored by ${0} {${1}) on ${2}": " authored by ${0} (${1}) on ${2}",
 	"Content": "Content",
 	"Go to ${0} section": "Go to ${0} section",
@@ -220,6 +235,7 @@ define({
 	"Type the commit name (sha1):": "Type the commit name (sha1):",
 	"Search": "Search",
 	"Searching...": "Searching...",
+	"SelectAll": "Select All",
 	"Looking for the commit": "Looking for the commit",
 	"New Branch:": "New Branch:",
 	"No remote selected": "No remote selected",
@@ -366,6 +382,7 @@ define({
 	"Abort": "Abort",
 	"Abort Rebase": "Abort Rebase",
 	"Discard": "Discard ${0} file(s)",
+	"Ignore": "Ignore ${0} file(s)",
 	"Your changes to the selected files will be discarded and cannot be recovered.": "Your changes to the selected files will be discarded and cannot be recovered.",
 	"Getting git log": "Getting git log",
 	"Active Branch Log": "Git Log (Active Branch)",
@@ -436,5 +453,7 @@ define({
 	"Outgoing" : "Outgoing",
 	"Synchronized" : "History",
 	"NoBranch" : "No Branch",
-	"None": "None"
+	"None": "None",
+	"Commit and push ${0} file(s)": "Commit and push ${0} file(s)",
+	"Commits and pushes files to the default remote": "Commits and pushes files to the default remote"
 });

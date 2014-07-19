@@ -12,7 +12,7 @@
  *   IBM Corporation - Various improvements
  ******************************************************************************/
 
-/*global define*/
+/*eslint-env amd*/
 define([
 'javascript/contentAssist/typeUtils',
 'javascript/contentAssist/typesFromIndexFile',
@@ -320,6 +320,9 @@ define([
 						return target;
 					} else if (target && target.extras.inferredTypeObj) {
 						var inferredTypeObj = target.extras.inferredTypeObj;
+						if(typeof inferredTypeObj.type === 'undefined' && inferredTypeObj.typeObj) {
+						    inferredTypeObj = inferredTypeObj.typeObj;
+						}
 						// TODO what happens if not a NameExpression or FunctionType???
 						if (inferredTypeObj.type === 'NameExpression') {
 							return inferredTypeObj.name;
@@ -611,7 +614,9 @@ define([
         			var mergedType = {};
         			var self = this;
         			function mergeInType(target, newType) {
-                                    if (target === newType) return;
+                        if (target === newType) {
+                            return;
+                        }
         			    for (var p in newType) {
         			        if (newType.hasOwnProperty(p) && p.indexOf("$$") !== 0) {
         			            if (!target.hasOwnProperty(p)) {

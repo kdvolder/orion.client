@@ -9,11 +9,9 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global define console window*/
-/*jslint regexp:false browser:true forin:true*/
-
-define(['i18n!orion/crawler/nls/messages', 'require', 'orion/i18nUtil', 'orion/searchUtils', 'orion/contentTypes', 'orion/Deferred'], 
-		function(messages, require, i18nUtil, mSearchUtils, mContentTypes, Deferred) {
+/*eslint-env browser, amd*/
+define(['i18n!orion/crawler/nls/messages', 'orion/i18nUtil', 'orion/searchUtils', 'orion/contentTypes', 'orion/Deferred'], 
+		function(messages, i18nUtil, mSearchUtils, mContentTypes, Deferred) {
 	
 	/**
 	 * SearchCrawler is an alternative when a file service does not provide the search API.
@@ -53,11 +51,11 @@ define(['i18n!orion/crawler/nls/messages', 'require', 'orion/i18nUtil', 'orion/s
 	 * @param {Function} onComplete The callback function on search complete. The array of hit file locations are passed to the callback.
 	 */
 	SearchCrawler.prototype.search = function(onComplete){
-		var contentTypeService = this.registry.getService("orion.core.contentTypeRegistry"); //$NON-NLS-0$
+		this.contentTypeService = this.registry.getService("orion.core.contentTypeRegistry"); //$NON-NLS-0$
 		this._onSearchComplete = onComplete;
 		this._cancelled = false;
 		this._deferredArray = [];
-		contentTypeService.getContentTypes().then(function(ct) {
+		this.contentTypeService.getContentTypes().then(function(ct) {
 			this.contentTypesCache = ct;
 			var crawler = this;
 			this._visitRecursively(this._childrenLocation).then(function(){
@@ -123,12 +121,12 @@ define(['i18n!orion/crawler/nls/messages', 'require', 'orion/i18nUtil', 'orion/s
 	 */
 	SearchCrawler.prototype.buildSkeleton = function(onBegin, onComplete){
 		this._buildingSkeleton = true;
-		var contentTypeService = this.registry.getService("orion.core.contentTypeRegistry"); //$NON-NLS-0$
+		this.contentTypeService = this.registry.getService("orion.core.contentTypeRegistry"); //$NON-NLS-0$
 		this._cancelled = false;
 		this._deferredArray = [];
 		var that = this;
 		onBegin();
-		contentTypeService.getContentTypes().then(function(ct) {
+		this.contentTypeService.getContentTypes().then(function(ct) {
 			that.contentTypesCache = ct;
 			that._visitRecursively(that._childrenLocation).then(function(){ //$NON-NLS-0$
 					that._buildingSkeleton = false;
@@ -207,7 +205,8 @@ define(['i18n!orion/crawler/nls/messages', 'require', 'orion/i18nUtil', 'orion/s
 						results.push(_this._buildSingleSkeleton(children[i]));
 					}else if(!_this._cancelled) {
 						var contentType = mContentTypes.getFilenameContentType(children[i].Name, _this.contentTypesCache);
-						if(contentType && (contentType['extends'] === "text/plain" || contentType.id === "text/plain") && _this._fileNameMatches(children[i].Name)){ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+						var isBinary = (mContentTypes.isImage(contentType) || mContentTypes.isBinary(contentType));
+						if(!isBinary && _this._fileNameMatches(children[i].Name)){
 							var fileDeferred = _this._sniffSearch(children[i]);
 							results.push(fileDeferred);
 							_this._deferredArray.push(fileDeferred);

@@ -10,9 +10,8 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*jslint browser:true devel:true sub:true*/
-/*global define console eclipse:true orion:true window URL*/
-
+/*eslint-env browser, amd*/
+/*global URL*/
 define([
 	'orion/PageUtil', 
 	'orion/inputManager',
@@ -38,11 +37,12 @@ define([
 	'orion/i18nUtil',
 	'orion/fileDownloader',
 	'orion/util',
+	'orion/xhr',
 	'orion/URL-shim'
 ], function(
 	PageUtil, mInputManager, mBreadcrumbs, mBrowseView, mNavigatorRenderer, mReadonlyEditorView, mResourceSelector,
 	mCommandRegistry, mFileClient, mContentTypes, mStaticDataSource, mEmptyFileClient, Deferred, URITemplate, objects, 
-	EventTarget, RepoAndBaseURLTriggerTemplate, RepoURLTriggerTemplate, ShareSnippetTriggerTemplate, mCommands, lib, i18nUtil, mFileDownloader, util
+	EventTarget, RepoAndBaseURLTriggerTemplate, RepoURLTriggerTemplate, ShareSnippetTriggerTemplate, mCommands, lib, i18nUtil, mFileDownloader, util, xhr
 ) {
 	
 	function ResourceChangeHandler() {
@@ -85,29 +85,50 @@ define([
 			this.popupTemplate = RepoURLTriggerTemplate;
 		}
 		
+		this._generateInviteText = function(userId, userName, found, reject) {
+			this.popupTextAreaValue = "teamRepository=" + this.baseURL + "\n" +
+							   "userId=" + userId + "\n" + 
+							   "userName=" + userName + "\n" + 
+							   "projectAreaName=" + decodeURIComponent(found[1]) + " | " + decodeURIComponent(found[2]);
+			// Check if we can find a stream ID to put into the configuration
+			var file = this.fileBrowser._branchSelector.getActiveResource(this.fileBrowser._branchSelector.activeResourceLocation);
+			
+			if (file && file.RTCSCM && file.RTCSCM.ItemId) {
+				this.popupTextAreaValue = this.popupTextAreaValue + "\nstreamId="+ file.RTCSCM.ItemId;
+			}
+			return new Deferred().resolve(this.popupTextAreaValue); 
+		}.bind(this);
+		
+		this._requestProjectInviteInfo = function(found) {
+			var relativeURL = "/manage/service/com.ibm.team.jazzhub.common.service.ICurrentUserService";
+			var absURL = new URL(relativeURL, window.location.href);
+			var requestURL = absURL.href;
+			var _this = this;
+			return xhr("GET", requestURL, {
+				timeout: 15000
+			}).then(function(result) {
+				var currentUser = JSON.parse(result.response);
+				if(currentUser && currentUser.userId && currentUser.name) {
+					return _this._generateInviteText(currentUser.userId, currentUser.name, found);
+				}
+				return _this._generateInviteText(decodeURIComponent(found[1]), decodeURIComponent(found[1]), found);
+			}, function() {
+				return _this._generateInviteText(decodeURIComponent(found[1]), decodeURIComponent(found[1]), found);
+			});
+		}.bind(this);
+		
 		this.getTextAreaValue = function() {
 			if(this.baseURL) {
 				var found = this.repoURL.match(/\/([^\/]+)\/([^\/]+)$/);
 				if (found) {
-					this.popupTextAreaValue = "teamRepository=" + this.baseURL + "\n" +
-									   "userId=" + decodeURIComponent(found[1]) + "\n" + 
-									   "userName=" + decodeURIComponent(found[1]) + "\n" + 
-									   "projectAreaName=" + decodeURIComponent(found[1]) + " | " + decodeURIComponent(found[2]);
-								
-					// Check if we can find a stream ID to put into the configuration
-					var file = this.fileBrowser._branchSelector.getActiveResource(this.fileBrowser._branchSelector.activeResourceLocation);
-					
-					if (file && file.RTCSCM && file.RTCSCM.ItemId) {
-						this.popupTextAreaValue = this.popupTextAreaValue + "\nstreamId="+ file.RTCSCM.ItemId;
-					}
+					return this._requestProjectInviteInfo(found);
 				} else {
 					this.popupTextAreaValue = this.baseURL;
 				}
 			} else {
 				this.popupTextAreaValue = this.repoURL;
 			}
-		
-			return this.popupTextAreaValue;
+			return new Deferred().resolve(this.popupTextAreaValue);
 		}.bind(this);
 	}
 	
@@ -136,9 +157,9 @@ define([
 	
             	var tagString = i18nUtil.formatMessage(this.tags, snippetContainerId, this.widgetSource.css, this.widgetSource.js, snippetContainerId, 
             										   this.widgetSource.repo, base, url.href, this.currentSnippetURI, start, end);
-				return tagString;
+				return new Deferred().resolve(tagString);
 			}
-			return "Nothing to share";
+			return new Deferred().resolve("Nothing to share");
 		}.bind(this);
 	}
 	
@@ -555,10 +576,6 @@ define([
 				}
 			}
 		},
-		_isKnownBinary: function(cType) {
-			var binaryType = this._contentTypeService.getContentType("application/octet-stream"); //$NON-NLS-0$
-			return this._contentTypeService.isExtensionOf(cType, binaryType);
-		},
 		_isBrowserRenderable: function(cType) {
 			var renderableType = this._contentTypeService.getContentType("application/browser-renderable"); //$NON-NLS-0$
 			return this._contentTypeService.isExtensionOf(cType, renderableType);
@@ -624,7 +641,7 @@ define([
 						} else {
 							this.makeDownloadLink();
 						}
-					} else if(this._isKnownBinary(cType)) {
+					} else if(mContentTypes.isBinary(cType)) {
 						if(mFileDownloader.downloadSupported()) {
 							this._generateDownloadLink(contents, metadata, cType, browseViewOptons);
 						} else {
@@ -639,7 +656,7 @@ define([
 						}
 					} else if(cType.id === "text/x-markdown") {
 						browseViewOptons.isMarkdownView = true;
-					} else if(!mNavigatorRenderer.isImage(cType)) {
+					} else if(!mContentTypes.isImage(cType)) {
 						browseViewOptons.editorView = this._editorView;
 						if(this.shareSnippetHandler) {
 							browseViewOptons.infoDropDownHandlers.unshift(this.shareSnippetHandler);
@@ -649,6 +666,9 @@ define([
 						var image = document.createElement("img"); //$NON-NLS-0$
 						image.src = objectURL;
 						image.classList.add("readonlyImage"); //$NON-NLS-0$
+						image.onload = function() {
+							URL.revokeObjectURL(objectURL);
+						};
 						browseViewOptons.binaryView = {domElement: image};
 					}
 				}

@@ -9,52 +9,25 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global window document define login logout localStorage orion */
-/*jslint browser:true sub:true */
+/*eslint-env browser, amd*/
 define([
-		'i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orion/keyBinding', 'orion/EventTarget', 'orion/commandRegistry', 'orion/commands',
-		'orion/parameterCollectors', 'orion/extensionCommands', 'orion/uiUtils', 'orion/keyBinding', 'orion/breadcrumbs', 'orion/webui/littlelib',
-		'orion/webui/splitter', 'orion/webui/dropdown', 'orion/webui/tooltip', 'orion/contentTypes', 'orion/URITemplate', 'orion/keyAssist',
-		'orion/PageUtil', 'orion/widgets/themes/ThemePreferences', 'orion/widgets/themes/container/ThemeData', 'orion/Deferred',
+		'i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orion/keyBinding', 'orion/EventTarget', 'orion/commands',
+		'orion/parameterCollectors', 'orion/extensionCommands', 'orion/breadcrumbs', 'orion/webui/littlelib',
+		'orion/webui/splitter', 'orion/webui/dropdown', 'orion/webui/tooltip', 'orion/contentTypes', 'orion/keyAssist',
+		'orion/widgets/themes/ThemePreferences', 'orion/widgets/themes/container/ThemeData', 'orion/Deferred',
 		'orion/widgets/UserMenu', 'orion/PageLinks', 'orion/webui/dialogs/OpenResourceDialog', 'text!orion/banner/banner.html',
-		'text!orion/banner/footer.html', 'text!orion/banner/toolbar.html', 'orion/widgets/input/DropDownMenu', 
+		'text!orion/banner/footer.html', 'text!orion/banner/toolbar.html', 
 		'orion/util', 'orion/customGlobalCommands', 'orion/fileClient', 'orion/webui/SideMenu', 'orion/objects'
 	],
-	function (messages, require, commonHTML, KeyBinding, EventTarget, mCommandRegistry, mCommands, mParameterCollectors, mExtensionCommands, mUIUtils, mKeyBinding,
-		mBreadcrumbs, lib, mSplitter, mDropdown, mTooltip, mContentTypes, URITemplate, mKeyAssist, PageUtil, mThemePreferences, mThemeData, Deferred,
-		mUserMenu, PageLinks, openResource, BannerTemplate, FooterTemplate, ToolbarTemplate, DropDownMenu, util, mCustomGlobalCommands, mFileClient, SideMenu, objects) {
+	function (messages, require, commonHTML, KeyBinding, EventTarget, mCommands, mParameterCollectors, mExtensionCommands, 
+		mBreadcrumbs, lib, mSplitter, mDropdown, mTooltip, mContentTypes, mKeyAssist, mThemePreferences, mThemeData, Deferred,
+		mUserMenu, PageLinks, openResource, BannerTemplate, FooterTemplate, ToolbarTemplate, util, mCustomGlobalCommands, mFileClient, SideMenu, objects) {
 	/**
 	 * This class contains static utility methods. It is not intended to be instantiated.
 	 *
 	 * @class This class contains static utility methods for creating and managing global commands.
 	 * @name orion.globalCommands
 	 */
-
-	function qualifyURL(url) {
-		var a = document.createElement('a'); //$NON-NLS-0$
-		a.href = url; // set string url
-		return a.href;
-	}
-
-	var notifyAuthenticationSite = qualifyURL(require.toUrl('auth/NotifyAuthentication.html')); //$NON-NLS-0$
-	var authRendered = {};
-
-	function getLabel(authService, serviceReference) {
-		if (authService.getLabel) {
-			return authService.getLabel();
-		} else {
-			var d = new Deferred();
-			d.resolve(serviceReference.properties.name);
-			return d;
-		}
-	}
-
-	function setUserIcon() {
-		var userTrigger = document.getElementById('userTrigger');
-		var userTriggerClassName = userTrigger.className;
-		userTriggerClassName = userTriggerClassName + ' imageSprite core-sprite-silhouette';
-		userTrigger.className = userTriggerClassName;
-	}
 
 	var customGlobalCommands = {
 		createMenuGenerator: mCustomGlobalCommands.createMenuGenerator || function (serviceRegistry, keyAssistFunction) {
@@ -82,7 +55,10 @@ define([
 			/*
 			 * To add user name call: setUserName(serviceRegistry, dropdownTrigger);
 			 */
-			setUserIcon();
+			
+			var userTrigger = document.getElementById('userTrigger');
+			userTrigger.classList.add("imageSprite");
+			userTrigger.classList.add("core-sprite-silhouette");
 
 			menuGenerator.setKeyAssist(keyAssistFunction);
 
@@ -125,6 +101,11 @@ define([
 	};
 
 	var authenticationIds = [];
+	var authRendered = {};
+
+	function getLabel(authService, serviceReference) {
+		return authService.getLabel ? authService.getLabel() : new Deferred().resolve(serviceReference.properties.name);
+	}
 
 	function startProgressService(serviceRegistry) {
 		var progressPane = lib.node("progressPane"); //$NON-NLS-0$
@@ -134,35 +115,6 @@ define([
 			progressService.init.bind(progressService)("progressPane"); //$NON-NLS-0$
 		}
 	}
-
-//	function setUserName(registry, node) {
-//		var authService = registry.getService("orion.core.auth"); //$NON-NLS-0$
-//		if (authService !== null) {
-//			authService.getUser().then(function (jsonData) {
-//				if (!jsonData) {
-//					return;
-//				}
-//				var text;
-//				if (jsonData.Name) {
-//					text = document.createTextNode(jsonData.Name);
-//				} else if (jsonData.login) {
-//					text = document.createTextNode(jsonData.login);
-//				}
-//				if (text) {
-//					if (node.childNodes.length > 0) {
-//						if (node.childNodes[0].nodeType === 3) {
-//							// replace original text
-//							node.replaceChild(text, node.childNodes[0]);
-//						} else {
-//							node.insertBefore(text, node.childNodes[0]);
-//						}
-//					} else {
-//						node.appendChild(text);
-//					}
-//				}
-//			});
-//		}
-//	}
 
 	/**
 	 * Adds the user-related commands to the toolbar
@@ -206,10 +158,6 @@ define([
 				});
 			});
 		}
-	}
-
-	function continueOnError(error) {
-		return error;
 	}
 
 	// Related links menu management. The related menu is reused as content changes. If the menu becomes empty, we hide the dropdown.
@@ -342,6 +290,11 @@ define([
 					deferredCommandItems.push(commandItem(relatedLink, commandOptionsPromise, null));
 				}
 			});
+			
+			function continueOnError(error) {
+				return error;
+			}
+			
 			Deferred.all(deferredCommandItems, continueOnError).then(function(commandItems) {
 				commandItems.sort(function(a, b) {
 					return a.command.name.localeCompare(b.command.name);
@@ -789,57 +742,58 @@ define([
 			});
 			commandRegistry.addCommand(toggleBanner);
 			commandRegistry.registerCommandContribution("globalActions", "orion.toggleTrim", 100, null, true, new KeyBinding.KeyBinding("m", true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+			
+			// Open configuration page, Ctrl+Shift+F1
+			var configDetailsCommand = new mCommands.Command({
+				name: messages["System Configuration Details"],
+				tooltip: messages["System Config Tooltip"],
+				id: "orion.configDetailsPage", //$NON-NLS-0$
+				hrefCallback: function () {
+					return require.toUrl("help/about.html"); //$NON-NLS-0$
+				}
+			});
+	
+			commandRegistry.addCommand(configDetailsCommand);
+			commandRegistry.registerCommandContribution("globalActions", "orion.configDetailsPage", 100, null, true, new KeyBinding.KeyBinding(112, true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	
+			// Background Operations Page, Ctrl+Shift+O
+			var operationsCommand = new mCommands.Command({
+				name: messages["Background Operations"],
+				tooltip: messages["Background Operations Tooltip"],
+				id: "orion.backgroundOperations", //$NON-NLS-0$
+				hrefCallback: function () {
+					return require.toUrl("operations/list.html"); //$NON-NLS-0$
+				}
+			});
+	
+			commandRegistry.addCommand(operationsCommand);
+			commandRegistry.registerCommandContribution("globalActions", "orion.backgroundOperations", 100, null, true, new KeyBinding.KeyBinding('o', true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+	
+			// Key assist
+			keyAssist = new mKeyAssist.KeyAssistPanel({
+				commandRegistry: commandRegistry
+			});
+			var keyAssistCommand = new mCommands.Command({
+				name: messages["Show Keys"],
+				tooltip: messages["Show a list of all the keybindings on this page"],
+				id: "orion.keyAssist", //$NON-NLS-0$
+				callback: function () {
+					if (keyAssist.isVisible()) {
+						keyAssist.hide();
+					} else {
+						keyAssist.show();
+					}
+					return true;
+				}
+			});
+			commandRegistry.addCommand(keyAssistCommand);
+			commandRegistry.registerCommandContribution("globalActions", "orion.keyAssist", 100, null, true, new KeyBinding.KeyBinding(191, false, true)); //$NON-NLS-1$ //$NON-NLS-0$
+	
+			renderGlobalCommands(commandRegistry);
+
+			generateUserInfo(serviceRegistry, keyAssistCommand.callback);
 		}
 		
-		// Open configuration page, Ctrl+Shift+F1
-		var configDetailsCommand = new mCommands.Command({
-			name: messages["System Configuration Details"],
-			tooltip: messages["System Config Tooltip"],
-			id: "orion.configDetailsPage", //$NON-NLS-0$
-			hrefCallback: function () {
-				return require.toUrl("help/about.html"); //$NON-NLS-0$
-			}
-		});
-
-		commandRegistry.addCommand(configDetailsCommand);
-		commandRegistry.registerCommandContribution("globalActions", "orion.configDetailsPage", 100, null, true, new KeyBinding.KeyBinding(112, true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-
-		// Background Operations Page, Ctrl+Shift+O
-		var operationsCommand = new mCommands.Command({
-			name: messages["Background Operations"],
-			tooltip: messages["Background Operations Tooltip"],
-			id: "orion.backgroundOperations", //$NON-NLS-0$
-			hrefCallback: function () {
-				return require.toUrl("operations/list.html"); //$NON-NLS-0$
-			}
-		});
-
-		commandRegistry.addCommand(operationsCommand);
-		commandRegistry.registerCommandContribution("globalActions", "orion.backgroundOperations", 100, null, true, new KeyBinding.KeyBinding('o', true, true)); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
-
-		// Key assist
-		keyAssist = new mKeyAssist.KeyAssistPanel({
-			commandRegistry: commandRegistry
-		});
-		var keyAssistCommand = new mCommands.Command({
-			name: messages["Show Keys"],
-			tooltip: messages["Show a list of all the keybindings on this page"],
-			id: "orion.keyAssist", //$NON-NLS-0$
-			callback: function () {
-				if (keyAssist.isVisible()) {
-					keyAssist.hide();
-				} else {
-					keyAssist.show();
-				}
-				return true;
-			}
-		});
-		commandRegistry.addCommand(keyAssistCommand);
-		commandRegistry.registerCommandContribution("globalActions", "orion.keyAssist", 100, null, true, new KeyBinding.KeyBinding(191, false, true)); //$NON-NLS-1$ //$NON-NLS-0$
-
-		renderGlobalCommands(commandRegistry);
-
-		generateUserInfo(serviceRegistry, keyAssistCommand.callback);
 
 		// now that footer containing progress pane is added
 		startProgressService(serviceRegistry);
@@ -891,7 +845,6 @@ define([
 		layoutToolbarElements: layoutToolbarElements,
 		setPageTarget: setPageTarget,
 		setDirtyIndicator: setDirtyIndicator,
-		setPageCommandExclusions: setPageCommandExclusions,
-		notifyAuthenticationSite: notifyAuthenticationSite
+		setPageCommandExclusions: setPageCommandExclusions
 	};
 });

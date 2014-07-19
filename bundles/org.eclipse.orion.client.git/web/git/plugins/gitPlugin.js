@@ -8,7 +8,7 @@
  * 
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*global define document URL window confirm*/
+/*eslint-env browser, amd*/
 
 define(["orion/plugin", "orion/xhr", "orion/serviceregistry", "orion/git/gitClient", "orion/ssh/sshTools",
  "orion/i18nUtil", "orion/Deferred", "orion/git/util", "orion/URL-shim", "domReady!"], 
@@ -414,9 +414,9 @@ function(PluginProvider, xhr, mServiceregistry, mGitClient, mSshTools, i18nUtil,
 								Value: clone.GitUrl
 							},
 							{
-								Name: "Git Status",
-								Value: "Git Status",
-								Href: "{+OrionHome}/git/git-status.html#" + item.Git.StatusLocation
+								Name: "Git Repository",
+								Value: "Git Repository",
+								Href: "{+OrionHome}/git/git-repository.html#" + item.Git.CloneLocation
 							}
 						]
 					}

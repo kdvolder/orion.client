@@ -8,8 +8,7 @@
  * 
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*jslint amd:true sub:true*/
-/*global console document window  */
+/*eslint-env browser, amd*/
  
 define([
 	'orion/commands',
@@ -19,10 +18,8 @@ define([
 	'orion/webui/littlelib',
 	'orion/webui/dropdown',
 	'orion/webui/tooltip',
-	'text!orion/webui/checkedmenuitem.html',
-	'text!orion/webui/dropdowntriggerbutton.html',
 	'text!orion/webui/submenutriggerbutton.html'
-], function(Commands, mNavUtils, PageUtil, UIUtil, lib, mDropdown, mTooltip, CheckedMenuItemFragment, DropdownButtonFragment, SubMenuButtonFragment) {
+], function(Commands, mNavUtils, PageUtil, UIUtil, lib, mDropdown, mTooltip, SubMenuButtonFragment) {
 
 	/**
 	 * Constructs a new command registry with the given options.
@@ -441,15 +438,17 @@ define([
 		 * arrow to the grup that will open the dropdown. Optionally this can be set to <code>true</code> instead of adding a particular action.
 		 * If set to <code>true</code> the group will be renderer as if there was a default action, but instead of invoking the default action it will
 		 * open the dropdown. Optional.
+		 * @param {String} [extraClasses] A string containing space separated css classes that will be applied to group button
 		 */	
-		addCommandGroup: function(scopeId, groupId, position, title, parentPath, emptyGroupMessage, imageClass, tooltip, selectionClass, defaultActionId) {
+		addCommandGroup: function(scopeId, groupId, position, title, parentPath, emptyGroupMessage, imageClass, tooltip, selectionClass, defaultActionId, extraClasses) {
 			if (!this._contributionsByScopeId[scopeId]) {
 				this._contributionsByScopeId[scopeId] = {};
 			}
 			var parentTable = this._contributionsByScopeId[scopeId];
 			if (parentPath) {
 				parentTable = this._createEntryForPath(parentTable, parentPath);		
-			} 
+			}
+			
 			if (parentTable[groupId]) {
 				// update existing group definition if info has been supplied
 				if (title) {
@@ -466,6 +465,10 @@ define([
 				}
 				if (selectionClass) {
 					parentTable[groupId].selectionClass = selectionClass;
+				}
+				
+				if (extraClasses) {
+					parentTable[groupId].extraClass = extraClasses;
 				}
 				
 				if(defaultActionId === true){
@@ -486,7 +489,8 @@ define([
 										selectionClass: selectionClass,
 										defaultActionId: defaultActionId === true ? null : defaultActionId,
 										pretendDefaultActionId: defaultActionId === true,
-										children: {}};
+										children: {},
+										extraClasses: extraClasses};
 				parentTable.sortedContributions = null;
 			}
 		},
@@ -725,7 +729,7 @@ define([
 			}
 		},
 		
-		_render: function(contributions, parent, items, handler, renderType, userData, domNodeWrapperList) {
+		_render: function(contributions, parent, items, handler, renderType, userData, domNodeWrapperList, extraClasses) {
 			// sort the items
 			var sortedByPosition = contributions.sortedContributions;
 			
@@ -783,7 +787,7 @@ define([
 								}
 							}
 						
-							created = self._createDropdownMenu(parent, contribution.title, null /*nested*/, null /*populateFunc*/, contribution.imageClass, contribution.tooltip, contribution.selectionClass, null, defaultInvocation, contribution.pretendDefaultActionId);
+							created = self._createDropdownMenu(parent, contribution.title, null /*nested*/, null /*populateFunc*/, contribution.imageClass, contribution.tooltip, contribution.selectionClass, null, defaultInvocation, contribution.pretendDefaultActionId, contribution.extraClasses);
 							if(domNodeWrapperList){
 								mNavUtils.generateNavGrid(domNodeWrapperList, created.menuButton);
 							}
@@ -964,7 +968,7 @@ define([
 		/*
 		 * private.  Parent must exist in the DOM.
 		 */
-		_createDropdownMenu: function(parent, name, nested, populateFunction, icon, tooltip, selectionClass, positioningNode, defaultInvocation, pretendDefaultActionId) {
+		_createDropdownMenu: function(parent, name, nested, populateFunction, icon, tooltip, selectionClass, positioningNode, defaultInvocation, pretendDefaultActionId, extraClasses) {
 			parent = lib.node(parent);
 			// We create dropdowns asynchronously so it's possible that the parent has been removed from the document 
 			// by the time we are called.  If so, don't bother building a submenu for an orphaned menu.
@@ -997,7 +1001,7 @@ define([
 					tooltip = tooltip || name; // No text and no tooltip => fallback to name
 				}
 				tooltip = icon ? (tooltip || name) : tooltip;
-				var created = Commands.createDropdownMenu(menuParent, name, populateFunction, buttonCss, icon, false, selectionClass, positioningNode, defaultInvocation || pretendDefaultActionId);
+				var created = Commands.createDropdownMenu(menuParent, name, populateFunction, buttonCss, icon, false, selectionClass, positioningNode, defaultInvocation || pretendDefaultActionId, extraClasses);
 				dropdownArrow = created.dropdownArrow;
 				menuButton = created.menuButton;
 				if (dropdownArrow) {
@@ -1007,7 +1011,7 @@ define([
 					var self = this;
 					menuButton.onclick = function(evt){
 						var bounds = lib.bounds(dropdownArrow);
-						if (evt.clientX >= bounds.left && created.dropdown) {
+						if ((evt.clientX >= bounds.left && created.dropdown) || pretendDefaultActionId === true) {
 							created.dropdown.toggle(evt);
 						} else {
 							self._invoke(defaultInvocation);

@@ -9,13 +9,13 @@
  * Contributors:
  *	 IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global define module require exports console */
+/*eslint-env amd, node */
 (function(root, factory) {
 	if(typeof exports === 'object') {  //$NON-NLS-0$
 		module.exports = factory(require, exports, module, require('../util'));
 	}
 	else if(typeof define === 'function' && define.amd) {  //$NON-NLS-0$
-		define(['require', 'exports', 'module', '../util'], factory);
+		define(['require', 'exports', 'module', '../util', 'logger'], factory);
 	}
 	else {
 		var req = function(id) {return root[id];},
@@ -23,7 +23,7 @@
 			mod = {exports: exp};
 		root.rules.noundef = factory(req, exp, mod, root.util);
 	}
-}(this, function(require, exports, module, util) {
+}(this, function(require, exports, module, util, Logger) {
 
 	/**
 	 * @name booleanOption
@@ -56,12 +56,12 @@
 						if ((!flag_funcs && defType === "FunctionName") || (!flag_vars && defType === "Variable")) {  //$NON-NLS-0$  //$NON-NLS-1$
 							return;
 						}
-						context.report(identifier, "'{{name}}' was used before it was defined.", {name: name});
+						context.report(identifier, "'${0}' was used before it was defined.", {0:name});
 					}
 				});
 			}
 			catch(ex) {
-				console.log(ex);
+				Logger.log(ex);
 			}
 		}
 

@@ -10,8 +10,7 @@
  *               Alex Lakatos - fix for bug#369781
  ******************************************************************************/
 
-/*global define */
-
+/*eslint-env browser, amd*/
 define("orion/editor/textStyler", ['orion/editor/annotations', 'orion/editor/eventTarget'], function(mAnnotations, mEventTarget) { //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 
 	/*
@@ -768,7 +767,7 @@ define("orion/editor/textStyler", ['orion/editor/annotations', 'orion/editor/eve
 		if (initFn) {
 			initFn(this);
 		}
-		this._subBlocks = styler.computeBlocks(model, model.getText(this.start, this.end), this, this.start, null, null, null);
+		this._subBlocks = styler.computeBlocks(model, model.getText(this.contentStart, this.end), this, this.contentStart, null, null, null);
 	}
 	Block.prototype = {
 		adjustBounds: function(index, value) {

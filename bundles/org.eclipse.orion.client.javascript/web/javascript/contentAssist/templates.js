@@ -9,7 +9,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*jslint amd:true*/
+/*eslint-env amd*/
 define([
 'orion/editor/templates' //$NON-NLS-0$
 ], function(mTemplates) {
@@ -33,6 +33,118 @@ define([
 	 * @private
 	 */
 	var templates = [
+	    {
+	        prefix: "@author", //$NON-NLS-0$
+			name: "@author",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Author JSDoc tag", //$NON-NLS-0$
+			template: "@author ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@class", //$NON-NLS-0$
+			name: "@class",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Class JSDoc tag", //$NON-NLS-0$
+			template: "@class ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@constructor", //$NON-NLS-0$
+			name: "@constructor",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Constructor JSDoc tag", //$NON-NLS-0$
+			template: "@constructor ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@deprecated", //$NON-NLS-0$
+			name: "@deprecated",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Deprecated JSDoc tag", //$NON-NLS-0$
+			template: "@deprecated ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@description", //$NON-NLS-0$
+			name: "@description",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Description JSDoc tag", //$NON-NLS-0$
+			template: "@description ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@function", //$NON-NLS-0$
+			name: "@function",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Function JSDoc tag", //$NON-NLS-0$
+			template: "@function ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@lends", //$NON-NLS-0$
+			name: "@lends",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Lends JSDoc tag", //$NON-NLS-0$
+			template: "@lends ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@license", //$NON-NLS-0$
+			name: "@license",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - License JSDoc tag", //$NON-NLS-0$
+			template: "@license ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@name", //$NON-NLS-0$
+			name: "@name",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Name JSDoc tag", //$NON-NLS-0$
+			template: "@name ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@param", //$NON-NLS-0$
+			name: "@param",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Param JSDoc tag", //$NON-NLS-0$
+			template: "@param {${type}} ${cursor}" //$NON-NLS-0$
+	    },
+	    {
+	        prefix: "@private", //$NON-NLS-0$
+			name: "@private",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Private JSDoc tag", //$NON-NLS-0$
+			template: "@private ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@public", //$NON-NLS-0$
+			name: "@public",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Public JSDoc tag", //$NON-NLS-0$
+			template: "@public ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@returns", //$NON-NLS-0$
+			name: "@returns",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Returns JSDoc tag", //$NON-NLS-0$
+			template: "@returns {${type}} ${cursor}" //$NON-NLS-0$
+	    },
+	    {
+	        prefix: "@see", //$NON-NLS-0$
+			name: "@see",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - See JSDoc tag", //$NON-NLS-0$
+			template: "@see ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@since", //$NON-NLS-0$
+			name: "@since",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Since JSDoc tag", //$NON-NLS-0$
+			template: "@since ${cursor}" //$NON-NLS-0$  
+	    },
+	    {
+	        prefix: "@throws", //$NON-NLS-0$
+			name: "@throws",  //$NON-NLS-0$
+			nodes: {top:false, member:false, prop:false, doc:true},
+			description: " - Throws JSDoc tag", //$NON-NLS-0$
+			template: "@throws {${type}} ${cursor}" //$NON-NLS-0$
+	    },
 		{
 			prefix: "if", //$NON-NLS-0$
 			name: "if",  //$NON-NLS-0$
@@ -319,14 +431,14 @@ define([
 					  "});\n" //$NON-NLS-0$
 		},
 		{
-			prefix: "pg", //$NON-NLS-0$
+			prefix: "postgres", //$NON-NLS-0$
 			name: "postgres", //$NON-NLS-0$
 			nodes: {top:true, member:false, prop:false},
 			description: " - Node.js require statement for Postgres DB", //$NON-NLS-0$
 			template: "var pg = require('pg');\n" //$NON-NLS-0$
 		},
 		{
-			prefix: "pg", //$NON-NLS-0$
+			prefix: "postgres", //$NON-NLS-0$
 			name: "postgres client", //$NON-NLS-0$
 			nodes: {top:true, member:false, prop:false},
 			description: " - create a new Postgres DB client", //$NON-NLS-0$
@@ -335,7 +447,7 @@ define([
 					  "var ${client} = new pg.Client(url);\n"  //$NON-NLS-0$
 		},
 		{
-			prefix: "pg", //$NON-NLS-0$
+			prefix: "postgres", //$NON-NLS-0$
 			name: "postgres connect", //$NON-NLS-0$
 			nodes: {top:true, member:false, prop:false},
 			description: " - create a new Postgres DB client and connect", //$NON-NLS-0$
@@ -347,7 +459,7 @@ define([
 					  "});\n"
 		},
 		{
-			prefix: "pg", //$NON-NLS-0$
+			prefix: "postgres", //$NON-NLS-0$
 			name: "postgres query", //$NON-NLS-0$
 			nodes: {top:true, member:false, prop:false},
 			description: " - create a new Postgres DB query statement", //$NON-NLS-0$

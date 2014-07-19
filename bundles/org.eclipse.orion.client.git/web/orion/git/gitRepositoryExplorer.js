@@ -8,7 +8,7 @@
  * 
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*global define document Image window*/
+/*eslint-env browser, amd*/
 define([
 	'require',
 	'i18n!git/nls/gitmessages',
@@ -16,7 +16,6 @@ define([
 	'orion/git/widgets/gitCommitList',
 	'orion/git/widgets/gitBranchList',
 	'orion/git/widgets/gitConfigList',
-	'orion/git/widgets/gitTagList',
 	'orion/git/widgets/gitRepoList',
 	'orion/section',
 	'orion/webui/littlelib',
@@ -25,7 +24,7 @@ define([
 	'orion/fileUtils',
 	'orion/globalCommands',
 	'orion/Deferred'
-], function(require, messages, mGitChangeList, mGitCommitList, mGitBranchList, mGitConfigList, mGitTagList, mGitRepoList, mSection, lib, URITemplate, PageUtil, mFileUtils, mGlobalCommands, Deferred) {
+], function(require, messages, mGitChangeList, mGitCommitList, mGitBranchList, mGitConfigList, mGitRepoList, mSection, lib, URITemplate, PageUtil, mFileUtils, mGlobalCommands, Deferred) {
 var exports = {};
 	
 var repoTemplate = new URITemplate("git/git-repository.html#{,resource,params*}"); //$NON-NLS-0$
@@ -170,56 +169,15 @@ exports.GitRepositoryExplorer = (function() {
 					that.statusDeferred = that.displayStatus(repositories[0]);
 					that.displayCommits(repositories[0]);
 					that.displayBranches(repositories[0]); //$NON-NLS-0$
-					that.displayTags(repositories[0]);
+					if (that.showTagsSeparately) {
+						that.displayTags(repositories[0]);
+					}
 					that.displayConfig(repositories[0], "full"); //$NON-NLS-0$
 				} else if (resp.Children[0].Type === "Clone"){ //$NON-NLS-0$
 					repositories = resp.Children;
 					
 					that.initTitleBar(repositories);
 					that.displayRepositories(repositories, "full", true); //$NON-NLS-0$
-				} else if (resp.Children[0].Type === "Branch"){ //$NON-NLS-0$
-					var branches = resp.Children;
-					
-					that.progressService.progress(that.gitClient.getGitClone(branches[0].CloneLocation), "Getting git repository details").then( //$NON-NLS-0$
-						function(resp){
-							var repositories = resp.Children;
-							
-							that.initTitleBar(repositories[0], "Branches"); //$NON-NLS-0$
-							
-							that.displayRepositories(repositories, "mini", true); //$NON-NLS-0$
-							that.displayBranches(repositories[0], "full"); //$NON-NLS-0$
-						}, function (error) {
-							that.handleError(error);
-						}
-					);
-				} else if (resp.Children[0].Type === "Tag"){ //$NON-NLS-0$
-					var tags = resp.Children;
-					
-					that.progressService.progress(that.gitClient.getGitClone(tags[0].CloneLocation), "Getting git repository details").then( //$NON-NLS-0$
-						function(resp){
-							var repositories = resp.Children;
-							
-							that.initTitleBar(repositories[0], messages['Tags']);
-							
-							that.displayRepositories(repositories, "mini", true); //$NON-NLS-0$
-							that.displayTags(repositories[0], "full"); //$NON-NLS-0$
-						}, function (error) {
-							that.handleError(error);
-						}
-					);
-				} else if (resp.Children[0].Type === "Config"){ //$NON-NLS-0$
-					that.progressService.progress(that.gitClient.getGitClone(resp.CloneLocation), "Getting git repository details").then( //$NON-NLS-0$
-						function(resp){
-							var repositories = resp.Children;
-							
-							that.initTitleBar(repositories[0], messages["Configuration"]);
-							
-							that.displayRepositories(repositories, "mini", true); //$NON-NLS-0$
-							that.displayConfig(repositories[0], "full"); //$NON-NLS-0$
-						}, function (error) {
-							that.handleError(error);
-						}
-					);
 				}
 			}, function(error){
 				that.handleError(error);
@@ -291,7 +249,7 @@ exports.GitRepositoryExplorer = (function() {
 			progressService: this.progressService,
 			parentId: "repositoryNode",
 			actionScopeId: mode === "mini" ? "itemLevelCommandsMini" : this.actionScopeId,
-			handleError: this.handleError,
+			handleError: this.handleError.bind(this),
 			repositories: repositories,
 			mode: mode,
 			links: links,
@@ -302,17 +260,18 @@ exports.GitRepositoryExplorer = (function() {
 	
 	// Git branches
 	
-	GitRepositoryExplorer.prototype.displayBranches = function(repository, mode){
+	GitRepositoryExplorer.prototype.displayBranches = function(repository){
 		
 		var tableNode = lib.node( 'table' ); //$NON-NLS-0$
 		
 		var titleWrapper = new mSection.Section(tableNode, {
 			id: "branchSection", //$NON-NLS-0$
-			title: messages['Branches'],
+			title: this.showTagsSeparately ? messages["Branches"] : messages['BranchesTags'],
 			iconClass: ["gitImageSprite", "git-sprite-branch"], //$NON-NLS-1$ //$NON-NLS-0$
 			slideout: true,
 			content: '<div id="branchNode"></div>', //$NON-NLS-0$
 			canHide: true,
+			hidden: true,
 			preferenceService: this.preferencesService
 		});
 		var branchNavigator = new mGitBranchList.GitBranchListExplorer({
@@ -324,11 +283,11 @@ exports.GitRepositoryExplorer = (function() {
 			parentId: "branchNode",
 			actionScopeId: this.actionScopeId,
 			section: titleWrapper,
-			handleError: this.handleError,
+			handleError: this.handleError.bind(this),
+			showTags: !this.showTagsSeparately,
 			root: {
 				Type: "RemoteRoot",
 				repository: repository,
-				mode: mode
 			}
 		});
 		branchNavigator.display();
@@ -345,7 +304,7 @@ exports.GitRepositoryExplorer = (function() {
 			title: messages["ChangedFiles"],
 			slideout: true,
 			content: '<div id="statusNode"></div>', //$NON-NLS-0$
-			canHide: true,
+			canHide: false,
 			preferenceService: this.preferencesService
 		}); 
 		
@@ -359,7 +318,7 @@ exports.GitRepositoryExplorer = (function() {
 			repository: repository,
 			section: titleWrapper,
 			editableInComparePage: true,
-			handleError: this.handleError,
+			handleError: this.handleError.bind(this),
 			gitClient: this.gitClient,
 			progressService: this.progressService
 		});
@@ -392,7 +351,7 @@ exports.GitRepositoryExplorer = (function() {
 			actionScopeId: this.actionScopeId,
 			parentId:"commitNode",
 			section: titleWrapper,
-			handleError: this.handleError,
+			handleError: this.handleError.bind(this),
 			root: {
 				Type: "CommitRoot",
 				repository: repository
@@ -405,27 +364,33 @@ exports.GitRepositoryExplorer = (function() {
 	
 	// Git tags
 	
-	GitRepositoryExplorer.prototype.displayTags = function(repository, mode){
+	GitRepositoryExplorer.prototype.displayTags = function(repository){
 		// render section even before initialRender
 		var tableNode = lib.node("table");
 		var titleWrapper = new mSection.Section(tableNode, {
 			id : "tagSection",
 			iconClass : ["gitImageSprite", "git-sprite-tag"], //$NON-NLS-1$ //$NON-NLS-0$
-			title : ("Tags" + (mode === "full" ? "" : " (5 most recent)")),
+			title : "Tags",
 			content : '<div id="tagNode"></div>',
 			canHide : true,
 			hidden : true,
 			preferenceService : this.preferencesService
 		});
 
-		var tagsNavigator = new mGitTagList.GitTagListExplorer({
+		var tagsNavigator = new mGitBranchList.GitBranchListExplorer({
 			serviceRegistry: this.registry,
 			commandRegistry: this.commandService,
-			parentId:"tagNode",
+			fileClient: this.fileClient,
+			gitClient: this.gitClient,
+			progressService: this.progressService,
+			parentId: "tagNode",
 			actionScopeId: this.actionScopeId,
 			section: titleWrapper,
-			repository: repository,
-			mode: mode
+			handleError: this.handleError.bind(this),
+			root: {
+				Type: "TagRoot",
+				repository: repository,
+			}
 		});
 		tagsNavigator.display();
 	};
@@ -455,7 +420,7 @@ exports.GitRepositoryExplorer = (function() {
 			parentId:"configNode",
 			actionScopeId: this.actionScopeId,
 			section: titleWrapper,
-			handleError: this.handleError,
+			handleError: this.handleError.bind(this),
 			root: {
 				Type: "ConfigRoot",
 				repository: repository,

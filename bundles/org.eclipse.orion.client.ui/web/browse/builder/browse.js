@@ -8,7 +8,8 @@
  * 
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*global define require URL document console prompt XMLHttpRequest window*/
+/*eslint-env browser, amd*/
+/*global URL*/
 var _browser_script_source = null; //We need to know where the browser script lives
 var _all_script = document.getElementsByTagName('script');
 if (_all_script && _all_script.length && _all_script.length > 0) {
@@ -73,24 +74,28 @@ define('browse/builder/browse', ['orion/widgets/browse/fileBrowser', 'orion/serv
 		try {
 			if (url.host === "github.com") {
 				pluginURL = new URL("../../plugins/GitHubFilePlugin.html?repo=" + url.href, _browser_script_source);
-			} else if (url.pathname.indexOf("/git/") === 0) {
-				pluginURL = new URL("/gerrit/plugins/gerritfs/static/plugins/GerritFilePlugin.html", url);
-				pluginURL.query.set("project", url.pathname.substring(5));
-			} else if (url.pathname.indexOf("/ccm") === 0) {
-				if (!base) {
-					var ccmPath = url.pathname.match(/^\/ccm[^/]*/);
-					base = new URL(ccmPath, repo).href;
-				}
-				pluginURL = new URL(base + "/service/com.ibm.team.filesystem.service.jazzhub.IOrionFilesystem/sr/pluginOrionWs.html?" + repo);
-				selectorNumber = 2;
-			} else if (url.pathname.indexOf("/project/") === 0) {
-				if (!base) {
-					throw "No Jazz SCM base server defined - " + repo;
-				}
-				pluginURL = new URL(base + "/service/com.ibm.team.filesystem.service.jazzhub.IOrionFilesystem/sr/pluginOrionWs.html?" + repo);
-				selectorNumber = 2;
 			} else {
-				throw "Bad Repo URL - " + repo;
+				var regex = /^\/git([\d]?)([\d]?)\/(.*)/;// Pattern : "/git/", "/git02/", "/git3/", "/git04"
+				var match = regex.exec(url.pathname);
+				if(match && match.length === 4) {
+					pluginURL = new URL("/gerrit" + match[1] + match[2] + "/plugins/gerritfs/static/plugins/GerritFilePlugin.html", url);
+					pluginURL.query.set("project", match[3]);
+				} else if (url.pathname.indexOf("/ccm") === 0) {
+					if (!base) {
+						var ccmPath = url.pathname.match(/^\/ccm[^/]*/);
+						base = new URL(ccmPath, repo).href;
+					}
+					pluginURL = new URL(base + "/service/com.ibm.team.filesystem.service.jazzhub.IOrionFilesystem/sr/pluginOrionWs.html?" + repo);
+					selectorNumber = 2;
+				} else if (url.pathname.indexOf("/project/") === 0) {
+					if (!base) {
+						throw "No Jazz SCM base server defined - " + repo;
+					}
+					pluginURL = new URL(base + "/service/com.ibm.team.filesystem.service.jazzhub.IOrionFilesystem/sr/pluginOrionWs.html?" + repo);
+					selectorNumber = 2;
+				} else {
+					throw "Bad Repo URL - " + repo;
+				}
 			}
 		} catch (exception) {
 			(new mFileBrowser.FileBrowser({parent: params.parentId, init: true}))._statusService.setProgressResult({Severity: "error", Message: exception}); //$NON-NLS-0$;

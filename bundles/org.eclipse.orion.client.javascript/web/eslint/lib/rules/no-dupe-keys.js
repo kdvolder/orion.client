@@ -9,13 +9,13 @@
  * Contributors:
  *	 IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global define module require exports console */
+/*eslint-env amd, node */
 (function(root, factory) {
 	if(typeof exports === 'object') {  //$NON-NLS-0$
 		module.exports = factory(require, exports, module);
 	}
 	else if(typeof define === 'function' && define.amd) {  //$NON-NLS-0$
-		define(['require', 'exports', 'module'], factory);
+		define(['require', 'exports', 'module', 'logger'], factory);
 	}
 	else {
 		var req = function(id) {return root[id];},
@@ -23,7 +23,7 @@
 			mod = {exports: exp};
 		root.rules.noundef = factory(req, exp, mod);
 	}
-}(this, function(require, exports, module) {
+}(this, function(require, exports, module, Logger) {
 	/**
 	 * @name module.exports
 	 * @description Rule exports
@@ -51,11 +51,12 @@
 							var prop = props[i];
 							// Here we're concerned only with duplicate keys having kind == "init". Duplicates among other kinds (get, set)
 							// cause syntax errors, by spec, so don't need to be linted.
-							if(prop.kind !== "init")
+							if(prop.kind !== "init") {
 								continue;
+							}
 							var name = (prop.key.name ? prop.key.name : prop.key.value);
 							if(Object.prototype.hasOwnProperty.call(seen, name)) {
-								context.report(prop, 'Duplicate object key \'{{key}}\'', {key: name}, context.getTokens(prop)[0]);
+								context.report(prop, 'Duplicate object key \'${0}\'.', {0:name}, context.getTokens(prop)[0]);
 							}
 							else {
 								seen[name] = 1;
@@ -64,7 +65,7 @@
 					}
 				}
 				catch(ex) {
-					console.log(ex);
+					Logger.log(ex);
 				}
 			}
 		};

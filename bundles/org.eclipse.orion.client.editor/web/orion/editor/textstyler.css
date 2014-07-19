@@ -16,10 +16,11 @@
 
 .entity.name.function, .entity.name.type, .entity-name-function, .entity-name-type {
 	font-weight: bold;
+	color: #3f7f7f;
 }
 
 .entity.name, .entity-name-tag {
-	color: #CC4C07;
+	color: #98937B;
 }
 
 .entity.other.attribute.name, .entity-other-attribute-name {

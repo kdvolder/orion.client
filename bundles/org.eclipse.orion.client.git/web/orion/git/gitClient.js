@@ -9,7 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global define console */
+/*eslint-env browser, amd*/
 
 /** @namespace The global container for eclipse APIs. */
 
@@ -243,6 +243,29 @@ eclipse.GitService = (function() {
 				data: JSON.stringify({
 					"Path" : paths, //$NON-NLS-0$
 					"RemoveUntracked" : "true" //$NON-NLS-1$ //$NON-NLS-0$
+				})
+			}).then(function(result) {
+				service._getGitServiceResponse(clientDeferred, result);
+			}, function(error){
+				service._handleGitServiceResponseError(clientDeferred, error);
+			});
+
+			return clientDeferred;
+		},
+		
+		ignorePath: function(gitIgnoreURI, paths){
+			var service = this;
+			
+			var clientDeferred = new Deferred();
+			xhr("PUT", gitIgnoreURI, { 
+				headers : { 
+					"Orion-Version" : "1",
+					"Content-Type" : contentType
+				},
+				timeout : 15000,
+				handleAs : "json", //$NON-NLS-0$
+				data: JSON.stringify({
+					"Path" : paths, //$NON-NLS-0$
 				})
 			}).then(function(result) {
 				service._getGitServiceResponse(clientDeferred, result);

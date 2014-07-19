@@ -5,12 +5,13 @@
 	<link rel="stylesheet" href="../../mocha/mocha.css" />
 	<script src="../../requirejs/require.js"></script>
 	<script>
-		/*jslint amd:true*/
+		/*eslint-env browser, amd*/
 		require({
 		baseUrl: "../../",
 		paths: {
 			text: "requirejs/text",
 			i18n: "requirejs/i18n",
+			csslint: "csslint/csslint"
 		}
 	});
 	require(["mocha/sauce"], function(mochaSauce) {

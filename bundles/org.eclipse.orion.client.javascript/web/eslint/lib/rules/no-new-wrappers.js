@@ -9,7 +9,7 @@
  * Contributors:
  *	 IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global define module require exports */
+/*eslint-env amd, node */
 (function(root, factory) {
 	if(typeof exports === 'object') {  //$NON-NLS-0$
 		module.exports = factory(require, exports, module, require('../util')); //$NON-NLS-0$
@@ -37,7 +37,7 @@
 		var wrappers = ["String", "Number", "Math", "Boolean", "JSON"]; //$NON-NLS-4$ //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
 
 		return util.createNewBuiltinRule(wrappers, function(context, node, symbol) {
-			context.report(node, "Do not use %s as a constructor.".replace("%s", symbol)); //$NON-NLS-1$
+			context.report(node, "Do not use '${0}' as a constructor.", [symbol]); //$NON-NLS-1$
 		}, context);
 	};
 

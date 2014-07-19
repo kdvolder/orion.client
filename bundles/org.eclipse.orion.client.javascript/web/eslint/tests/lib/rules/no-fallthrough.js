@@ -9,12 +9,13 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*jslint amd:true node:true mocha:true*/
+/*eslint-env amd, node, mocha*/
 (function(root, factory) {
-	if (typeof exports === "object") //$NON-NLS-0$
+	if (typeof exports === "object") {//$NON-NLS-0$
 		module.exports = factory(require, exports, module, require("assert"), require("../../../lib/eslint"));
-	else if(typeof define === "function" && define.amd) //$NON-NLS-0$
+	} else if(typeof define === "function" && define.amd) { //$NON-NLS-0$
 		define(["require", "exports", "module", "chai/chai", "eslint"], factory);
+	}
 }(this, function(require, exports, module, assert, eslint) {
 	assert = assert.assert /*chai*/ || assert;
 
@@ -30,7 +31,7 @@
 			var messages = eslint.verify(topic, config);
 			assert.equal(messages.length, 1);
 			assert.equal(messages[0].ruleId, RULE_ID);
-			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case.");
+			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case. If intended, add a new comment //$FALLTHROUGH$ on the line above.");
 			assert.equal(messages[0].node.type, "SwitchCase");
 		});
 		it("should flag simple case 2", function() {
@@ -42,7 +43,7 @@
 			var messages = eslint.verify(topic, config);
 			assert.equal(messages.length, 1);
 			assert.equal(messages[0].ruleId, RULE_ID);
-			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case.");
+			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case. If intended, add a new comment //$FALLTHROUGH$ on the line above.");
 			assert.equal(messages[0].node.type, "SwitchCase");
 		});
 		it("should flag nested case", function() {
@@ -54,7 +55,7 @@
 			var messages = eslint.verify(topic, config);
 			assert.equal(messages.length, 1);
 			assert.equal(messages[0].ruleId, RULE_ID);
-			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case.");
+			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case. If intended, add a new comment //$FALLTHROUGH$ on the line above.");
 			assert.equal(messages[0].node.type, "SwitchCase");
 		});
 		it("should flag default", function() {
@@ -66,7 +67,7 @@
 			var messages = eslint.verify(topic, config);
 			assert.equal(messages.length, 1);
 			assert.equal(messages[0].ruleId, RULE_ID);
-			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case.");
+			assert.equal(messages[0].message, "Switch case may be entered by falling through the previous case. If intended, add a new comment //$FALLTHROUGH$ on the line above.");
 			assert.equal(messages[0].node.type, "SwitchCase");
 		});
 		it("should not flag break;", function() {

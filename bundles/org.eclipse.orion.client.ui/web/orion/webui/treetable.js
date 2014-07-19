@@ -9,9 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*jslint amd:true forin:true devel:true*/
-/*global console document*/
-
+/*eslint-env browser, amd*/
 define(['i18n!orion/nls/messages', 'orion/webui/littlelib'], function(messages, lib) {
 
 	/**
@@ -280,6 +278,7 @@ define(['i18n!orion/nls/messages', 'orion/webui/littlelib'], function(messages, 
 		_removeChildRows: function(parentId) {
 			// true if we are removing directly from table
 			var foundParent = parentId === this._id;
+			var parentRow;
 			var stop = false;
 			var parentDepth = -1;
 			var toRemove = [];
@@ -290,16 +289,19 @@ define(['i18n!orion/nls/messages', 'orion/webui/littlelib'], function(messages, 
 					break;
 				}
 				if (foundParent) {
-					if (row._depth > parentDepth) {
-						toRemove.push(row);
-					}
-					else {
-						stop = true;  // we reached a sibling to our parent
+					if (!parentRow || row.parentNode === parentRow.parentNode) {
+						if (row._depth > parentDepth) {
+							toRemove.push(row);
+						}
+						else {
+							stop = true;  // we reached a sibling to our parent
+						}
 					}
 				} else {
 					if (row.id === parentId) {
 						foundParent = true;
 						parentDepth = row._depth;
+						parentRow = row;
 					}
 				}
 			}

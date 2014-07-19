@@ -9,7 +9,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global define*/
+/*eslint-env amd*/
 define([
 'estraverse',
 'orion/objects'
@@ -189,6 +189,10 @@ define([
 				case Estraverse.Syntax.WithStatement:
                     this.checkId(node.object);
                     break;
+                case Estraverse.Syntax.ThrowStatement: {
+                    this.checkId(node.argument);
+                    break;
+                }
 			}
 		},
 		
@@ -422,6 +426,7 @@ define([
 		findNode: function(offset, ast, options) {
 			var found = null;
 			var parents = options && options.parents ? [] : null;
+			var next = options && options.next ? options.next : false;
 			if(offset != null && offset > -1 && ast) {
 				Estraverse.traverse(ast, {
 					/**
@@ -436,6 +441,9 @@ define([
 									parents.push(node);
 								}
 							} else {
+							    if(next) {
+							        found = node;
+							    }
 								return Estraverse.VisitorOption.Break;
 							}
 						}

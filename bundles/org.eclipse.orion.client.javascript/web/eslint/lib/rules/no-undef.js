@@ -9,13 +9,13 @@
  * Contributors:
  *	 IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global define module require exports console */
+/*eslint-env amd, node */
 (function(root, factory) {
     if(typeof exports === 'object') {  //$NON-NLS-0$
         module.exports = factory(require, exports, module);
     }
     else if(typeof define === 'function' && define.amd) {  //$NON-NLS-0$
-        define(['require', 'exports', 'module'], factory);
+        define(['require', 'exports', 'module', 'logger'], factory);
     }
     else {
         var req = function(id) {return root[id];},
@@ -23,7 +23,7 @@
             mod = {exports: exp};
         root.rules.noundef = factory(req, exp, mod);
     }
-}(this, function(require, exports, module) {
+}(this, function(require, exports, module, Logger) {
 /**
  * @fileoverview Rule to flag references to undeclared variables.
  * @author Mark Macdonald
@@ -82,16 +82,19 @@ module.exports = function(context) {
 	
 	            globalScope.through.forEach(function(ref) {
 	                var variable = getDeclaredGlobalVariable(globalScope, ref),
-	                    name = ref.identifier.name;
+	                    name = ref.identifier.name,
+	                    reason;
 	                if (!variable) {
-	                    context.report(ref.identifier, "'{{name}}' is not defined.", { name: name });
+	                    reason = 'not defined';
+	                    context.report(ref.identifier, "'${0}' is ${1}.", {0:name, 1:reason});
 	                } else if (ref.isWrite() && variable.writeable === false) {
-	                    context.report(ref.identifier, "'{{name}}' is read only.", { name: name });
+	                    reason = 'read only';
+	                    context.report(ref.identifier, "'${0}' is ${1}.", {0:name, 1:reason});
 	                }
 	            });
         	}
         	catch(ex) {
-        		console.log(ex);
+        		Logger.log(ex);
         	}
         }
     };

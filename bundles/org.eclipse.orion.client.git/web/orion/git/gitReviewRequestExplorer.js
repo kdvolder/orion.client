@@ -9,7 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global define document window*/
+/*eslint-env browser, amd*/
 
 define(['i18n!git/nls/gitmessages', 'require', 'orion/section', 'orion/i18nUtil', 'orion/URITemplate', 'orion/PageUtil', 'orion/webui/littlelib', 'orion/globalCommands',
         'orion/git/gitCommands', 'orion/Deferred', 'orion/git/widgets/CommitTooltipDialog'], 
@@ -185,8 +185,16 @@ define(['i18n!git/nls/gitmessages', 'require', 'orion/section', 'orion/i18nUtil'
 				if (deferred === null)
 					deferred = new Deferred();
 				if (repositories.length > 0) {
-					that.registry.getService("orion.page.progress").progress(that.registry.getService("orion.git.provider").doGitLog( //$NON-NLS-0$
-						"/gitapi/commit/" + sha + repositories[0].Location + "?page=1&pageSize=1", null, null, messages['Looking for the commit']), "Looking for commit " + sha).then( //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+					commitName = sha;
+					var repository = repositories[0];
+					var segment = "/commit/"; //$NON-NLS-0$
+					var location = repository.CommitLocation;
+					var index = location.indexOf(segment) + segment.length;
+					var prefix = location.substring(0, index);
+					var sufix = location.substring(index - 1);
+					location = prefix + commitName + sufix + "?page=1&pageSize=1"; //$NON-NLS-0$
+					that.registry.getService("orion.page.progress").progress(that.registry.getService("orion.git.provider").doGitLog( //$NON-NLS-1$ //$NON-NLS-0$
+						location, null, null, messages['Looking for the commit']), "Looking for commit " + sha).then( //$NON-NLS-0$
 						function(resp){
 							that.currentCommit = resp;
 							deferred.resolve(resp.Children[0].Location);

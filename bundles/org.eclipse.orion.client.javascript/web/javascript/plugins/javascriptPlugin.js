@@ -9,8 +9,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global URL */
-/*jslint amd:true */
+/*eslint-env amd */
 /*
  * This module may be loaded in a web worker or a regular Window. Therefore it must NOT use the DOM or other
  * APIs not available in workers.
@@ -136,6 +135,7 @@ define([
 	provider.registerService(["orion.edit.validator", "orion.cm.managedservice"], new EslintValidator(astManager),  //$NON-NLS-0$  //$NON-NLS-1$
 		{
 			contentType: ["application/javascript", "text/html"],  //$NON-NLS-0$
+			nls: 'javascript/nls/problems',  //$NON-NLS-0$
 			pid: 'eslint.config'  //$NON-NLS-0$
 		});
 
@@ -158,34 +158,34 @@ define([
 					properties: [
 						{
 							id: "no-new-array", //$NON-NLS-0$
-							nameKey: "no-new-array", //$NON-NLS-0$
+							nameKey: "noNewArray", //$NON-NLS-0$
 							type: "number", //$NON-NLS-0$
 							defaultValue: warning, //$NON-NLS-0$
 							options: severities //$NON-NLS-0$
 						},
 						{
 							id: "no-new-func", //$NON-NLS-0$
-							nameKey: "no-new-func", //$NON-NLS-0$
+							nameKey: "noNewFunc", //$NON-NLS-0$
 							type: "number", //$NON-NLS-0$
 							defaultValue: warning, //$NON-NLS-0$
 							options: severities //$NON-NLS-0$
 						},
 						{
 							id: "no-new-object", //$NON-NLS-0$
-							nameKey: "no-new-object", //$NON-NLS-0$
+							nameKey: "noNewObject", //$NON-NLS-0$
 							type: "number", //$NON-NLS-0$
 							defaultValue: warning, //$NON-NLS-0$
 							options: severities //$NON-NLS-0$
 						},
 						{
 							id: "no-new-wrappers", //$NON-NLS-0$
-							nameKey: "no-new-wrappers", //$NON-NLS-0$
+							nameKey: "noNewWrappers", //$NON-NLS-0$
 							type: "number", //$NON-NLS-0$
 							defaultValue: warning, //$NON-NLS-0$
 							options: severities //$NON-NLS-0$
 						},
 						{	id: "validate_eqeqeq",  //$NON-NLS-0$
-							nameKey: 'eqeqeq',  //$NON-NLS-0$
+							nameKey: 'noEqeqeq',  //$NON-NLS-0$
 							type: "number",  //$NON-NLS-0$
 							defaultValue: warning,
 							options: severities
@@ -226,6 +226,12 @@ define([
 							defaultValue: error,
 							options: severities
 						},
+						{	id: "validate_throw_error",  //$NON-NLS-0$
+							nameKey: 'throwError',  //$NON-NLS-0$
+							type: "number",  //$NON-NLS-0$
+							defaultValue: warning,
+							options: severities
+						},
 						{	id: "validate_func_decl",  //$NON-NLS-0$
 							nameKey: 'docFuncDecl',  //$NON-NLS-0$
 							type: "number",  //$NON-NLS-0$
@@ -239,7 +245,7 @@ define([
 							options: severities
 						},
 						{	id: "validate_curly",  //$NON-NLS-0$
-							nameKey: 'curly',  //$NON-NLS-0$
+							nameKey: 'missingCurly',  //$NON-NLS-0$
 							type: "number",  //$NON-NLS-0$
 							defaultValue: ignore,
 							options: severities
@@ -256,10 +262,10 @@ define([
 							defaultValue: error,
 							options: severities
 						},
-						{	id: "validate_no_unused_vars",  //$NON-NLS-0$
-							nameKey: 'unusedVars',  //$NON-NLS-0$
+						{	id: "validate_no_empty_block",  //$NON-NLS-0$
+							nameKey: 'noEmptyBlock',  //$NON-NLS-0$
 							type: "number",  //$NON-NLS-0$
-							defaultValue: warning,
+							defaultValue: ignore,
 							options: severities
 						},
 						{	id: "validate_unnecessary_semi",  //$NON-NLS-0$
@@ -268,8 +274,20 @@ define([
 							defaultValue: warning,
 							options: severities
 						},
+						{	id: "validate_no_jslint",  //$NON-NLS-0$
+							nameKey: 'unsupportedJSLint',  //$NON-NLS-0$
+							type: "number",  //$NON-NLS-0$
+							defaultValue: warning,
+							options: severities
+						},
 						{	id: "validate_unused_params",  //$NON-NLS-0$
 							nameKey: 'unusedParams',  //$NON-NLS-0$
+							type: "number",  //$NON-NLS-0$
+							defaultValue: warning,
+							options: severities
+						},
+						{	id: "validate_no_unused_vars",  //$NON-NLS-0$
+							nameKey: 'unusedVars',  //$NON-NLS-0$
 							type: "number",  //$NON-NLS-0$
 							defaultValue: warning,
 							options: severities

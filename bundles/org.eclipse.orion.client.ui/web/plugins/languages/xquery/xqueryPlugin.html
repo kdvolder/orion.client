@@ -4,10 +4,9 @@
 	<meta charset="UTF-8">
     <meta name="copyright" content="Copyright (c) IBM Corporation and others 2014.">
     <title>Orion XQuery Support</title>
-    <link rel="stylesheet" type="text/css" href="/settings/settings.css"/>
 	<script src="../../../requirejs/require.js"></script>
 	<script type="text/javascript">
-		/*global require*/
+		/*eslint-env browser, amd*/
 		require({
 			baseUrl: '../../../',
 			paths: {
@@ -18,7 +17,7 @@
 			packages: [
 			]
 		});
-		require(["xqueryPlugin.js"]);
+		require(["plugins/languages/xquery/xqueryPlugin"]);
 	</script>
 </head>
 

@@ -157,7 +157,6 @@ hard-coded numbers elsewhere.
 	margin: 8px;
 	color: #7F7F7F;
 	font-weight: bold;
-	float: left;
 }
 
 .footerRightBlock {
@@ -366,7 +365,7 @@ hard-coded numbers elsewhere.
 	visibility: hidden;  /* use visibility vs. display because we need a position in calculations */
 }
 
-.splitThumbLayout {
+.splitThumbLeftLayout {
 	position: absolute;
 	right: 0;
 	height: 3em;
@@ -377,7 +376,18 @@ hard-coded numbers elsewhere.
 	border-bottom-left-radius: 5px;	
 }
 
-.splitVerticalThumbLayout {
+.splitThumbRightLayout {
+	position: absolute;
+	left: 0;
+	height: 3em;
+	width: 5px;
+	top: 49%;
+	cursor: pointer;
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;	
+}
+
+.splitVerticalThumbUpLayout {
 	position: absolute;
 	bottom: 0;
 	width: 3em;
@@ -386,6 +396,17 @@ hard-coded numbers elsewhere.
 	cursor: pointer;
 	border-top-left-radius: 5px;
 	border-top-right-radius: 5px;	
+}
+
+.splitVerticalThumbDownLayout {
+	position: absolute;
+	top: 0;
+	width: 3em;
+	height: 5px;
+	left: 49%;
+	cursor: pointer;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;	
 }
 
 .splitLayoutAnimation {

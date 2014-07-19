@@ -23,6 +23,18 @@
 	margin-right: 8%;
 }
 
+table .sectionWrapper {
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+table .sectionTable {
+	margin-left: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	border-top: 1px solid #dadada;
+}
+
 .miniWrapper {
 	margin-left: 8%;
 	margin-right: 8%;
@@ -33,90 +45,75 @@
 	margin-bottom:-10px;
 }
 
-.gitCommitMessage .orionButton {
-	margin: 15px;
-	padding: 15px;
-	border: 1px solid #DDD;
-	border-radius: 5px;
-	width: calc(100% - 10px);
-	background-color: transparent;
-	text-align:center;
+.gitCommitInfoValue {
+	color: black;
 }
 
-.gitCommitMessage .orionButton:hover {
-	background-color: transparent;
-	box-shadow: none;
+.tooltip .gitCommitInfoValue {
+	color: white;
 }
 
-.gitCommitMessage .orionButton:focus {
-	background-color: transparent;
-	box-shadow: none;
-}
-
-.gitCommitMessage .slideContainerActive + .commitActions {
-	display: none;
+.gitLoading {
+	font-weight: bold;
 }
 
 .gitCommitMessage .gitCommitMessageTopRow {
-	width: calc(100% - 10px);
+	width: calc(100% - 6px);
 	background-color: white;
-	padding: 5px;
-	border-top-left-radius: 5px;
-	border-top-right-radius: 5px;
+	padding: 0px;
+	border-radius: 5px;
+	border: 1px solid #ddd;
 }
 
-.gitCommitMessage .slideContainer {
-	width: 100%;
-	border-color: #ddd;
-	background: none repeat scroll 0 0 #f4f4f4;
+.gitCommitMessage .gitCommitMessageTopRow.invalidCommitMessage {
+	background-color: rgba(255, 0, 0, 0.1);
 }
 
 .gitCommitMessage .gitCommitMessageTopRow textarea {
-	width: calc(100% - 16px);
-	border-width: 0;
+	width: calc(100% - 10px);
+	background-color: transparent;
+	border-width: 0px;
 }
 
 .gitCommitMessage .gitCommitMessageBottomRow {
-	width: calc(100% - 10px);
-	padding: 5px;
+	width: calc(100% - 6px);
+	padding: 2px;
+	overflow: hidden;
 }
 
-.gitCommitMessage .parametersDismiss {
-	padding:0;
+.primaryButton {
+	background-color: #7fa4c0 !important;
+	color: white !important;
+	border: 1px solid #7fa4c0 !important;
 }
 
-.gitCommitMessage .parameters {
-	padding: 4px 0px;
-	vertical-align: middle;
+.gitCommitListMore {
+	text-align: center;
+	font-size: 10pt;
+	font-weight: bold;
+	padding: 10px;
 }
 
-.gitCommitMessage .dismissButton {
-	color: rgb(102, 102, 102);
-	border: 1px solid #dedede;
-	background-color: #ddd;
-	border-radius: 3px;
-	font-size: 9pt;
-	line-height: 12px;
-	margin: 4px;
-	padding: 4px 6px;
+.gitTagListMore {
+	text-align: center;
+	font-size: 10pt;
+	font-weight: bold;
+	color: gray;
+	padding: 6px;
 }
 
-.gitCommitMessage .dismissButton:hover, .dismissButton:focus {
-	background-color: #eee;
-	box-shadow: 0 1px 2px 0 rgba(0,0,0,0.2);
+.gitCommitMessage .gitCommitMessageExplorerRow {
+	width: calc(100% - 6px);
+	padding: 0px;
+	overflow: hidden;
 }
 
-.gitCommitMessage .dismissButton.disabled {
-	color: #cdcdcd;
-}
-
-.gitCommitMessage .dismissButton.disabled:hover {
-	background-color: #ddd;
-	box-shadow: none;
+.gitCommitListLoaded {
+	border: 1px solid #ddd;
 }
 
 .gitCommitListSection {
-	background-color: #eee;
+	background-color: #f4f4f4;
 }
 
 .gitCommitListSectionTitle {
@@ -143,8 +140,8 @@
 	background-color: LemonChiffon;
 	border-radius: 4px;
 	display: inline-block;
-	margin: 2px;
-	padding: 2px;
+	margin-left: 2px;
+	padding-left: 2px;
 }
 
 .gitCommitListTagClose {
@@ -152,8 +149,8 @@
 	padding-left: 5px;
 }
 
-.gitCommitListNoTag {
-	margin-left: 4px;
+.gitCommitTitle {
+	font-weight: bold;
 }
 
 .gitAuthorImage {
@@ -201,7 +198,6 @@
 .gitPanel {
 	min-width: 800px;
 	background:white;
-	height:100%;
 }
 
 /* sprites */

@@ -9,13 +9,13 @@
  * Contributors:
  *	 IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*jslint node:true amd:true*/
+/*eslint-env amd, node */
 (function(root, factory) {
 	if(typeof exports === 'object') {  //$NON-NLS-0$
 		module.exports = factory(require, exports, module);
 	}
 	else if(typeof define === 'function' && define.amd) {  //$NON-NLS-0$
-		define(['require', 'exports', 'module'], factory);
+		define(['require', 'exports', 'module', 'logger'], factory);
 	}
 	else {
 		var req = function(id) {return root[id];},
@@ -23,7 +23,7 @@
 			mod = {exports: exp};
 		root.rules.noundef = factory(req, exp, mod);
 	}
-}(this, function(require, exports, module) {
+}(this, function(require, exports, module, Logger) {
 	/**
 	 * @name module.exports
 	 * @description Rule exports
@@ -70,15 +70,18 @@
 						return;
 					}
 					var references = getReferences(scope, variable), id = variable.defs[0].node.id;
+					var reason;
 					if (!references.length) {
-						context.report(id, "'{{name}}' is never used.", {name: id.name});
+					    reason = 'never used';
+						context.report(id, "'${0}' is ${1}.", {0:id.name, 1:reason});
 					} else if (!references.some(isRead)) {
-						context.report(id, "'{{name}}' is never read.", {name: id.name});
+					    reason = 'never read';
+						context.report(id, "'${0}' is ${1}.", {0:id.name, 1:reason});
 					}
 				});
 			}
 			catch(ex) {
-				console.log(ex);
+				Logger.log(ex);
 			}
 		}
 

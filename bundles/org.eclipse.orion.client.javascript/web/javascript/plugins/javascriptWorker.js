@@ -10,7 +10,7 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 /*global importScripts*/
-/*jslint amd:true*/
+/*eslint-env amd*/
 
 // This file bootstraps RequireJS in the worker context, then loads the JavaScript plugin impl
 
@@ -25,7 +25,8 @@ require.config({
 		text: "requirejs/text",
 		esprima: "esprima/esprima",
 		estraverse: "estraverse/estraverse",
-		escope: "escope/escope"
+		escope: "escope/escope",
+		logger: "javascript/logger"
 	},
 	packages: [
 		{

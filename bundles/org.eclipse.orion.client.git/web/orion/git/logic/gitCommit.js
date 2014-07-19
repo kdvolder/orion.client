@@ -9,7 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*globals document define*/
+/*eslint-env browser, amd*/
 
 define(['i18n!git/nls/gitmessages','orion/commandRegistry','orion/Deferred','orion/git/widgets/CommitDialog',
         'orion/git/logic/gitCommon', 'orion/i18nUtil', 'orion/webui/littlelib'], 
@@ -27,10 +27,10 @@ define(['i18n!git/nls/gitmessages','orion/commandRegistry','orion/Deferred','ori
 		var commandService = dependencies.commandService;
 		
 		/* Fetches the appropriate commit message when the 'amend' flag is used */
-		var amendEventListener = new mCommandRegistry.CommandEventListener('change', function(event, commandInvocation){ //$NON-NLS-0$
+		var amendEventListener = new mCommandRegistry.CommandEventListener('change', function(event, explorer){ //$NON-NLS-0$
 			var target = event.target;
-			var item = commandInvocation.items.status || commandInvocation.handler.status;
-			var commitMessageBox = document.getElementById("name" + "parameterCollector"); //$NON-NLS-0$//$NON-NLS-1$
+			var item = explorer.status;
+			var commitMessageBox = explorer.messageTextArea;
 				
 			if(target.checked){
 				var progressService = serviceRegistry.getService("orion.page.message"); //$NON-NLS-0$
@@ -41,6 +41,7 @@ define(['i18n!git/nls/gitmessages','orion/commandRegistry','orion/Deferred','ori
 					// use the last commit message
 					var message = resp.Children[0].Message;
 					commitMessageBox.value = message;
+					commitMessageBox.parentNode.classList.remove("invalidCommitMessage"); //$NON-NLS-0$
 				}), function(error){
 					commitMessageBox.value = ""; //$NON-NLS-0$
 				});
@@ -172,7 +173,7 @@ define(['i18n!git/nls/gitmessages','orion/commandRegistry','orion/Deferred','ori
 					}
 				}
 					
-				if (body.Message && body.CommitterName && body.CommitterEmail && !data.parameters.optionsRequested) {
+				if (body.Message && body.CommitterName && body.CommitterEmail) {
 					commitFunction(body);
 				} else {
 					var dialog = new mCommit.CommitDialog({
@@ -184,9 +185,9 @@ define(['i18n!git/nls/gitmessages','orion/commandRegistry','orion/Deferred','ori
 				};
 					
 			var body = {};
-			body.Message = data.parameters.valueFor("name"); //$NON-NLS-0$
-			body.Amend = data.parameters.valueFor("amend"); //$NON-NLS-0$
-			body.ChangeId = data.parameters.valueFor("changeId"); //$NON-NLS-0$
+			body.Message = data.userData.name;
+			body.Amend = data.userData.amend;
+			body.ChangeId = data.userData.changeId;
 				
 			var config = item.Clone.Config;
 			if(body.Amend && !body.Message){

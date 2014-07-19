@@ -9,13 +9,13 @@
  * Contributors:
  *	 IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global define module require exports console */
+/*eslint-env amd, node */
 (function(root, factory) {
 	if(typeof exports === 'object') {  //$NON-NLS-0$
 		module.exports = factory(require('../util'), require, exports, module);  //$NON-NLS-0$
 	}
 	else if(typeof define === 'function' && define.amd) {  //$NON-NLS-0$
-		define(['eslint/util', 'require', 'exports', 'module'], factory);
+		define(['eslint/util', 'require', 'exports', 'module', 'logger'], factory);
 	}
 	else {
 		var req = function(id) {return root[id];},
@@ -23,7 +23,7 @@
 			mod = {exports: exp};
 		root.rules.noundef = factory(req, exp, mod);
 	}
-}(this, function(util, require, exports, module) {
+}(this, function(util, require, exports, module, Logger) {
 	/**
 	 * @name module.exports
 	 * @description Rule exports
@@ -35,7 +35,7 @@
 		"use strict";  //$NON-NLS-0$
 
 		function reportRedeclaration(node, name) {
-			context.report(node, "'{{name}}' is already defined.", {name: name});
+			context.report(node, "'${0}' is already defined.", {0:name});
 		}
 
 		/**
@@ -96,6 +96,9 @@
 		function checkScope(node) {
 			try {
 				var scope = context.getScope();
+				if(node.type === 'FunctionExpression' && node.id && node.id.name) {
+				    scope  = scope.upper;
+				}
 				var namedFunctions = createNamedFunctionMap(scope);
 	
 				scope.variables.forEach(function(variable) {
@@ -107,12 +110,7 @@
 					}
 	
 					// If variable has multiple defs, every one after the 1st is a redeclaration
-					var defs = variable.defs.filter(function(def) {
-						// Workaround for escope bug
-						// https://github.com/Constellation/escope/issues/21
-						return def.type !== "ImplicitGlobalVariable";  //$NON-NLS-0$
-					});
-					defs.forEach(function(def, i) {
+					variable.defs.forEach(function(def, i) {
 						if (i > 0) {
 							reportRedeclaration(def.name, def.name.name);
 						}
@@ -120,7 +118,7 @@
 				});
 			}
 			catch(ex) {
-				console.log(ex);
+				Logger.log(ex);
 			}
 		}
 

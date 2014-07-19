@@ -8,7 +8,7 @@
  * 
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*globals define document clearTimeout setTimeout window Image*/
+/*eslint-env browser, amd*/
 
 define(['require', 'i18n!git/nls/gitmessages', 'orion/i18nUtil', 'orion/Deferred', 'orion/webui/dialog', 'orion/URITemplate', 'orion/webui/littlelib'], function(require, messages, i18nUtil, Deferred, dialog, URITemplate, lib) {
 
@@ -101,9 +101,15 @@ define(['require', 'i18n!git/nls/gitmessages', 'orion/i18nUtil', 'orion/Deferred
 		}
 
 		if (repositories.length > 0) {
+			var repository = repositories[0];
+			var segment = "/commit/"; //$NON-NLS-0$
+			var location = repository.CommitLocation;
+			var index = location.indexOf(segment) + segment.length;
+			var prefix = location.substring(0, index);
+			var sufix = location.substring(index - 1);
+			location = prefix + commitName + sufix + "?page=1&pageSize=1"; //$NON-NLS-0$
 			this.serviceRegistry.getService("orion.page.progress").progress(
-				that.serviceRegistry.getService("orion.git.provider").doGitLog(
-					"/gitapi/commit/" + commitName + repositories[0].ContentLocation + "?page=1&pageSize=1"), "Getting commit details " + commitName).then(
+				that.serviceRegistry.getService("orion.git.provider").doGitLog(location), "Getting commit details " + commitName).then(
 				function(resp) {
 					deferred.resolve(resp.Children[0]);
 				}, function(error) {

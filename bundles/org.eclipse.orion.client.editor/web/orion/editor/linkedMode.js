@@ -9,8 +9,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global define */
-
+/*eslint-env browser, amd*/
 define("orion/editor/linkedMode", [ //$NON-NLS-0$
 	'i18n!orion/editor/nls/messages', //$NON-NLS-0$
 	'orion/keyBinding', //$NON-NLS-0$
@@ -421,6 +420,7 @@ define("orion/editor/linkedMode", [ //$NON-NLS-0$
 				for (var i = 0; i < positions.length; i++) {
 					var position = positions[i];
 					if (position.model !== model) { continue; }
+					if (position.escape) { continue; }
 					var type = mAnnotations.AnnotationType.ANNOTATION_LINKED_GROUP;
 					if (position.group === model.selectedGroupIndex) {
 						if (position.index === 0) {

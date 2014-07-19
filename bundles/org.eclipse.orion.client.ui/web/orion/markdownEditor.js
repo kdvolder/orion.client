@@ -8,22 +8,32 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global define document window URL console Blob*/
+/*eslint-env browser, amd*/
+/*global URL*/
 define([
+	'orion/i18nUtil',
+	'i18n!orion/nls/messages',
 	'marked/marked',
+	'orion/commands',
+	'orion/keyBinding',
 	'orion/editor/editor',
 	'orion/editor/textStyler',
 	'orion/editor/util',
+	'orion/fileCommands',
 	'orion/objects',
 	'orion/webui/littlelib',
 	'orion/URITemplate',
-	'orion/webui/splitter', 
+	'orion/webui/splitter',
 	'orion/URL-shim'
-], function(marked, mEditor, mTextStyler, mTextUtil, objects, lib, URITemplate, mSplitter) {
+], function(i18nUtil, messages, marked, mCommands, mKeyBinding, mEditor, mTextStyler, mTextUtil, mFileCommands, objects, lib, URITemplate, mSplitter) {
 
 	var uriTemplate = new URITemplate("#{,resource,params*}"); //$NON-NLS-0$
 	var extensionRegex = /\.([0-9a-z]+)(?:[\?#]|$)/i;
+	var markedOutputLink = marked.InlineLexer.prototype.outputLink;
 	var imgCount = 0;
+	var markedOptions = marked.parse.defaults;
+	markedOptions.sanitize = true;
+	markedOptions.tables = true;
 
 	var ID_PREFIX = "_orionMDBlock"; //$NON-NLS-0$
 	var ID_PREVIEW = "_previewDiv"; //$NON-NLS-0$
@@ -32,13 +42,8 @@ define([
 		this.model = model;
 
 		/* relativize marked's outputLink */
-		var outputLink = marked.InlineLexer.prototype.outputLink;
 		var resourceURL = new URL(resource, window.location.href);
-		marked.InlineLexer.prototype.outputLink = filterOutputLink(outputLink, resourceURL, fileClient, resource.indexOf(":") === -1); //$NON-NLS-0$
-
-		this._markedOptions = marked.parse.defaults;
-		this._markedOptions.sanitize = true;
-		this._markedOptions.tables = true;
+		marked.InlineLexer.prototype.outputLink = filterOutputLink(resourceURL, fileClient, resource.indexOf(":") === -1); //$NON-NLS-0$
 
 		this._inlinePatterns = [];
 		var patternIndex = 0;
@@ -77,7 +82,7 @@ define([
 			}
 
 			var index = 0;
-			tokens = tokens || marked.lexer(text, this._markedOptions);
+			tokens = tokens || marked.lexer(text, markedOptions);
 
 			for (var i = 0; i < tokens.length; i++) {
 				var bounds = null, name = null, end = null, newlines = null;
@@ -92,28 +97,14 @@ define([
 				}
 
 				if (tokens[i].type === "heading") { //$NON-NLS-0$
-					var isSetext = tokens[i].style === "setext"; //text[index] !== "#"; //$NON-NLS-0$
+					this._atxDetectRegex.lastIndex = index;
+					var match = this._atxDetectRegex.exec(text);
+					var isAtx = match && match.index === index;
 					var lineEnd = this._getLineEnd(text, index, model);
-					end = isSetext ? this._getLineEnd(text, index, model, 1) : lineEnd;
-
-					/*
-					 * marked considers setext-style headers to end at the last non-'-' or '='
-					 * character on the underline line.  Determine this index, and if it preceeds
-					 * the current end value by more than the newline then move end back to this
-					 * index.
-					 */
-					if (isSetext) {
-						var underlineLine = text.substring(lineEnd, end);
-						this._setextUnderlineRegex.lastIndex = 0;
-						var match = this._setextUnderlineRegex.exec(underlineLine);
-						if (match[0].length < underlineLine.length) {
-							end -= underlineLine.length - match[0].length;
-						}
-					}
-
+					end = isAtx ? lineEnd : this._getLineEnd(text, index, model, 1);
 					bounds = {
 						start: index,
-						contentStart: index + (isSetext ? 0 : tokens[i].depth + 1),
+						contentStart: index + (isAtx ? tokens[i].depth + 1 : 0),
 						contentEnd: lineEnd,
 						end: end
 					};
@@ -579,7 +570,7 @@ define([
 				 */
 				var parseTokens = block.tokens.slice();
 				parseTokens.links = links;
-				rootElement.innerHTML = marked.Parser.parse(parseTokens, this._markedOptions);
+				rootElement.innerHTML = marked.Parser.parse(parseTokens, markedOptions);
 				return;
 			}
 
@@ -591,7 +582,7 @@ define([
 			
 			parseTokens = [block.startToken, block.endToken];
 			parseTokens.links = links;
-			rootElement.innerHTML = marked.Parser.parse(parseTokens, this._markedOptions);
+			rootElement.innerHTML = marked.Parser.parse(parseTokens, markedOptions);
 
 			var processParentTokens = function(parentTokens) {
 				/*
@@ -601,7 +592,7 @@ define([
 				parseTokens = [block.startToken].concat(parentTokens).concat(block.endToken);
 				parseTokens.links = links;
 				var tempElement = document.createElement("div"); //$NON-NLS-0$
-				tempElement.innerHTML = marked.Parser.parse(parseTokens, this._markedOptions);
+				tempElement.innerHTML = marked.Parser.parse(parseTokens, markedOptions);
 				var createdNodes = tempElement.children[0].childNodes;
 				while (createdNodes.length) {
 					rootElement.children[0].appendChild(createdNodes[0]);
@@ -631,7 +622,12 @@ define([
 					/* now process the child block */
 					var newElement = document.createElement("div"); //$NON-NLS-0$
 					this._generateHTML(newElement, current);
-					newElement.id = current.elementId;
+					newElement = newElement.children[0] || newElement;
+					if (!newElement.id) {
+						newElement.id = current.elementId; /* typical */
+					} else {
+						current.elementId = newElement.id; /* header element */
+					}
 					rootElement.children[0].appendChild(newElement);
 				}
 			}.bind(this));
@@ -717,42 +713,47 @@ define([
 			}
 
 			e.new.forEach(function(current) {
+				/* create a new div with content corresponding to this block */
+				var newElement = document.createElement("div"); //$NON-NLS-0$
+				this._generateHTML(newElement, current);
+
 				/* try to find an existing old block and DOM element corresponding to the current new block */
-				var element = null;
 				for (i = oldBlocksIndex; i < e.old.length; i++) {
 					if (e.old[i].elementId === current.elementId) {
 						/*
 						 * Found it.  If any old blocks have been passed over during this search
 						 * then remove their elements from the DOM as they no longer exist.
 						 */
-						element = children[i];
+						var element = children[i];
 						for (j = i - 1; oldBlocksIndex <= j; j--) {
 							parentElement.removeChild(children[j]);
 						}
 						oldBlocksIndex = i + 1;
+
+						this._updateNode(element, newElement.children[0] || newElement);
 						break;
 					}
 				}
-				if (!element) {
+
+				if (i === e.old.length) {
 					/*
 					 * An existing block was not found, so there is not an existing corresponding
 					 * DOM element to reuse.  Create one now.
 					 */
 					element = document.createElement("div"); //$NON-NLS-0$
-					element.id = current.elementId;
+					this._updateNode(element, newElement);
+					element = element.children[0] || element;
+					if (!element.id) {
+						element.id = current.elementId; /* typical */
+					} else {
+						current.elementId = element.id; /* header element */
+					}
 					if (children.length) {
 						parentElement.insertBefore(element, children[oldBlocksIndex]);
 					} else {
 						parentElement.appendChild(element);
 					}
 				}
-
-				/* create a new div with content corresponding to this block */
-
-				var newElement = document.createElement("div"); //$NON-NLS-0$
-
-				this._generateHTML(newElement, current);
-				this._updateNode(element, newElement);
 			}.bind(this));
 
 			/* all new blocks have been processed, so remove all remaining old elements that were not reused */
@@ -775,6 +776,12 @@ define([
 			}
 		},
 		_updateNode: function(targetNode, newNode) {
+			if (targetNode.nodeName !== newNode.nodeName) {
+				/* node types do not match, must replace the target node in the parent */
+				targetNode.parentElement.replaceChild(newNode, targetNode);
+				return;
+			}
+			
 			/* modify the existing node */
 
 			if (newNode.nodeName === "#text") {
@@ -835,6 +842,7 @@ define([
 		},
 		_CR: "\r", //$NON-NLS-0$
 		_NEWLINE: "\n", //$NON-NLS-0$
+		_atxDetectRegex: /\s*#/g,
 		_blockquoteRemoveMarkersRegex: /^[ \t]*>[ \t]?/gm,
 		_blockquoteStartRegex: /[ \t]*>[ \t]?/g,
 		_blocksCache: {},
@@ -843,13 +851,12 @@ define([
 		_htmlNewlineRegex: /\n\s*\S[\s\S]*$/g,
 		_newlineRegex: /\n/g,
 		_orderedListRegex: /\d+\.[ \t]/g,
-		_setextUnderlineRegex: /^[ \t]*[-=]+[ \t]*\r?\n?/g,
 		_whitespaceRegex: /\s+/g
 	};
 
 	var _imageCache = {};
 	
-	function filterOutputLink(outputLink, resourceURL, fileClient, isRelative) {
+	function filterOutputLink(resourceURL, fileClient, isRelative) {
 		return function(cap, link) {
 			if (link.href.indexOf(":") === -1) { //$NON-NLS-0$
 				try {
@@ -920,8 +927,66 @@ define([
 					console.log(e); // best effort
 				}				
 			}
-			return outputLink.call(this, cap, link);
+			return markedOutputLink.call(this, cap, link);
 		};
+	}
+
+	function exportHTML(text, fileService, metadata, statusService) {
+		var oldOutputLink = marked.InlineLexer.prototype.outputLink;
+		marked.InlineLexer.prototype.outputLink = markedOutputLink;
+		var html = marked.parse(text, markedOptions);
+		marked.InlineLexer.prototype.outputLink = oldOutputLink;
+
+		var name = metadata.Name;
+		var match = /(.*)\.[^.]*$/.exec(name);
+		if (match) {
+			name = match[1];
+		}
+		var counter = 0;
+
+		function writeFileFn(file) {
+			/*
+			 * The file creation succeeded, so send a "create" notification so that
+			 * listeners like the navigator will update.
+			 */			
+			var dispatcher = mFileCommands.getModelEventDispatcher();
+			if (dispatcher && typeof dispatcher.dispatchEvent === "function") { //$NON-NLS-0$
+				dispatcher.dispatchEvent({type: "create", parent: file.Parents[0]}); //$NON-NLS-0$
+			}
+
+			fileService.write(file.Location, html).then(
+				function() {
+					statusService.setProgressResult({Message: i18nUtil.formatMessage(messages["Wrote: ${0}"], file.Name), Severity:"Normal"}); //$NON-NLS-0$
+				},
+				function(error) {
+					if (!error.responseText) {
+						error = {Message: messages["UnknownError"], Severity: "Error"}; //$NON-NLS-0$
+					}
+					statusService.setProgressResult(error);
+				}
+			);
+		}
+		function fileCreateFailedFn(error) {
+			if (error.status === 412 && counter < 99) {
+				/*
+				 * The likely problem is a collision with an existing file with
+				 * the attempted name, so try again with an incremented name.
+				 */
+				counter++;
+				createFileFn();
+			} else {
+				if (!error.responseText) {
+					error = {Message: messages["UnknownError"], Severity: "Error"}; //$NON-NLS-0$
+				}
+				statusService.setProgressResult(error);
+			}
+		}
+		function createFileFn() {
+			var testName = counter ? name + "(" + counter + ").html" : name + ".html"; //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+			fileService.createFile(metadata.Parents[0].Location, testName).then(writeFileFn, fileCreateFailedFn);
+		}
+
+		createFileFn();
 	}
 
 	var BaseEditor = mEditor.BaseEditor;
@@ -985,7 +1050,8 @@ define([
 		}.bind(this);
 
 		this._settingsListener = function(e) {
-			this._splitter.setOrientation(e.newSettings.splitOrientation);
+			var orientation = e.newSettings.splitOrientation === "horizontal" ? mSplitter.ORIENTATION_HORIZONTAL : mSplitter.ORIENTATION_VERTICAL; //$NON-NLS-0$
+			this._splitter.setOrientation(orientation);
 			/*
 			 * If this is the initial retrieval of these settings then the root
 			 * and splitter elements likely need to have their visibilities updated.
@@ -1155,7 +1221,9 @@ define([
 				node: this._splitterDiv,
 				sidePanel: this._editorDiv,
 				mainPanel: this._previewWrapperDiv,
-				vertical: settings && settings.splitOrientation === mSplitter.ORIENTATION_VERTICAL
+				toggle: true,
+				closeReversely: true,
+				vertical: settings && settings.splitOrientation === "vertical" //$NON-NLS-0$
 			});
 
 			if (!settings) {
@@ -1357,6 +1425,29 @@ define([
 
 	function MarkdownEditorView(options) {
 		this._options = options;
+
+		var ID = "markdown.generate.html"; //$NON-NLS-0$
+		var generateCommand = new mCommands.Command({
+			name: messages["GenerateHTML"],
+			tooltip: messages["GenerateHTMLTooltip"],
+   			id: ID,
+			visibleWhen: function() {
+				return !!this._options;
+			}.bind(this),
+			callback: function(/*data*/) {
+				var textView = options.editorView.editor.getTextView();
+				var text = textView.getText();
+				exportHTML(text, options.fileService, options.metadata, options.statusService);
+			}
+		});
+		options.commandRegistry.addCommand(generateCommand);
+		options.commandRegistry.registerCommandContribution(
+			options.menuBar.toolsActionsScope,
+			ID,
+			1,
+			"orion.menuBarToolsGroup",
+			false,
+			new mKeyBinding.KeyBinding("G", true, false, true)); //$NON-NLS-1$ //$NON-NLS-0$
 	}
 	MarkdownEditorView.prototype = {
 		create: function() {
@@ -1378,6 +1469,7 @@ define([
 				URL.revokeObjectURL(current.src);
 			});
 			_imageCache = {};
+			this._options = null;
 		}
 	};
 

@@ -9,7 +9,7 @@
  ******************************************************************************/
 
 //NLS_CHARSET=UTF-8
-
+/*eslint-env browser, amd*/
 define({
 	"Navigator": "Navigator",
 	"Sites": "Sites",
@@ -96,5 +96,8 @@ define({
 	"Filter": "Filter (* = any string, ? = any character)",
 	"To view the browser's context menu, trigger the context menu again.": "To view the browser's context menu, trigger the context menu again.",
 	"Edit": "Edit",
-	"CentralNavTooltip": "Toggle Navigation Menu"
+	"CentralNavTooltip": "Toggle Navigation Menu",
+	"Wrote: ${0}": "Wrote: ${0}",
+	"GenerateHTML": "Generate HTML file",
+	"GenerateHTMLTooltip": "Write an HTML file generated from the current Markdown editor content"
 });

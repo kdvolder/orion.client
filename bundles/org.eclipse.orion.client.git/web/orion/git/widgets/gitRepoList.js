@@ -9,7 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*global define document window*/
+/*eslint-env browser, amd*/
 
 define([
 	'require',
@@ -247,7 +247,7 @@ define([
 						detailsView.appendChild(div);
 						
 						var span = document.createElement("span");
-						span.textContent = (repositories[i].GitUrl !== null ? messages["git url:"] + repositories[i].GitUrl : messages["(no remote)"]);
+						span.textContent = (repositories[i].GitUrl ? messages["git url:"] + repositories[i].GitUrl : messages["(no remote)"]);
 						detailsView.appendChild(span);
 						
 						div = document.createElement("div");

@@ -8,8 +8,7 @@
  * 
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*jslint sub:true*/
- /*global define document window Image */
+/*eslint-env browser, amd*/
  
 define([
 	'orion/util',
@@ -17,10 +16,9 @@ define([
 	'orion/webui/dropdown',
 	'text!orion/webui/dropdowntriggerbutton.html',
 	'text!orion/webui/dropdowntriggerbuttonwitharrow.html',
-	'text!orion/webui/submenutriggerbutton.html',
 	'text!orion/webui/checkedmenuitem.html',
 	'orion/webui/tooltip'
-], function(util, lib, Dropdown, DropdownButtonFragment, DropdownButtonWithArrowFragment, SubMenuButtonFragment, CheckedMenuItemFragment, Tooltip) {
+], function(util, lib, Dropdown, DropdownButtonFragment, DropdownButtonWithArrowFragment, CheckedMenuItemFragment, Tooltip) {
 		/**
 		 * @name orion.commands.NO_IMAGE
 		 * @description Image data for 16x16 transparent png.
@@ -284,7 +282,8 @@ define([
 		return node;
 	}
 
-	function createDropdownMenu(parent, name, populateFunction, buttonClass, buttonIconClass, showName, selectionClass, positioningNode, displayDropdownArrow) {
+	function createDropdownMenu(parent, name, populateFunction, buttonClass, buttonIconClass, showName, selectionClass, positioningNode, displayDropdownArrow, extraClasses) {
+		
 		parent = lib.node(parent);
 		if (!parent) {
 			throw "no parent node was specified"; //$NON-NLS-0$
@@ -310,6 +309,10 @@ define([
 			menuButton.classList.add("orionButton"); //$NON-NLS-0$
 			menuButton.classList.add("commandButton"); //$NON-NLS-0$
 		}
+		if (extraClasses) {
+			extraClasses.split(" ").forEach(menuButton.classList.add.bind(menuButton.classList));
+		}
+		
 		if (buttonIconClass) {
 			if(!showName) {
 				menuButton.textContent = ""; //$NON-NLS-0$
@@ -372,6 +375,9 @@ define([
 		} else {
 			element = document.createElement("button"); //$NON-NLS-0$
 			element.className = "orionButton"; //$NON-NLS-0$
+			if (command.extraClass) {
+				element.classList.add(command.extraClass);
+			}
 			if (useImage) {
 				if (command.hasImage()) {
 					_addImageToElement(command, element, id);
@@ -622,6 +628,7 @@ define([
 			this.imageClass = options.imageClass;   // points to the location in a sprite
 			this.addImageClassToElement = options.addImageClassToElement; // optional boolean if true will add the image class to the 
 																		// element's class list
+			this.extraClass = options.extraClass;
 			this.selectionClass = options.selectionClass;
 			this.spriteClass = options.spriteClass || "commandSprite"; // defines the background image containing sprites //$NON-NLS-0$
 			this.visibleWhen = options.visibleWhen;

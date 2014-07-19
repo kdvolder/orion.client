@@ -8,8 +8,7 @@
  * 
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
-/*global define*/
-/*jslint browser:true devel:true sub:true*/
+/*eslint-env browser, amd*/
 define([
 	'i18n!orion/edit/nls/messages',
 	'orion/commands',
@@ -20,11 +19,10 @@ define([
 	'orion/projectCommands',
 	'orion/PageUtil',
 	'orion/URITemplate',
-	'orion/Deferred',
-	'orion/projectClient'
+	'orion/Deferred'
 ], function(
 	messages, mCommands, objects, lib, mExplorer, mCommonNav, ProjectCommands,
-	PageUtil, URITemplate, Deferred, mProjectClient
+	PageUtil, URITemplate, Deferred
 ) {
 	var CommonNavExplorer = mCommonNav.CommonNavExplorer;
 	var CommonNavRenderer = mCommonNav.CommonNavRenderer;
@@ -201,7 +199,7 @@ define([
 					commandRegistry.registerCommandContribution(fileActionsScope, command.id, position++, "orion.menuBarFileGroup/orion.newContentGroup/orion.newDependency"); //$NON-NLS-0$
 				});
 
-				commandRegistry.addCommandGroup(additionalActionsScope, "orion.deployNavGroup", 1000, messages["Deploy As"], null, null, null, messages["Deploy As"], "dropdownSelection"); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$							
+				commandRegistry.addCommandGroup(additionalActionsScope, "orion.deployNavGroup", 1000, messages["Deploy As"], null, null, null, messages["Deploy As"], "dropdownSelection", true); //$NON-NLS-3$ //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$							
 				this.deployCommands = ProjectCommands.getDeployProjectCommands(commandRegistry);
 				if(this.deployCommands && this.deployCommands.length>0){
 					this.defaultDeployCommand = this.deployCommands[0];
@@ -301,6 +299,9 @@ define([
 			delete input.resource;
 			window.location.href = uriTemplate.expand({resource: resource, params: input});
 			this.sidebar.setViewMode("nav"); //$NON-NLS-0$
+		},
+		getTreeRoot: function() {
+			return this.fileMetadata;
 		},
 		changedItem: function(item, forceExpand){
 			if(!item || !this.model){

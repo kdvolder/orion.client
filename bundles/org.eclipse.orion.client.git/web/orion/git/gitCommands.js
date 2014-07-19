@@ -9,8 +9,7 @@
  * Contributors: IBM Corporation - initial API and implementation
  ******************************************************************************/
 
-/*globals window document define confirm URL console*/
-/*jslint nomen:false sub:true forin:false laxbreak:true eqeqeq:false*/
+/*eslint-env browser, amd*/
 
 define(['i18n!git/nls/gitmessages', 'require', 'orion/Deferred', 'orion/i18nUtil', 'orion/webui/littlelib', 'orion/commands', 'orion/commandRegistry', 'orion/git/util', 'orion/compare/compareUtils', 'orion/git/gitPreferenceStorage', 'orion/git/gitConfigPreference',
         'orion/git/widgets/ConfirmPushDialog', 'orion/git/widgets/RemotePrompterDialog', 'orion/git/widgets/ReviewRequestDialog', 'orion/git/widgets/CloneGitRepositoryDialog', 
@@ -228,7 +227,7 @@ var exports = {};
 				}
 			default:
 				var display = [];
-				display.Severity = "Error"; //$NON-NLS-0$
+				display.Severity = jsonData.Severity || "Error"; //$NON-NLS-0$
 				display.HTML = false;
 				display.Message = jsonData.DetailedMessage ? jsonData.DetailedMessage : jsonData.Message;
 				serviceRegistry.getService("orion.page.message").setProgressResult(display); //$NON-NLS-0$
@@ -243,13 +242,16 @@ var exports = {};
 	exports.gatherSshCredentials = function(serviceRegistry, data, title, noAuth){
 		var def = new Deferred();
 		var repository;
-		
+		var item = data.items;
+		if (item.LocalBranch && item.RemoteBranch) {
+			item = item.LocalBranch;
+		}
 		//TODO This should be somehow unified
-		if(data.items.RemoteLocation !== undefined){ repository = data.items.RemoteLocation[0].GitUrl; }
-		else if(data.items.GitUrl !== undefined) { repository = data.items.GitUrl; }
-		else if(data.items.errorData !== undefined) { repository = data.items.errorData.Url; }
-		else if(data.items.toRef !== undefined) { repository = data.items.toRef.RemoteLocation[0].GitUrl; }
-
+		if(item.RemoteLocation !== undefined){ repository = item.RemoteLocation[0].GitUrl; }
+		else if(item.GitUrl !== undefined) { repository = item.GitUrl; }
+		else if(item.errorData !== undefined) { repository = item.errorData.Url; }
+		else if(item.toRef !== undefined) { repository = item.toRef.RemoteLocation[0].GitUrl; }
+		
 		var sshService = serviceRegistry.getService("orion.net.ssh");
 		var repositoryURL = mGitUtil.parseSshGitUrl(repository);
 
@@ -838,9 +840,9 @@ var exports = {};
 		});
 		commandService.addCommand(openGitCommit);
 		
-		var fetchCallback = function(data, force, confirm) {
+		var fetchCallback = function(data, force, confirmMsg) {
 			var d = new Deferred();
-			if (confirm && !confirm(confirm)) {
+			if (confirmMsg && !confirm(confirmMsg)) {
 				d.reject();
 				return d;
 			}
@@ -1240,6 +1242,7 @@ var exports = {};
 		var syncCommand = new mCommands.Command({
 			name : messages["Sync"],
 			tooltip: messages["SyncTooltip"],
+			extraClass: "primaryButton",  //$NON-NLS-0$
 //			imageClass: "git-sprite-push", //$NON-NLS-0$
 //			spriteClass: "gitCommandSprite", //$NON-NLS-0$
 			id : "eclipse.orion.git.sync", //$NON-NLS-0$
@@ -2295,8 +2298,16 @@ var exports = {};
 						deferred = new Deferred();
 					
 					if (repositories.length > 0) {
+						commitName = data.parameters.valueFor("commitName"); //$NON-NLS-0$
+						var repository = repositories[0];
+						var segment = "/commit/"; //$NON-NLS-0$
+						var location = repository.CommitLocation;
+						var index = location.indexOf(segment) + segment.length;
+						var prefix = location.substring(0, index);
+						var sufix = location.substring(index - 1);
+						location = prefix + commitName + sufix + "?page=1&pageSize=1"; //$NON-NLS-0$
 						progress.progress(serviceRegistry.getService("orion.git.provider").doGitLog( //$NON-NLS-0$
-							"/gitapi/commit/" + data.parameters.valueFor("commitName") + repositories[0].ContentLocation + "?page=1&pageSize=1", null, null, messages['Looking for the commit']), "Looking for commit " + data.parameters.valueFor("commitName")).then( //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-0$
+							location, null, null, messages['Looking for the commit']), "Looking for commit " + commitName).then( //$NON-NLS-0$
 							function(resp){
 								deferred.resolve(resp.Children[0].Location);
 							},
@@ -2369,8 +2380,6 @@ var exports = {};
 		
 		var logic = mGitCommitLogic(commitOptions);
 		var commitCallback = logic.perform;
-		var commitMessageParameters = logic.createParameters(newLook);
-		var amendEventListener = logic.amendEventListener;
 		var displayErrorOnStatus = logic.displayErrorOnStatus;
 		
 		function forceArray(item) {
@@ -2491,7 +2500,6 @@ var exports = {};
 			name: newLook ? messages["SmartCommit"] : messages["Commit"], //$NON-NLS-0$
 			tooltip: newLook ? "" : messages["Commit"], //$NON-NLS-0$
 			id: "eclipse.orion.git.commitCommand", //$NON-NLS-0$
-			parameters: commitMessageParameters,
 			callback: function(data) {
 				commitCallback(data).then(function() {
 					refresh();
@@ -2642,6 +2650,52 @@ var exports = {};
 
 		commandService.addCommand(checkoutStagedCommand);
 
+		var ignoreCommand = new mCommands.Command({
+			name: messages["Ignore"],
+			tooltip: messages["Add all the selected files to .gitignore file(s)"],
+			imageClass: "git-sprite-checkout", //$NON-NLS-0$
+			spriteClass: "gitCommandSprite", //$NON-NLS-0$
+			id: "eclipse.orion.git.ignoreCommand", //$NON-NLS-0$
+			callback: function(data) {
+				
+				var items = data.items;
+				var progressService = serviceRegistry.getService("orion.page.message"); //$NON-NLS-0$
+				var progress = serviceRegistry.getService("orion.page.progress"); //$NON-NLS-0$
+				
+				var paths = [];
+				for (var i = 0; i < items.length; i++) {
+					paths[i] = items[i].name;
+				}
+				
+				var deferred = progress.progress(serviceRegistry.getService("orion.git.provider").ignorePath(data.userData.Clone.IgnoreLocation, paths), messages["Writing .gitignore rules"]); //$NON-NLS-0$ //$NON-NLS-1$
+				progressService.createProgressMonitor(
+					deferred,
+					messages["Writing .gitignore rules"]);
+				
+				return deferred.then(
+					function(jsonData){
+						
+						deferred = progress.progress(serviceRegistry.getService("orion.git.provider").unstage(data.userData.Clone.IndexLocation, paths), messages['Resetting local changes']); //$NON-NLS-0$ //$NON-NLS-1$
+						progressService.createProgressMonitor(
+							deferred,
+							messages['Resetting local changes']);
+						
+						return deferred.then(function(jsonData){
+							newLook? data.handler.changedItem(items) : explorer.changedItem(items);
+						}, displayErrorOnStatus);
+						
+					}, displayErrorOnStatus
+				);
+			},
+			visibleWhen: function(item) {
+				var items = forceArray(item);
+				ignoreCommand.name = i18nUtil.formatMessage(messages["Ignore"], items.length);
+				return true;
+			}
+		});
+		
+		commandService.addCommand(ignoreCommand);
+		
 		var showPatchCommand = new mCommands.Command({
 			name: messages["Show Patch"],
 			tooltip: messages["Show workspace changes as a patch"],
@@ -2809,7 +2863,6 @@ var exports = {};
 		var pushLogic = mGitPushLogic(pushOptions);
 		var commitLogic = mGitCommitLogic(commitOptions);
 		
-		var commitMessageParameters = commitLogic.createParameters(false);
 		var commitCallback = commitLogic.perform;
 		var displayErrorOnStatus = commitLogic.displayErrorOnStatus;
 		var pushCallback = pushLogic.perform;
@@ -2817,12 +2870,11 @@ var exports = {};
 		
 		var commitAndPushCommand = new mCommands.Command({
 			name: messages["Commit and Push"],
-			tooltip: messages["Commit and Push"],
+			tooltip: messages["Commits and pushes files to the default remote"],
 			id: "eclipse.orion.git.commitAndPushCommand",
-			parameters: commitMessageParameters,
 			callback: function(data) {
 				commitCallback(data).then(function() {
-					serviceRegistry.getService("orion.git.provider").getGitBranch(data.items.status.Clone.BranchLocation).then(
+					serviceRegistry.getService("orion.git.provider").getGitBranch(data.items.Clone.BranchLocation).then(
 							function(resp) { 
 								var branches = resp.Children;
 								var currentBranch;
@@ -2837,18 +2889,20 @@ var exports = {};
 								data.targetBranch = undefined;
 								data.parameters = undefined;
 								
-								data.items = currentBranch;
+								data.items.LocalBranch = currentBranch;
+								data.items.RemoteBranch = currentBranch.RemoteLocation[0].Children[0];
+								
 								pushCallback(data).then(function() {
 									refresh();
 								});
 							},
 							function(err) {
 								displayErrorOnStatus(err);
+								refresh();
 							});
 				},
 				function(err) {
 					displayErrorOnStatus(err);
-					refresh();
 				});
 			},
 			visibleWhen: function(item) {
